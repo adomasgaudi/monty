@@ -29,7 +29,7 @@ with col2:
 
 # Display the results
 if st.button("Submit Bench Press Record"):
-    estimated_1rm = weight * (1 + (reps / 30))
+    estimated_1rm = weight * (reps + 29)/30
     st.info(f"Your estimated 1RM is approximately {estimated_1rm:.1f} kg")
     
     # Create warmup routine table
@@ -68,5 +68,41 @@ if st.button("Submit Bench Press Record"):
     
     st.write("💡 **Tips:** Take 30-60 seconds of rest between warmup sets. For each rep imagine your lifting your 1 rep max.")
     
+    # Create strength training session table
+    st.subheader("💪 Strength Training Session")
+    
+    strength_data = {
+        'Reps': ['1', '4', '4'],
+        'Weight (kg)': [
+            f"{round(estimated_1rm * 0.94):.0f}",
+            f"{round(estimated_1rm * 0.88):.0f}",
+            f"{round(estimated_1rm * 0.87):.0f}"
+        ],
+        'Percentage': ['94%', '88%', '87%']
+    }
+    
+    strength_df = pd.DataFrame(strength_data)
+    
+    # Add custom CSS for strength session table
+    st.markdown("""
+    <style>
+    .strength-table th:nth-child(1), .strength-table td:nth-child(1),
+    .strength-table th:nth-child(2), .strength-table td:nth-child(2) {
+        font-size: 16px;
+        font-weight: bold;
+    }
+    .strength-table th:nth-child(3), .strength-table td:nth-child(3) {
+        font-size: 16px;
+        font-weight: bold;
+    }
+    .strength-table th:nth-child(4), .strength-table td:nth-child(4) {
+        font-size: 11px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.dataframe(strength_df, use_container_width=True, hide_index=True)
+    
+    st.write("💡 **Tips:** Take 2-7 minutes of rest between strength sets. Focus on perfect form and explosive movement.")
     
 

@@ -1,0 +1,5 @@
+gene,rsid_used,genotype,interpretation
+ACTN3,rs1815739,CC,ACTN3: CC → fast-twitch/strength bias (functional α-actinin-3)
+ACE,rs4343,AG,ACE proxy (rs4343 AG): ≈ ID (mixed)
+MSTN,rs1805086,TT,MSTN: TT (unexpected alleles)
+PPARGC1A,rs8192678,TT,PPARGC1A: TT (unexpected alleles)
