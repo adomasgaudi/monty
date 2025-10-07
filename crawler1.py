@@ -2,8 +2,9 @@
 import streamlit as st
 import requests, re, json, time
 import pandas as pd
+import numpy as np
 
-st.set_page_config(page_title="StrengthLevel → CSV (clean + bw%)", layout="centered")
+st.set_page_config(page_title="StrengthLevel → CSV (with 1RM)", layout="centered")
 st.title("StrengthLevel → all workouts (public)")
 
 # Visible NAME -> hidden USERNAME mapping (dropdown shows names)
@@ -18,7 +19,7 @@ NAME_TO_USERNAME = {
     "andrius": "andriusp",
 }
 
-# Body-weight % lifted per exercise (None for "-")
+# Body-weight % lifted per exercise (None for "-" from your list)
 BW_PCT_RAW = {
     "Back Extension": 0.4,
     "Balance lunges twist": 0.6,
@@ -94,7 +95,7 @@ _BW_KEYMAP = {k.strip().lower(): v for k, v in BW_PCT_RAW.items()}
 def _norm(s: str) -> str:
     return (s or "").strip().lower()
 
-# --- UI: choose person by NAME; we’ll look up the username under the hood ---
+# --- UI: choose person by NAME; we look up the username ---
 names = list(NAME_TO_USERNAME.keys())
 default_index = names.index("dzuljeta") if "dzuljeta" in names else 0
 selected_name = st.selectbox("Select person", names, index=default_index)
@@ -106,6 +107,7 @@ if st.button("Fetch workouts"):
     base_page = f"https://my.strengthlevel.com/{username}/workouts"
     st.write(f"GET {base_page}")
 
+    # Load workouts page to extract window.prefill → user_id
     try:
         r = requests.get(base_page, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
         r.raise_for_status()
@@ -113,7 +115,6 @@ if st.button("Fetch workouts"):
         st.error(f"Failed to load workouts page: {e}")
         st.stop()
 
-    # Extract window.prefill to get user_id
     m = re.search(r"window\.prefill\s*=\s*(\[[\s\S]*?\]);", r.text)
     if not m:
         st.error("Could not find window.prefill JSON; page structure changed?")
@@ -258,7 +259,33 @@ if st.button("Fetch workouts"):
     # Add body-weight percentage per exercise (case-insensitive)
     df["bw_pct"] = df["exercise"].map(lambda x: _BW_KEYMAP.get(_norm(x)))
 
-    # Drop unwanted columns: name, username, i, id, any *_id (incl. workout_id)
+    # --- internal weight & 1RM (Epley3) ---
+    # internal weight = bodyweight * bw_pct
+    df["internal_weight"] = df["bodyweight"] * df["bw_pct"]
+
+    # Epley3 (from R_{epley3}(x) = 100(w_REC+w_i) / [3.33(x+w_i)] - 29)
+    # => 1RM (w_REC) = ((R + 29) * 3.33 * (x + w_i)) / 100 - w_i
+    def est_1rm_epley3(reps, wi, x):
+        if pd.isna(reps) or reps <= 0:
+            return np.nan
+        if pd.isna(wi):
+            return np.nan
+        if pd.isna(x):
+            x = 0.0
+        try:
+            r = float(reps)
+            wi = float(wi)
+            x = float(x)
+            return ((r + 29.0) * 3.33 * (x + wi)) / 100.0 - wi
+        except Exception:
+            return np.nan
+
+    df["est_1RM"] = df.apply(
+        lambda row: est_1rm_epley3(row.get("reps"), row.get("internal_weight"), row.get("weight")),
+        axis=1,
+    ).round(1)
+
+    # Drop unwanted columns: name, username, i, id, and any *_id (incl. workout_id)
     drop_cols = set()
     for c in ["name", "username", "i", "id", "workout_id"]:
         if c in df.columns:
@@ -269,7 +296,11 @@ if st.button("Fetch workouts"):
     df = df.drop(columns=list(drop_cols), errors="ignore")
 
     # Reorder to a clean schema
-    preferred = ["date", "bodyweight", "bw_pct", "exercise", "weight", "reps", "notes", "dropset", "percentile"]
+    preferred = [
+        "date", "bodyweight", "bw_pct", "internal_weight",
+        "exercise", "weight", "reps", "est_1RM",
+        "notes", "dropset", "percentile",
+    ]
     df = df[[c for c in preferred if c in df.columns] + [c for c in df.columns if c not in preferred]]
 
     # Format date as MMM-dd (e.g., Oct-02)
@@ -278,12 +309,12 @@ if st.button("Fetch workouts"):
         df["date"] = _parsed.dt.strftime("%b-%d").fillna(df["date"])
 
     st.success(f"Parsed {len(df)} rows across {fetched} workouts for {selected_name} (@{username}).")
-    st.dataframe(df, use_container_width=True, height=600)
+    st.dataframe(df, use_container_width=True, height=640)
     st.caption(f"Total rows: {len(df)}")
 
     st.download_button(
-        "Download CSV (clean + bw%)",
+        "Download CSV (clean + bw% + est_1RM)",
         data=df.to_csv(index=False).encode("utf-8-sig"),
-        file_name=f"{username}_strengthlevel_workouts_clean.csv",
+        file_name=f"{username}_strengthlevel_workouts_clean_1rm.csv",
         mime="text/csv",
     )
