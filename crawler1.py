@@ -3,9 +3,10 @@ import streamlit as st
 import requests, re, json, time
 import pandas as pd
 
-st.set_page_config(page_title="StrengthLevel → CSV (clean)", layout="centered")
+st.set_page_config(page_title="StrengthLevel → CSV (clean + bw%)", layout="centered")
 st.title("StrengthLevel → all workouts (public)")
 
+# Visible NAME -> hidden USERNAME mapping (dropdown shows names)
 NAME_TO_USERNAME = {
     "Adomas": "adomasgaudi",
     "Sandra": "sandrakri",
@@ -17,6 +18,83 @@ NAME_TO_USERNAME = {
     "andrius": "andriusp",
 }
 
+# Body-weight % lifted per exercise (None for "-")
+BW_PCT_RAW = {
+    "Back Extension": 0.4,
+    "Balance lunges twist": 0.6,
+    "Balance squat": 0.6,
+    "Bench Press": 0.0,
+    "Cable Overhead Tricep Extension": 0.0,
+    "Chest Press": 0.0,
+    "Deadlift": 0.2,
+    "Decline Sit Up": 0.3,
+    "Dips": 1.0,
+    "Dumbbell Bench Press": 0.0,
+    "Dumbbell Curl": 0.0,
+    "Dumbbell Finger Curl": 0.0,
+    "Dumbbell Lunge": 0.6,
+    "Dumbbell Shoulder Press": 0.0,
+    "Goblet Squat": 0.6,
+    "Hack Squat": 0.6,
+    "Hammer Curl": 0.0,
+    "Hanging Knee Raise": None,
+    "Hip Thrust": 0.4,
+    "Incline Bench Press": 0.0,
+    "Incline Chest Press": 0.0,
+    "Incline Dumbbell Bench Press": 0.0,
+    "Kettlebell Deadlift": 0.2,
+    "Kettlebell High Pull": None,
+    "Kettlebell Swing": None,
+    "Leg Curl": 0.05,
+    "Leg Extension": 0.05,
+    "Leg Press": 0.05,
+    "Lower Back Extension": 0.3,
+    "Lunge": 0.6,
+    "Lying Leg Raise": 0.2,
+    "Lying Leg Curl": 0.05,
+    "Lying leg curl single leg": 0.05,
+    "Standing Leg Curl": 0.05,
+    "Machine Lateral Raise": None,
+    "Machine Calf Raise": 1,
+    "Military Press": 0.0,
+    "Neutral grip lat pulldown": 0.0,
+    "Oblique Side Bends": 0.3,
+    "Overhead Press": 0.0,
+    "Pallof Press": None,
+    "Pec fly oblique": None,
+    "Plank": 1.0,
+    "Plank one leg": 1.0,
+    "Preacher Curl": 0.0,
+    "Pull Ups": 1.0,
+    "Push Ups": 1.0,
+    "Reverse Grip Lat Pulldown": 0.0,
+    "Roman Chair Side Bend": 0.3,
+    "Romanian Deadlift": 0.2,
+    "STRETCH (tempinai virvute i prieki)": None,
+    "STRETCH - Virvute": None,
+    "Side Plank": 1.0,
+    "Single Dumbbell Cossack Squat": 0.6,
+    "Single Leg Press": 0.05,
+    "Single leg back extension": 0.4,
+    "Sit Up": 0.3,
+    "Skull Crusher": 0.0,
+    "Sled Leg Press": 0.1,
+    "Smith Machine Single Leg Deadlift": 0.2,
+    "Smith Machine Incline Close Grip Push Up": 1,
+    "Smith Machine Squat": 0.6,
+    "Squat": 0.6,
+    "Tricep Pushdown": 0.0,
+    "Nordic Hamstring Curl": None,
+    "One Arm Dumbbell Preacher Curl": 0.0,
+    "One Arm Incline Dumbbell Lateral Raise": 0.0,
+    "One leg RDL": 0.2,
+}
+_BW_KEYMAP = {k.strip().lower(): v for k, v in BW_PCT_RAW.items()}
+
+def _norm(s: str) -> str:
+    return (s or "").strip().lower()
+
+# --- UI: choose person by NAME; we’ll look up the username under the hood ---
 names = list(NAME_TO_USERNAME.keys())
 default_index = names.index("dzuljeta") if "dzuljeta" in names else 0
 selected_name = st.selectbox("Select person", names, index=default_index)
@@ -35,12 +113,18 @@ if st.button("Fetch workouts"):
         st.error(f"Failed to load workouts page: {e}")
         st.stop()
 
+    # Extract window.prefill to get user_id
     m = re.search(r"window\.prefill\s*=\s*(\[[\s\S]*?\]);", r.text)
     if not m:
         st.error("Could not find window.prefill JSON; page structure changed?")
         st.stop()
 
-    prefill = json.loads(m.group(1))
+    try:
+        prefill = json.loads(m.group(1))
+    except Exception:
+        st.error("Failed to parse window.prefill JSON.")
+        st.stop()
+
     user_id = None
     for blob in prefill:
         req = blob.get("request", {})
@@ -54,10 +138,14 @@ if st.button("Fetch workouts"):
         st.error("Could not extract user_id from page JSON.")
         st.stop()
 
+    # Pull workouts via public API (paginate)
     api = "https://my.strengthlevel.com/api/workouts"
     headers = {"User-Agent": "Mozilla/5.0"}
-    rows, limit, offset = [], 200, 0
-    fetched, total_expected = 0, None
+    rows = []
+    limit = 200
+    offset = 0
+    fetched = 0
+    total_expected = None
 
     st.write("Fetching from public API:", api)
     progress = st.progress(0)
@@ -84,7 +172,8 @@ if st.button("Fetch workouts"):
 
         data = payload.get("data", [])
         meta = payload.get("meta", {})
-        total_expected = total_expected or meta.get("count")
+        if total_expected is None:
+            total_expected = meta.get("count")
 
         if not data:
             break
@@ -148,6 +237,7 @@ if st.button("Fetch workouts"):
         offset += limit
         if max_workouts and fetched >= max_workouts:
             break
+
         if total_expected:
             progress.progress(min(1.0, fetched / float(total_expected)))
         time.sleep(0.15)
@@ -165,34 +255,34 @@ if st.button("Fetch workouts"):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="ignore")
 
-    # ---- DROP unwanted columns ----
+    # Add body-weight percentage per exercise (case-insensitive)
+    df["bw_pct"] = df["exercise"].map(lambda x: _BW_KEYMAP.get(_norm(x)))
+
+    # Drop unwanted columns: name, username, i, id, any *_id (incl. workout_id)
     drop_cols = set()
-    # explicitly named:
     for c in ["name", "username", "i", "id", "workout_id"]:
         if c in df.columns:
             drop_cols.add(c)
-    # any *_id columns just in case:
     for c in df.columns:
         if c.endswith("_id"):
             drop_cols.add(c)
-
     df = df.drop(columns=list(drop_cols), errors="ignore")
 
-        # Reorder to a clean, friendly schema
-    preferred = ["date", "bodyweight", "exercise", "weight", "reps", "notes", "dropset", "percentile"]
-    ordered = [c for c in preferred if c in df.columns] + [c for c in df.columns if c not in preferred]
-    df = df[ordered]
+    # Reorder to a clean schema
+    preferred = ["date", "bodyweight", "bw_pct", "exercise", "weight", "reps", "notes", "dropset", "percentile"]
+    df = df[[c for c in preferred if c in df.columns] + [c for c in df.columns if c not in preferred]]
 
-    # >>> NEW: format date as MMM-dd
+    # Format date as MMM-dd (e.g., Oct-02)
     if "date" in df.columns:
         _parsed = pd.to_datetime(df["date"], errors="coerce")
         df["date"] = _parsed.dt.strftime("%b-%d").fillna(df["date"])
 
     st.success(f"Parsed {len(df)} rows across {fetched} workouts for {selected_name} (@{username}).")
-    st.dataframe(df.head(50))
+    st.dataframe(df, use_container_width=True, height=600)
+    st.caption(f"Total rows: {len(df)}")
 
     st.download_button(
-        "Download CSV (clean)",
+        "Download CSV (clean + bw%)",
         data=df.to_csv(index=False).encode("utf-8-sig"),
         file_name=f"{username}_strengthlevel_workouts_clean.csv",
         mime="text/csv",
