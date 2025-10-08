@@ -116,9 +116,7 @@ else:
 
 # Only fetch if we need to (first load or selection changed)
 if should_fetch:
-    # st.info(f"🔄 Auto-fetching workouts for {selected_name}...")
     base_page = f"https://my.strengthlevel.com/{username}/workouts"
-    # st.write(f"GET {base_page}")
 
     # Load workouts page to extract window.prefill → user_id
     try:
@@ -161,7 +159,6 @@ if should_fetch:
     fetched = 0
     total_expected = None
 
-    # st.write("Fetching from public API:", api)
     progress = st.progress(0)
 
     while True:
@@ -320,7 +317,12 @@ if should_fetch:
         df["date"] = _parsed.dt.strftime("%b-%d").fillna(df["date"])
 
     st.success(f"Parsed {len(df)} rows across {fetched} workouts for {selected_name} (@{username}).")
-    st.dataframe(df, use_container_width=True, height=640)
+
+    # Hide selected columns in the on-screen table (keep them in CSV) and hide index
+    hidden_cols = ["date", "bodyweight", "internal_weight", "percentile"]
+    display_df = df.drop(columns=hidden_cols, errors="ignore")
+
+    st.dataframe(display_df, use_container_width=True, height=640, hide_index=True)
     st.caption(f"Total rows: {len(df)}")
 
     st.download_button(
@@ -335,4 +337,3 @@ if should_fetch:
 # -------------------------------------------
 # -------------------------------------------
 # -------------------------------------------
-
