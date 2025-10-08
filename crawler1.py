@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 
 st.set_page_config(page_title="StrengthLevel → CSV (with 1RM)", layout="centered")
-st.title("StrengthLevel → all workouts (public)")
+st.title("StrengthLevel → all workouts")
 
 # Visible NAME -> hidden USERNAME mapping (dropdown shows names)
 NAME_TO_USERNAME = {
@@ -101,11 +101,24 @@ default_index = names.index("dzuljeta") if "dzuljeta" in names else 0
 selected_name = st.selectbox("Select person", names, index=default_index)
 username = NAME_TO_USERNAME[selected_name]
 
-max_workouts = st.number_input("Max workouts to fetch (0 = all)", value=0, min_value=0, step=1)
+# Auto-fetch when selection changes (no button needed)
+# Check if we should fetch (either first load or selection changed)
+should_fetch = True
 
-if st.button("Fetch workouts"):
+# Store the last selected person in session state to detect changes
+if 'last_selected_person' not in st.session_state:
+    st.session_state.last_selected_person = selected_name
+elif st.session_state.last_selected_person != selected_name:
+    st.session_state.last_selected_person = selected_name
+    should_fetch = True
+else:
+    should_fetch = False
+
+# Only fetch if we need to (first load or selection changed)
+if should_fetch:
+    # st.info(f"🔄 Auto-fetching workouts for {selected_name}...")
     base_page = f"https://my.strengthlevel.com/{username}/workouts"
-    st.write(f"GET {base_page}")
+    # st.write(f"GET {base_page}")
 
     # Load workouts page to extract window.prefill → user_id
     try:
@@ -148,7 +161,7 @@ if st.button("Fetch workouts"):
     fetched = 0
     total_expected = None
 
-    st.write("Fetching from public API:", api)
+    # st.write("Fetching from public API:", api)
     progress = st.progress(0)
 
     while True:
@@ -236,8 +249,6 @@ if st.button("Fetch workouts"):
 
         fetched += len(data)
         offset += limit
-        if max_workouts and fetched >= max_workouts:
-            break
 
         if total_expected:
             progress.progress(min(1.0, fetched / float(total_expected)))
