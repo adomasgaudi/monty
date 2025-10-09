@@ -3,95 +3,14 @@ import streamlit as st
 import requests, re, json, time
 import pandas as pd
 import numpy as np
+from variables import NAME_TO_USERNAME, BW_PCT_RAW
 
-st.set_page_config(page_title="StrengthLevel → CSV (with 1RM)", layout="centered")
-st.title("StrengthLevel → all workouts")
+st.set_page_config(page_title="StrengthLevel DATA", layout="centered")
+st.title("StrengthLevel DATA")
 
-# Visible NAME -> hidden USERNAME mapping (dropdown shows names)
-NAME_TO_USERNAME = {
-    "Adomas": "adomasgaudi",
-    "Sandra": "sandrakri",
-    "Pocius": "jpociuss",
-    "Johanness": "johannesschut",
-    "dzuljeta": "dzuljeta",
-    "mantas": "mantasp",
-    "kristina": "andromeda94",
-    "andrius": "andriusp",
-}
 
-# Body-weight % lifted per exercise (None for "-" from your list)
-BW_PCT_RAW = {
-    "Back Extension": 0.4,
-    "Balance lunges twist": 0.6,
-    "Balance squat": 0.6,
-    "Bench Press": 0.0,
-    "Cable Overhead Tricep Extension": 0.0,
-    "Chest Press": 0.0,
-    "Deadlift": 0.2,
-    "Decline Sit Up": 0.3,
-    "Dips": 1.0,
-    "Dumbbell Bench Press": 0.0,
-    "Dumbbell Curl": 0.0,
-    "Dumbbell Finger Curl": 0.0,
-    "Dumbbell Lunge": 0.6,
-    "Dumbbell Shoulder Press": 0.0,
-    "Goblet Squat": 0.6,
-    "Hack Squat": 0.6,
-    "Hammer Curl": 0.0,
-    "Hanging Knee Raise": None,
-    "Hip Thrust": 0.4,
-    "Incline Bench Press": 0.0,
-    "Incline Chest Press": 0.0,
-    "Incline Dumbbell Bench Press": 0.0,
-    "Kettlebell Deadlift": 0.2,
-    "Kettlebell High Pull": None,
-    "Kettlebell Swing": None,
-    "Leg Curl": 0.05,
-    "Leg Extension": 0.05,
-    "Leg Press": 0.05,
-    "Lower Back Extension": 0.3,
-    "Lunge": 0.6,
-    "Lying Leg Raise": 0.2,
-    "Lying Leg Curl": 0.05,
-    "Lying leg curl single leg": 0.05,
-    "Standing Leg Curl": 0.05,
-    "Machine Lateral Raise": None,
-    "Machine Calf Raise": 1,
-    "Military Press": 0.0,
-    "Neutral grip lat pulldown": 0.0,
-    "Oblique Side Bends": 0.3,
-    "Overhead Press": 0.0,
-    "Pallof Press": None,
-    "Pec fly oblique": None,
-    "Plank": 1.0,
-    "Plank one leg": 1.0,
-    "Preacher Curl": 0.0,
-    "Pull Ups": 1.0,
-    "Push Ups": 1.0,
-    "Reverse Grip Lat Pulldown": 0.0,
-    "Roman Chair Side Bend": 0.3,
-    "Romanian Deadlift": 0.2,
-    "STRETCH (tempinai virvute i prieki)": None,
-    "STRETCH - Virvute": None,
-    "Side Plank": 1.0,
-    "Single Dumbbell Cossack Squat": 0.6,
-    "Single Leg Press": 0.05,
-    "Single leg back extension": 0.4,
-    "Sit Up": 0.3,
-    "Skull Crusher": 0.0,
-    "Sled Leg Press": 0.1,
-    "Smith Machine Single Leg Deadlift": 0.2,
-    "Smith Machine Incline Close Grip Push Up": 1,
-    "Smith Machine Squat": 0.6,
-    "Squat": 0.6,
-    "Tricep Pushdown": 0.0,
-    "Nordic Hamstring Curl": None,
-    "One Arm Dumbbell Preacher Curl": 0.0,
-    "One Arm Incline Dumbbell Lateral Raise": 0.0,
-    "One leg RDL": 0.2,
-}
 _BW_KEYMAP = {k.strip().lower(): v for k, v in BW_PCT_RAW.items()}
-
+# st.write("_BW_KEYMAP:", _BW_KEYMAP)  # Streamlit-friendly "console.log"
 def _norm(s: str) -> str:
     return (s or "").strip().lower()
 
