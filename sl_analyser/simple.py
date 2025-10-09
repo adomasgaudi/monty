@@ -18,8 +18,8 @@ except Exception:
         NAME_TO_USERNAME = {}
 
 USER_AGENT = "Mozilla/5.0"
-WORKOUTS_PAGE_TEMPLATE = "https://my.strengthlevel.com/{username}/workouts"
-WORKOUTS_API_URL = "https://my.strengthlevel.com/api/workouts"
+URL_WORKOUTS = "https://my.strengthlevel.com/{username}/workouts"
+API_MY_WORKOUTS = "https://my.strengthlevel.com/api/workouts"
 PREFILL_REGEX = re.compile(r"window\.prefill\s*=\s*(\[[\s\S]*?\]);")
 
 
@@ -58,7 +58,7 @@ def fetch_workouts_payload(user_id: str) -> dict:
         "limit": 1000,
         "offset": 0,
     }
-    response = requests.get(WORKOUTS_API_URL, params=params, headers={"User-Agent": USER_AGENT}, timeout=20)
+    response = requests.get(API_MY_WORKOUTS, params=params, headers={"User-Agent": USER_AGENT}, timeout=20)
     response.raise_for_status()
     return response.json()
 
@@ -84,39 +84,81 @@ def build_dataframe(rows: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def get_names_for_ui() -> list[str]:
+    names_list = list(NAME_TO_USERNAME.keys())
+    return names_list if names_list else ["— no names —"]
+
+
+def get_default_index(names: list[str], preferred: str) -> int:
+    return names.index(preferred) if preferred in names else 0
+
+
+def resolve_username(selected_name: str | None) -> str | None:
+    if not selected_name or selected_name == "— no names —":
+        return None
+    return NAME_TO_USERNAME.get(selected_name)
+
+
+def safe_fetch_rows(username: str) -> tuple[list[dict], str | None]:
+    try:
+        base_page_html = fetch_page(URL_WORKOUTS.format(username=username))
+        user_id = parse_prefill_for_user_id(base_page_html)
+        payload = fetch_workouts_payload(user_id)
+        rows = flatten_workouts(payload)
+        return rows, None
+    except requests.RequestException as exc:
+        return [], f"Network error: {exc}"
+    except ValueError as exc:
+        return [], str(exc)
+    except Exception as exc:
+        return [], f"Unexpected error: {exc}"
+
+def fetch_rows_for_selected_name(selected_name: str) -> list[dict]:
+    username = resolve_username(selected_name)
+    if not username:
+        st.error("No names available. Check variables module import.")
+        st.stop()
+    rows, error_message = safe_fetch_rows(username)
+    if error_message:
+        st.error(error_message)
+        st.stop()
+    return rows
+
+def workouts_table(rows, *, title: str | None = None, transform=None) -> pd.DataFrame | None:
+    """
+    Handles empty-state, builds a DataFrame, applies an optional transform, and renders the table.
+    Returns the rendered DataFrame (or None if nothing to show).
+    """
+    if title:
+        st.subheader(title)
+
+    if not rows:
+        st.info("No workouts found.")
+        return None
+
+    df = build_dataframe(rows)
+    if callable(transform):
+        try:
+            df = transform(df)
+        except Exception as e:
+            st.warning(f"Transform failed: {e}")
+
+    st.dataframe(df, use_container_width=True)
+    return df
+
+names = get_names_for_ui()
+
 # ---------------------------------------
 # UI (Streamlit-only)
 # ---------------------------------------
+
 st.set_page_config(page_title="StrengthLevel DATA")
 st.title("StrengthLevel DATA (minimal)")
 
-names = list(NAME_TO_USERNAME.keys())
-if not names:
-    st.error("No names available. Check variables module import.")
-    st.stop()
+selected_name = st.selectbox("Select person", names, index=get_default_index(names, "dzuljeta"))
+rows = fetch_rows_for_selected_name(selected_name)
 
-selected_index = names.index("dzuljeta") if "dzuljeta" in names else 0
-selected_name = st.selectbox("Select person", names, index=selected_index)
-username = NAME_TO_USERNAME[selected_name]
+_ = workouts_table(rows, title="All workouts")
 
-try:
-    base_page_html = fetch_page(WORKOUTS_PAGE_TEMPLATE.format(username=username))
-    user_id = parse_prefill_for_user_id(base_page_html)
-    payload = fetch_workouts_payload(user_id)
-    rows = flatten_workouts(payload)
-except requests.RequestException as exc:
-    st.error(f"Network error: {exc}")
-    st.stop()
-except ValueError as exc:
-    st.error(str(exc))
-    st.stop()
-except Exception as exc:
-    st.error(f"Unexpected error: {exc}")
-    st.stop()
-
-if not rows:
-    st.info("No workouts found.")
-else:
-    df = build_dataframe(rows)
-    st.dataframe(df, use_container_width=True)
+st.write("to")
 
