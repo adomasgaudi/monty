@@ -8,6 +8,8 @@ import pandas as pd
 import json
 import re
 import time
+from datetime import datetime
+
 
 BASE_URL = "https://my.strengthlevel.com"
 USER_AGENT = "Mozilla/5.0"
@@ -29,6 +31,13 @@ NAME_TO_USERNAME = {
     "kristina": "andromeda94",
     "andrius": "andriusp",
 }
+# ======================================================
+# === UTILS ========================================
+# ======================================================
+
+def format_date(d: str) -> str:
+    return datetime.strptime(d, "%Y-%m-%d").strftime("%b-%d")
+
 
 # ======================================================
 # === FUNCTIONS ========================================
@@ -66,14 +75,15 @@ def fetch_workout_data(user_id: str) -> pd.DataFrame:
             for workout_day in data:
                 for exercise in workout_day.get("exercises", []): 
                     for set_info in exercise.get("sets", []): 
-                        # st.write("set_info")
-                        # st.write(set_info)
-                        workout_sets.append({
-                            "date": workout_day["date"],     
-                            "exercise": exercise["exercise_name"],
-                            **set_info                          
-                        })
-                        # st.write(workout_sets)
+                        
+                        if not set_info.get("time") and not set_info.get("distance"):    
+                            
+                            workout_sets.append({
+                                "date": format_date(workout_day["date"]),     
+                                "exercise": exercise["exercise_name"],
+                                "weight": set_info.get("weight"),
+                                "Reps": set_info.get("reps")                     
+                            })
         
         create_the_table(all_workouts)
                     
@@ -97,17 +107,47 @@ username = NAME_TO_USERNAME[selected_name]
 
 
 
+with st.expander("📋 Full Workout Data", expanded=False):
+    with st.spinner(f"Fetching and rendering {selected_name}'s data..."):
+        user_id = fetch_user_id(username)
+        df = fetch_workout_data(user_id)
+        st.dataframe(df, use_container_width=True, height=640, hide_index=True)
 
-with st.spinner(f"Fetching and rendering {selected_name}'s data..."):
-    user_id = fetch_user_id(username)
-    df = fetch_workout_data(user_id)
-    st.dataframe(df, use_container_width=True, height=640)
     
-    # styled = (
-    # df.style
-    #   .background_gradient(subset=["weight"], cmap="Blues")
-    #   .highlight_max(subset=["reps"], color="lightgreen")
-    #   .format({"weight": "{:.1f}", "reps": "{:.0f}"})
-    # )
-    # st.dataframe(styled, use_container_width=True)  
+
+
+
+
+
+# ---------------------------------------------
+# ---------------------------------------------
+# ---------------------------------------------
+
+
+
+exercise_counts = df["exercise"].value_counts().reset_index()
+exercise_counts.columns = ["exercise", "count"]
+
+st.subheader("Exercise Selector")
+
+# Create dictionary of exercises and counts
+exercise_dict = dict(zip(exercise_counts["exercise"], exercise_counts["count"]))
+
+# Dropdown for selecting an exercise
+selected_exercise = st.selectbox("Choose an exercise", list(exercise_dict.keys()))
+
+
+
+# ======================================================
+# === FILTERED EXERCISE DATAFRAME =======================
+# ======================================================
+
+# Filter the main dataframe to include only the selected exercise
+df_selected_exercise = df[df["exercise"] == selected_exercise].reset_index(drop=True)
+
+with st.expander("📋 Full Workout Data", expanded=False):
+    
+    df_selected_exercise_display = df_selected_exercise.drop(columns=["exercise"], errors="ignore")
+    st.dataframe(df_selected_exercise_display, use_container_width=True, height=480, hide_index=True)
+
 
