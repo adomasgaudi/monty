@@ -46,7 +46,7 @@ def fetch_user_id(username: str) -> str:
 @st.cache_data(show_spinner=False)
 def fetch_workout_data(user_id: str) -> pd.DataFrame:
     """Fetch all workouts quickly using persistent session."""
-    rows, offset = [], 0
+    workout_sets, offset = [], 0
     progress = st.progress(0.0)
     for _ in range(MAX_PAGES):
         params = {
@@ -61,18 +61,29 @@ def fetch_workout_data(user_id: str) -> pd.DataFrame:
         data = resp.get("data", [])
         if not data:
             break
-
-        rows += [
-            {"date": w["date"], "exercise": e["exercise_name"], **s}
-            for w in data
-            for e in w.get("exercises", [])
-            for s in e.get("sets", [])
-        ]
+        
+        
+        
+        
+        for workout_day in data:
+            for exercise in workout_day.get("exercises", []): 
+                for set_info in exercise.get("sets", []): 
+                    # st.write("set_info")
+                    # st.write(set_info)
+                    workout_sets.append({
+                        "date": workout_day["date"],     
+                        "exercise": exercise["exercise_name"],
+                        **set_info                          
+                    })
+                    # st.write(workout_sets)
+                    
+                    
+                    
         offset += FETCH_LIMIT
         progress.progress(min(1.0, offset / (FETCH_LIMIT * 10)))  # simple fake progress
         time.sleep(FETCH_DELAY)
     progress.empty()
-    return pd.json_normalize(rows)
+    return pd.json_normalize(workout_sets)
 
 # ======================================================
 # === MAIN =============================================
