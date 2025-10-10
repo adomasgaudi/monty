@@ -360,14 +360,13 @@ else:
     st.info("No records found for this exercise.")
 
 # ======================================================
-# === EXERCISE VOLUME TREND GRAPH ======================
+# === EXERCISE VOLUME TREND GRAPH (Plotly Mobile Safe) ==
 # ======================================================
 
 if not history_rows:
     st.info("No data available for plotting.")
 else:
-    import matplotlib.pyplot as plt
-    import matplotlib.dates as mdates
+    import plotly.graph_objects as go
     from datetime import datetime, timedelta
 
     # Prepare data
@@ -382,45 +381,58 @@ else:
     if df_plot.empty:
         st.info("No data available for the last 6 months.")
     else:
-        # Create figure
-        fig, ax1 = plt.subplots(figsize=(8, 5))
+        # Create interactive Plotly figure
+        fig = go.Figure()
 
-        # --- Plot Relative Volume (left axis)
-        ax1.bar(
-            df_plot["raw_date"],
-            df_plot["Relative Volume"],
-            color="#9bafd9",
-            width=2.5,
-            label="Relative Volume",
-            alpha=0.7,
-            edgecolor="black",
+        # Relative Volume (bars)
+        fig.add_trace(
+            go.Bar(
+                x=df_plot["raw_date"],
+                y=df_plot["Relative Volume"],
+                name="Relative Volume",
+                marker_color="#9bafd9",
+                opacity=0.8,
+            )
         )
-        ax1.set_xlabel("Date", fontsize=12)
-        ax1.set_ylabel("Relative Volume", color="#3e64ad", fontsize=12)
-        ax1.tick_params(axis="y", labelcolor="#3e64ad")
 
-        # Format x-axis
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%b-%d"))
-        plt.xticks(rotation=45, ha="right")
-
-        # --- Plot Heavy Volume (right axis)
-        ax2 = ax1.twinx()
-        ax2.plot(
-            df_plot["raw_date"],
-            df_plot["Heavy Volume"],
-            color="#d9534f",
-            marker="o",
-            linewidth=2,
-            label="Heavy Volume",
+        # Heavy Volume (line)
+        fig.add_trace(
+            go.Scatter(
+                x=df_plot["raw_date"],
+                y=df_plot["Heavy Volume"],
+                mode="lines+markers",
+                name="Heavy Volume",
+                line=dict(color="#d9534f", width=3),
+                marker=dict(size=8),
+                yaxis="y2",
+            )
         )
-        ax2.set_ylabel("Heavy Volume", color="#d9534f", fontsize=12)
-        ax2.tick_params(axis="y", labelcolor="#d9534f")
 
-        # --- Title and layout
-        plt.title(f"{selected_history_ex} — Volume Trends (Last 6 Months)", fontsize=14, pad=15)
-        fig.autofmt_xdate()
-        plt.tight_layout()
+        # Dual y-axes layout
+        fig.update_layout(
+            title=f"{selected_history_ex} — Volume Trends (Last 6 Months)",
+            xaxis=dict(
+                title="Date",
+                tickformat="%b-%d",
+                showgrid=False,
+            ),
+            yaxis=dict(
+                title="Relative Volume",
+                titlefont=dict(color="#3e64ad"),
+                tickfont=dict(color="#3e64ad"),
+            ),
+            yaxis2=dict(
+                title="Heavy Volume",
+                titlefont=dict(color="#d9534f"),
+                tickfont=dict(color="#d9534f"),
+                overlaying="y",
+                side="right",
+            ),
+            bargap=0.2,
+            legend=dict(x=0.02, y=1.1, orientation="h"),
+            margin=dict(l=50, r=50, t=80, b=50),
+            template="plotly_white",
+        )
 
-        # Display the plot in Streamlit
-        st.pyplot(fig)
-
+        # Show in Streamlit (mobile safe)
+        st.plotly_chart(fig, use_container_width=True)
