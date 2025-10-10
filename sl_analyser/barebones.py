@@ -58,25 +58,24 @@ def fetch_workout_data(user_id: str) -> pd.DataFrame:
             "set.fields": "weight,reps,notes,dropset,percentile",
         }
         resp = SESSION.get(f"{BASE_URL}/api/workouts", params=params).json()
-        data = resp.get("data", [])
-        if not data:
+        all_workouts = resp.get("data", [])
+        if not all_workouts:
             break
         
+        def create_the_table(data):
+            for workout_day in data:
+                for exercise in workout_day.get("exercises", []): 
+                    for set_info in exercise.get("sets", []): 
+                        # st.write("set_info")
+                        # st.write(set_info)
+                        workout_sets.append({
+                            "date": workout_day["date"],     
+                            "exercise": exercise["exercise_name"],
+                            **set_info                          
+                        })
+                        # st.write(workout_sets)
         
-        
-        
-        for workout_day in data:
-            for exercise in workout_day.get("exercises", []): 
-                for set_info in exercise.get("sets", []): 
-                    # st.write("set_info")
-                    # st.write(set_info)
-                    workout_sets.append({
-                        "date": workout_day["date"],     
-                        "exercise": exercise["exercise_name"],
-                        **set_info                          
-                    })
-                    # st.write(workout_sets)
-                    
+        create_the_table(all_workouts)
                     
                     
         offset += FETCH_LIMIT
@@ -94,8 +93,21 @@ st.title("StrengthLevel DATA")
 selected_name = st.selectbox("Select person", list(NAME_TO_USERNAME.keys()))
 username = NAME_TO_USERNAME[selected_name]
 
+
+
+
+
+
 with st.spinner(f"Fetching and rendering {selected_name}'s data..."):
     user_id = fetch_user_id(username)
     df = fetch_workout_data(user_id)
     st.dataframe(df, use_container_width=True, height=640)
+    
+    # styled = (
+    # df.style
+    #   .background_gradient(subset=["weight"], cmap="Blues")
+    #   .highlight_max(subset=["reps"], color="lightgreen")
+    #   .format({"weight": "{:.1f}", "reps": "{:.0f}"})
+    # )
+    # st.dataframe(styled, use_container_width=True)  
 
