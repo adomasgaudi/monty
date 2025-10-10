@@ -1,11 +1,8 @@
 import requests
 import json
 import re
-import pandas as pd
 import time
-from datetime import datetime
 import streamlit as st
-
 
 # ======================================================
 # === CONFIG ===========================================
@@ -14,15 +11,6 @@ import streamlit as st
 FETCH_LIMIT = 200
 FETCH_DELAY = 0.1
 MAX_PAGES = 999  # fetch all
-
-
-# ======================================================
-# === HELPERS ==========================================
-# ======================================================
-
-def format_date(d: str) -> str:
-    """Format YYYY-MM-DD into 'Mon-DD'."""
-    return datetime.strptime(d, "%Y-%m-%d").strftime("%b-%d")
 
 
 # ======================================================
@@ -45,16 +33,17 @@ def fetch_user_id(username: str, headers: dict, base_url: str) -> str:
 
 
 # ======================================================
-# === FETCH WORKOUT DATA ===============================
+# === FETCH RAW WORKOUT DATA ===========================
 # ======================================================
 
 @st.cache_data(show_spinner=False)
-def fetch_workout_data(user_id: str, headers: dict, base_url: str) -> pd.DataFrame:
-    """Fetch all workouts quickly using persistent session."""
+def fetch_raw_workouts(user_id: str, headers: dict, base_url: str):
+    """Fetch all workouts (raw JSON from API)."""
     session = requests.Session()
     session.headers.update(headers)
 
-    workout_sets, offset = [], 0
+    all_workouts = []
+    offset = 0
     progress = st.progress(0.0)
 
     for _ in range(MAX_PAGES):
@@ -68,24 +57,14 @@ def fetch_workout_data(user_id: str, headers: dict, base_url: str) -> pd.DataFra
         }
 
         resp = session.get(f"{base_url}/api/workouts", params=params).json()
-        all_workouts = resp.get("data", [])
-        if not all_workouts:
+        data = resp.get("data", [])
+        if not data:
             break
 
-        for workout_day in all_workouts:
-            for exercise in workout_day.get("exercises", []):
-                for set_info in exercise.get("sets", []):
-                    if not set_info.get("time") and not set_info.get("distance"):
-                        workout_sets.append({
-                            "date": format_date(workout_day["date"]),
-                            "exercise": exercise["exercise_name"],
-                            "weight": set_info.get("weight"),
-                            "Reps": set_info.get("reps")
-                        })
-
+        all_workouts.extend(data)
         offset += FETCH_LIMIT
         progress.progress(min(1.0, offset / (FETCH_LIMIT * 10)))
         time.sleep(FETCH_DELAY)
 
     progress.empty()
-    return pd.json_normalize(workout_sets)
+    return all_workouts

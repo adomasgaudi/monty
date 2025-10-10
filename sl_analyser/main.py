@@ -1,31 +1,83 @@
 import streamlit as st
 import pandas as pd
-from utils import fetch_user_id, fetch_workout_data
-from variables import NAME_TO_USERNAME  # your existing dict
+from utils import fetch_user_id, fetch_raw_workouts
+from variables import NAME_TO_USERNAME
+from datetime import datetime
 
-# --- Constants ---
 BASE_URL = "https://my.strengthlevel.com"
-USER_AGENT = "Mozilla/5.0"
-HEADERS = {"User-Agent": USER_AGENT}
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 
+def format_date(d: str) -> str:
+    return datetime.strptime(d, "%Y-%m-%d").strftime("%b-%d")
+
+def create_workout_df(all_workouts):
+    workout_sets = []
+
+    for workout_day in all_workouts:
+        for exercise in workout_day.get("exercises", []):
+            for set_info in exercise.get("sets", []):
+                if not set_info.get("time") and not set_info.get("distance"):
+                    workout_sets.append({
+                        "date": format_date(workout_day["date"]),
+                        "exercise": exercise["exercise_name"],
+                        "weight": set_info.get("weight"),
+                        "Reps": set_info.get("reps"),
+                    })
+
+    return pd.json_normalize(workout_sets)
+
+def get_data_from_username(selection):
+    username = NAME_TO_USERNAME[selection]
+    user_id = fetch_user_id(username, HEADERS, BASE_URL)
+    raw_data = fetch_raw_workouts(user_id, HEADERS, BASE_URL)
+    return raw_data
+# 
+
+# 
 
 # ======================================================
-# === MAIN =============================================
+# === DROPDOWN =============================================
 # ======================================================
+
+# 
+
+# 
 
 st.title("StrengthLevel DATA")
 
 selected_name = st.selectbox("Select person", list(NAME_TO_USERNAME.keys()))
-username = NAME_TO_USERNAME[selected_name]
+raw_data = get_data_from_username(selected_name)
 
-# --- Main Data Table ---
+# 
+
+# 
+
+# ======================================================
+# === FULL WORKOUT DATA ================================
+# ======================================================
+
+# 
+
+# 
+
 with st.expander("📋 Full Workout Data", expanded=False):
     with st.spinner(f"Fetching and rendering {selected_name}'s data..."):
-        user_id = fetch_user_id(username, HEADERS, BASE_URL)
-        df = fetch_workout_data(user_id, HEADERS, BASE_URL)
+        
+        df = create_workout_df(raw_data)
         st.dataframe(df, use_container_width=True, height=640, hide_index=True)
 
-# --- Exercise Frequency Table ---
+# 
+
+# 
+
+# ======================================================
+# === SINGLE EXERCISE ==================================
+# ======================================================
+
+# 
+
+# 
+
 exercise_counts = df["exercise"].value_counts().reset_index()
 exercise_counts.columns = ["exercise", "count"]
 
@@ -35,7 +87,18 @@ exercise_dict = dict(zip(exercise_counts["exercise"], exercise_counts["count"]))
 selected_exercise = st.selectbox("Choose an exercise", list(exercise_dict.keys()))
 st.write(f"You selected **{selected_exercise}** — there are **{exercise_dict[selected_exercise]}** sets of this exercise.")
 
-# --- Filtered Table (Collapsible) ---
+# 
+
+# 
+
+# ======================================================
+# === SELECTED EXERCISE DATA ===========================
+# ======================================================
+
+# 
+
+# 
+
 df_selected_exercise = df[df["exercise"] == selected_exercise].reset_index(drop=True)
 
 with st.expander(f"📋 Sets for {selected_exercise}", expanded=False):
