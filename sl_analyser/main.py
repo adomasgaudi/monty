@@ -130,21 +130,20 @@ raw_data = get_data_from_username(selected_name)
 # 
 
 # 
-
 # ======================================================
 # === FULL WORKOUT DATA ================================
 # ======================================================
 
-# 
-
-# 
-
-with st.expander("📋 Full Workout Data", expanded=False):
+with st.expander("📋 Full Workout Data (Grouped by Date)", expanded=False):
     with st.spinner(f"Fetching and rendering {selected_name}'s data..."):
-        
         df = create_workout_df(raw_data)
-        st.dataframe(df, use_container_width=True, height=640, hide_index=True)
+        grouped = df.groupby("date")
 
+        # Create one mini-table per date
+        for date, group in grouped:
+            st.markdown(f"### 🗓️ {date}")
+            st.dataframe(group.drop(columns=["date"], errors="ignore"),
+                         use_container_width=True, height=300, hide_index=True)
 # 
 
 # 
