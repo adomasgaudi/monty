@@ -18,7 +18,19 @@ def format_date(d: str) -> str:
 
 def epley3_reps(w: float, w_rec: float, w_i: float) -> float:
     """Estimate reps given weight, 1RM, and internal load."""
-    return (100 * (w_rec + w_i)) / (3.33 * (w + w_i)) - 29
+    if w is None or w_rec is None or w_i is None:
+        return None
+
+    denom = 3.33 * (w + w_i)
+    if denom == 0:  # prevent divide-by-zero crash
+        return None
+
+    try:
+        reps = (100 * (w_rec + w_i)) / denom - 29
+        return round(reps, 2)
+    except Exception:
+        return None
+
 
 
 def epley3_record(w: float, reps: float, w_i: float) -> float:
