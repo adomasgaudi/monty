@@ -13,7 +13,11 @@ BASE_URL = "https://my.strengthlevel.com"
 USER_AGENT = "Mozilla/5.0"
 FETCH_LIMIT = 200
 FETCH_DELAY = 0.1
-MAX_PAGES = 1   # for faster demo; increase to fetch all
+MAX_PAGES = 999  # fetch all
+
+HEADERS = {"User-Agent": USER_AGENT}
+SESSION = requests.Session()
+SESSION.headers.update(HEADERS)
 
 NAME_TO_USERNAME = {
     "Adomas": "adomasgaudi",
@@ -26,76 +30,61 @@ NAME_TO_USERNAME = {
     "andrius": "andriusp",
 }
 
-HEADERS = {"User-Agent": USER_AGENT}
-
-
 # ======================================================
 # === FUNCTIONS ========================================
 # ======================================================
 
+@st.cache_data(show_spinner=False)
 def fetch_user_id(username: str) -> str:
-    """Fetch the user's StrengthLevel page and extract user_id."""
-    html = requests.get(f"{BASE_URL}/{username}/workouts", headers=HEADERS).text
+    """Extract user_id from user’s workouts page."""
+    html = SESSION.get(f"{BASE_URL}/{username}/workouts").text
     match = re.search(r"window\.prefill\s*=\s*(\[[\s\S]*?\]);", html)
-    prefill_json = match.group(1)
-    prefill_data = json.loads(prefill_json)
-    return prefill_data[0]["request"]["params"]["user_id"]
+    prefill = json.loads(match.group(1))
+    return prefill[0]["request"]["params"]["user_id"]
 
 
+@st.cache_data(show_spinner=False)
 def fetch_workout_data(user_id: str) -> pd.DataFrame:
-    """Fetch limited workout data for speed."""
-    all_sets, offset, page_count = [], 0, 0
-    session = requests.Session(); session.headers.update(HEADERS)
-
-    params = {
-        "user_id": user_id,
-        "limit": FETCH_LIMIT,
-        "offset": offset,
-        "workout.fields": "date,bodyweight,exercises",
-        "workoutexercise.fields": "exercise_name,sets",
-        "set.fields": "weight,reps,notes,dropset,percentile",
-    }
-    while True:
-
-        response = session.get(f"{BASE_URL}/api/workouts", params=params).json()
-        page = response.get("data", [])
-        if not page:
+    """Fetch all workouts quickly using persistent session."""
+    rows, offset = [], 0
+    progress = st.progress(0.0)
+    for _ in range(MAX_PAGES):
+        params = {
+            "user_id": user_id,
+            "limit": FETCH_LIMIT,
+            "offset": offset,
+            "workout.fields": "date,bodyweight,exercises",
+            "workoutexercise.fields": "exercise_name,sets",
+            "set.fields": "weight,reps,notes,dropset,percentile",
+        }
+        resp = SESSION.get(f"{BASE_URL}/api/workouts", params=params).json()
+        data = resp.get("data", [])
+        if not data:
             break
 
-        # Flatten nested JSON
-        all_sets += [
-            {"date": workout["date"], "exercise": exercise["exercise_name"], **sets}
-            for workout in page
-            for exercise in workout.get("exercises", [])
-            for sets in exercise.get("sets", [])
+        rows += [
+            {"date": w["date"], "exercise": e["exercise_name"], **s}
+            for w in data
+            for e in w.get("exercises", [])
+            for s in e.get("sets", [])
         ]
-        st.write('hi bruv')
-
         offset += FETCH_LIMIT
-        page_count += 1
-        if page_count >= MAX_PAGES:
-            break
+        progress.progress(min(1.0, offset / (FETCH_LIMIT * 10)))  # simple fake progress
         time.sleep(FETCH_DELAY)
+    progress.empty()
+    return pd.json_normalize(rows)
 
-    return pd.json_normalize(all_sets)
-
-def fetch_logic():
-    user_id = fetch_user_id(NAME_TO_USERNAME[selected_name])
-    df = fetch_workout_data(user_id)
-    return df
 # ======================================================
 # === MAIN =============================================
 # ======================================================
 
 st.title("StrengthLevel DATA")
-selected_name = st.selectbox("Select person", list(NAME_TO_USERNAME.keys()))
 
-def main_logic():
-    df = fetch_logic()
-    return df
-    
+selected_name = st.selectbox("Select person", list(NAME_TO_USERNAME.keys()))
+username = NAME_TO_USERNAME[selected_name]
 
 with st.spinner(f"Fetching and rendering {selected_name}'s data..."):
-    df = main_logic() 
-    st.dataframe(df)
+    user_id = fetch_user_id(username)
+    df = fetch_workout_data(user_id)
+    st.dataframe(df, use_container_width=True, height=640)
 
