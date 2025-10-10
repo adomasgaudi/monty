@@ -144,21 +144,22 @@ def workouts_table(rows, *, title: str | None = None, transform=None) -> pd.Data
             st.warning(f"Transform failed: {e}")
 
     st.dataframe(df, use_container_width=True)
-    return df
+    
 
 names = get_names_for_ui()
+
+def select_and_fetch() -> list[dict]:
+    """Select person and return their workout data."""
+    selected_name = st.selectbox("Select person", names, index=get_default_index(names, "dzuljeta"))
+    return fetch_rows_for_selected_name(selected_name)
 
 # ---------------------------------------
 # UI (Streamlit-only)
 # ---------------------------------------
-
 st.set_page_config(page_title="StrengthLevel DATA")
 st.title("StrengthLevel DATA (minimal)")
 
-selected_name = st.selectbox("Select person", names, index=get_default_index(names, "dzuljeta"))
-rows = fetch_rows_for_selected_name(selected_name)
+rows = select_and_fetch()
+workouts_table(rows, title="All workouts")
 
-_ = workouts_table(rows, title="All workouts")
-
-st.write("to")
 
