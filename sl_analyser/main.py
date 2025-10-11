@@ -5,7 +5,7 @@ from variables import NAME_TO_USERNAME, EXERCISE_DATA
 from datetime import datetime, timedelta
 
 # --- Mobile-friendly styling ---
-st.write("v.a2")
+st.write("v.a3")
 st.markdown("""
 <style>
 /* Make select boxes shrink to content width instead of 100% */
@@ -110,7 +110,7 @@ def enrich_workouts_with_1rm(raw_data):
             one_rms = []
             w_i = exercise.get("internal_load", 0.0)
             for s in exercise.get("sets", []):
-                w = s.get("weight") or 0  # 👈 convert None → 0
+                w = s.get("weight") or 0
                 r = s.get("reps") or 0
                 if w > 0 and r > 0:
                     one_rm = epley3_record(w, r, w_i)
@@ -132,7 +132,7 @@ def enrich_workouts_with_rir(raw_data):
             if one_rm is None:
                 continue
             for s in exercise.get("sets", []):
-                w = s.get("weight") or 0  # 👈 convert None → 0
+                w = s.get("weight") or 0
                 r = s.get("reps") or 0
                 if w > 0 and r > 0:
                     max_reps = epley3_reps(w, one_rm, w_i)
@@ -146,6 +146,21 @@ def enrich_workouts_with_rir(raw_data):
     return raw_data
 
 
+def enrich_workouts_with_hard_sets(raw_data):
+    """Add count of 'hard sets' to each exercise (reps > 3 and RIR < 3)."""
+    for workout in raw_data:
+        for exercise in workout.get("exercises", []):
+            hard_count = 0
+            for s in exercise.get("sets", []):
+                reps = s.get("reps")
+                rir = s.get("RIR")
+                if reps is not None and rir is not None:
+                    if reps > 3 and rir < 3:
+                        hard_count += 1
+            exercise["hard_sets"] = hard_count
+    return raw_data
+
+
 def enrich_workouts_with_volume(raw_data):
     """Compute per-exercise training volume for each workout."""
     for workout in raw_data:
@@ -154,7 +169,7 @@ def enrich_workouts_with_volume(raw_data):
             total_volume = 0
             relative_volume = 0
             for s in exercise.get("sets", []):
-                w = s.get("weight") or 0  # 👈 convert None → 0
+                w = s.get("weight") or 0
                 r = s.get("reps") or 0
                 total_volume += w * r
                 if one_rm > 0:
@@ -177,7 +192,7 @@ def enrich_workouts_with_heavy_volume(raw_data):
             t93_external = (0.93 * (one_rm + w_i)) - w_i
             heavy_points = 0
             for s in exercise.get("sets", []):
-                w = s.get("weight") or 0  # 👈 convert None → 0
+                w = s.get("weight") or 0
                 r = s.get("reps") or 0
                 if w > t93_external:
                     heavy_points += 2 * r
@@ -185,6 +200,7 @@ def enrich_workouts_with_heavy_volume(raw_data):
                     heavy_points += r
             exercise["volume_heavy"] = heavy_points
     return raw_data
+
 
 # ======================================================
 # === DATAFRAME CREATION ===============================
@@ -205,22 +221,10 @@ def create_workout_df(all_workouts):
                         "Reps": set_info.get("reps"),
                         "1RM": exercise.get("one_rep_max"),
                     })
-
-        # Add the day’s rows
         workout_sets.extend(day_rows)
-
-        # Add an empty separator row (except after the last day)
         if i < len(all_workouts) - 1:
-            workout_sets.append({
-                "date": "",
-                "exercise": "",
-                "weight": None,
-                "Reps": None,
-                "1RM": None,
-            })
-
+            workout_sets.append({"date": "", "exercise": "", "weight": None, "Reps": None, "1RM": None})
     return pd.json_normalize(workout_sets)
-
 
 
 def get_data_from_username(selection):
@@ -231,6 +235,7 @@ def get_data_from_username(selection):
     enriched = enrich_workouts_with_bodyweight_load(raw_data)
     enriched = enrich_workouts_with_1rm(enriched)
     enriched = enrich_workouts_with_rir(enriched)
+    enriched = enrich_workouts_with_hard_sets(enriched)  # 👈 new step
     enriched = enrich_workouts_with_volume(enriched)
     enriched = enrich_workouts_with_heavy_volume(enriched)
     return enriched
@@ -240,71 +245,56 @@ def get_data_from_username(selection):
 # === UI: SELECTION ====================================
 # ======================================================
 
-# 
-
-# 
-
-
 selected_name = st.selectbox("Select person", list(NAME_TO_USERNAME.keys()))
 raw_data = get_data_from_username(selected_name)
 
 st.title("StrengthLevel DATA")
-# 
 
-# 
 # ======================================================
 # === FULL WORKOUT DATA ================================
 # ======================================================
-
 
 with st.expander("📋 Full Workout Data", expanded=False):
     with st.spinner(f"Fetching and rendering {selected_name}'s data..."):
         df = create_workout_df(raw_data)
 
-        # Add a scroll-friendly container
+        # ======================================================
+        # === EXERCISE ACTIVITY (LAST 4 MONTHS) ================
+        # ======================================================
+        df["date_dt"] = pd.to_datetime(df["date"], format="%b-%d", errors="coerce")
+        cutoff_date = datetime.now() - timedelta(days=120)
+        df_recent = df[df["date_dt"] >= cutoff_date].copy()
+
+        df_exercise_counts_4m = (
+            df_recent.groupby("exercise")
+            .size()
+            .reset_index(name="entries_last_4m")
+            .sort_values("entries_last_4m", ascending=False)
+        )
+
+        st.subheader("📈 Exercise Frequency (Last 4 Months)")
+        st.dataframe(df_exercise_counts_4m, use_container_width=True, hide_index=True)
+        st.session_state["exercise_counts_4m"] = df_exercise_counts_4m
+
         st.markdown(
             """
             <style>
-            .scroll-container {
-                overflow-x: auto;
-                padding-left: 10px;
-                padding-right: 10px;
-            }
-            .scroll-container::-webkit-scrollbar {
-                height: 8px;
-            }
-            .scroll-container::-webkit-scrollbar-thumb {
-                background-color: #bbb;
-                border-radius: 4px;
-            }
+            .scroll-container {overflow-x: auto; padding-left: 10px; padding-right: 10px;}
+            .scroll-container::-webkit-scrollbar {height: 8px;}
+            .scroll-container::-webkit-scrollbar-thumb {background-color: #bbb; border-radius: 4px;}
             </style>
             """,
             unsafe_allow_html=True
         )
-
         st.markdown('<div class="scroll-container">', unsafe_allow_html=True)
-        st.dataframe(
-            df,
-            use_container_width=False,  # 👈 don’t stretch full screen
-            height=320,                 # 👈 make it shorter vertically
-            hide_index=True,
-        )
+        st.dataframe(df, use_container_width=False, height=320, hide_index=True)
         st.markdown("</div>", unsafe_allow_html=True)
-# 
-# --- Add substantial vertical space before next section ---
-st.markdown(
-    """
-    <div style="height: 200px;"></div>
-    """,
-    unsafe_allow_html=True
-)
+
+st.markdown("""<div style="height: 200px;"></div>""", unsafe_allow_html=True)
+
 # ======================================================
 # === SINGLE EXERCISE ==================================
 # ======================================================
-
-# 
-
-# 
 
 exercise_counts = df["exercise"].value_counts().reset_index()
 exercise_counts.columns = ["exercise", "count"]
@@ -313,16 +303,6 @@ st.subheader("Exercise Selector")
 exercise_dict = dict(zip(exercise_counts["exercise"], exercise_counts["count"]))
 selected_exercise = st.selectbox("Choose an exercise", list(exercise_dict.keys()))
 st.write(f"You selected **{selected_exercise}** — {exercise_dict[selected_exercise]} sets recorded.")
-
-# 
-
-# ======================================================
-# === SELECTED EXERCISE DATA ===========================
-# ======================================================
-
-# 
-
-# 
 
 df_selected_exercise = df[df["exercise"] == selected_exercise].reset_index(drop=True)
 with st.expander(f"📋 Sets for {selected_exercise}", expanded=False):
@@ -339,33 +319,23 @@ with st.expander("📊 Daily Exercise Volume Summary", expanded=False):
     for i, workout_day in enumerate(raw_data):
         date_str = format_date(workout_day["date"])
         day_rows = []
-
         for exercise in workout_day.get("exercises", []):
             day_rows.append({
                 "date": date_str,
                 "exercise": exercise.get("exercise_name", ""),
                 "Relative Volume": exercise.get("volume_relative", 0),
                 "Heavy Volume": exercise.get("volume_heavy", 0),
+                "Hard Sets": exercise.get("hard_sets", 0),  # 👈 new column
             })
-
-        # Add the day’s rows
         summary_rows.extend(day_rows)
-
-        # Add an empty separator row (except after the last day)
         if i < len(raw_data) - 1:
-            summary_rows.append({
-                "date": "",
-                "exercise": "",
-                "Relative Volume": None,
-                "Heavy Volume": None,
-            })
+            summary_rows.append({"date": "", "exercise": "", "Relative Volume": None, "Heavy Volume": None, "Hard Sets": None})
 
     if summary_rows:
         df_summary = pd.DataFrame(summary_rows)
         st.dataframe(df_summary, use_container_width=True, hide_index=True, height=480)
     else:
         st.info("No volume data available yet.")
-
 
 
 # ======================================================
@@ -393,6 +363,7 @@ for workout_day in raw_data:
                 "date": formatted_date,
                 "Relative Volume": exercise.get("volume_relative", 0),
                 "Heavy Volume": exercise.get("volume_heavy", 0),
+                "Hard Sets": exercise.get("hard_sets", 0),
             })
 
 if history_rows:
@@ -409,52 +380,26 @@ else:
 
 if history_rows:
     import plotly.graph_objects as go
-
     df_plot = pd.DataFrame(history_rows).copy()
-    df_plot["raw_date"] = pd.to_datetime(df_plot["raw_date"], errors="coerce")
+    df_plot["raw_date"] = pd.to_datetime(df_plot["date"], errors="coerce")
     df_plot = df_plot.dropna(subset=["raw_date"]).sort_values("raw_date")
     cutoff_date = datetime.now() - timedelta(days=180)
     df_plot = df_plot[df_plot["raw_date"] >= cutoff_date]
 
     if not df_plot.empty:
         fig = go.Figure()
-
-        fig.add_trace(go.Bar(
-            x=df_plot["raw_date"],
-            y=df_plot["Relative Volume"],
-            name="Relative Volume",
-            marker_color="#9bafd9",
-            opacity=0.8,
-        ))
-
-        fig.add_trace(go.Scatter(
-            x=df_plot["raw_date"],
-            y=df_plot["Heavy Volume"],
-            mode="lines+markers",
-            name="Heavy Volume",
-            line=dict(color="#d9534f", width=3),
-            marker=dict(size=8),
-            yaxis="y2",
-        ))
-
+        fig.add_trace(go.Bar(x=df_plot["raw_date"], y=df_plot["Relative Volume"], name="Relative Volume", marker_color="#9bafd9", opacity=0.8))
+        fig.add_trace(go.Scatter(x=df_plot["raw_date"], y=df_plot["Heavy Volume"], mode="lines+markers", name="Heavy Volume",
+                                 line=dict(color="#d9534f", width=3), marker=dict(size=8), yaxis="y2"))
         fig.update_layout(
             title=f"{selected_history_ex} — Volume Trends (Last 6 Months)",
             xaxis=dict(title="Date", tickformat="%b-%d", showgrid=False),
-            yaxis=dict(
-                title=dict(text="Relative Volume", font=dict(color="#3e64ad")),
-                tickfont=dict(color="#3e64ad"),
-            ),
-            yaxis2=dict(
-                title=dict(text="Heavy Volume", font=dict(color="#d9534f")),
-                tickfont=dict(color="#d9534f"),
-                overlaying="y",
-                side="right",
-            ),
+            yaxis=dict(title=dict(text="Relative Volume", font=dict(color="#3e64ad")), tickfont=dict(color="#3e64ad")),
+            yaxis2=dict(title=dict(text="Heavy Volume", font=dict(color="#d9534f")), tickfont=dict(color="#d9534f"), overlaying="y", side="right"),
             bargap=0.2,
             legend=dict(x=0.02, y=1.1, orientation="h"),
             margin=dict(l=50, r=50, t=80, b=50),
             template="plotly_white",
         )
-
         st.plotly_chart(fig, use_container_width=True)
-        st.write("v.a2")
+        st.write("v.a3")
