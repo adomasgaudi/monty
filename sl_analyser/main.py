@@ -5,6 +5,7 @@ from variables import NAME_TO_USERNAME, EXERCISE_DATA
 from datetime import datetime, timedelta
 
 # --- Mobile-friendly styling ---
+st.write("v.a2")
 st.markdown("""
 <style>
 /* Make select boxes shrink to content width instead of 100% */
@@ -456,4 +457,4 @@ if history_rows:
         )
 
         st.plotly_chart(fig, use_container_width=True)
-        st.write("v.a1")
+        st.write("v.a2")
