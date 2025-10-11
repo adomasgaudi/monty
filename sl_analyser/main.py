@@ -109,15 +109,16 @@ def enrich_workouts_with_1rm(raw_data):
             one_rms = []
             w_i = exercise.get("internal_load", 0.0)
             for s in exercise.get("sets", []):
-                w = s.get("weight")
-                r = s.get("reps")
-                if w is not None and r is not None:
+                w = s.get("weight") or 0  # 👈 convert None → 0
+                r = s.get("reps") or 0
+                if w > 0 and r > 0:
                     one_rm = epley3_record(w, r, w_i)
                     if one_rm is not None:
                         s["one_rep_max"] = one_rm
                         one_rms.append(one_rm)
+                else:
+                    s["one_rep_max"] = None
             exercise["one_rep_max"] = max(one_rms) if one_rms else None
-    # st.write(raw_data)
     return raw_data
 
 
@@ -130,15 +131,17 @@ def enrich_workouts_with_rir(raw_data):
             if one_rm is None:
                 continue
             for s in exercise.get("sets", []):
-                w = s.get("weight")
-                r = s.get("reps")
-                if w is not None and r is not None:
+                w = s.get("weight") or 0  # 👈 convert None → 0
+                r = s.get("reps") or 0
+                if w > 0 and r > 0:
                     max_reps = epley3_reps(w, one_rm, w_i)
-                    # st.write(max_reps)
                     if max_reps is not None:
                         rir = round(max_reps - r, 2)
                         s["RIR"] = rir
                         s["max_reps"] = max_reps
+                else:
+                    s["RIR"] = None
+                    s["max_reps"] = None
     return raw_data
 
 
@@ -146,14 +149,14 @@ def enrich_workouts_with_volume(raw_data):
     """Compute per-exercise training volume for each workout."""
     for workout in raw_data:
         for exercise in workout.get("exercises", []):
-            one_rm = exercise.get("one_rep_max")
+            one_rm = exercise.get("one_rep_max") or 0
             total_volume = 0
             relative_volume = 0
             for s in exercise.get("sets", []):
-                w = s.get("weight") or 0
+                w = s.get("weight") or 0  # 👈 convert None → 0
                 r = s.get("reps") or 0
                 total_volume += w * r
-                if one_rm and one_rm > 0:
+                if one_rm > 0:
                     relative_volume += (w * r) / (one_rm * 0.8)
             exercise["volume_raw"] = round(total_volume, 2)
             exercise["volume_relative"] = round(relative_volume, 3)
@@ -164,16 +167,16 @@ def enrich_workouts_with_heavy_volume(raw_data):
     """Compute heavy volume (85% & 93% thresholds) adjusted for internal load."""
     for workout in raw_data:
         for exercise in workout.get("exercises", []):
-            one_rm = exercise.get("one_rep_max")
+            one_rm = exercise.get("one_rep_max") or 0
             w_i = exercise.get("internal_load", 0.0)
-            if not one_rm or one_rm <= 0:
+            if one_rm <= 0:
                 exercise["volume_heavy"] = 0
                 continue
             t85_external = (0.85 * (one_rm + w_i)) - w_i
             t93_external = (0.93 * (one_rm + w_i)) - w_i
             heavy_points = 0
             for s in exercise.get("sets", []):
-                w = s.get("weight") or 0
+                w = s.get("weight") or 0  # 👈 convert None → 0
                 r = s.get("reps") or 0
                 if w > t93_external:
                     heavy_points += 2 * r
@@ -181,7 +184,6 @@ def enrich_workouts_with_heavy_volume(raw_data):
                     heavy_points += r
             exercise["volume_heavy"] = heavy_points
     return raw_data
-
 
 # ======================================================
 # === DATAFRAME CREATION ===============================
