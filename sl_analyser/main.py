@@ -4,6 +4,35 @@ from utils import fetch_user_id, fetch_raw_workouts
 from variables import NAME_TO_USERNAME, EXERCISE_DATA
 from datetime import datetime, timedelta
 
+# --- Mobile-friendly styling ---
+st.markdown("""
+<style>
+/* Make select boxes shrink to content width instead of 100% */
+div[data-baseweb="select"] > div {
+    width: fit-content !important;
+    min-width: 180px !important;
+    max-width: 90vw !important; /* prevent overflow on phones */
+}
+
+/* Add some margin so it doesn’t hug the edges */
+.stSelectbox {
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+/* Make Streamlit widgets not stretch full width */
+.stSelectbox > div > div {
+    display: inline-block !important;
+}
+
+/* Center buttons and inputs better on narrow screens */
+[data-testid="stFormSubmitButton"], .stButton button {
+    width: fit-content !important;
+    padding: 0.4rem 1rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 BASE_URL = "https://my.strengthlevel.com"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
@@ -196,11 +225,11 @@ def get_data_from_username(selection):
 
 # 
 
-st.title("StrengthLevel DATA")
 
 selected_name = st.selectbox("Select person", list(NAME_TO_USERNAME.keys()))
 raw_data = get_data_from_username(selected_name)
 
+st.title("StrengthLevel DATA")
 # 
 
 # 
@@ -212,10 +241,44 @@ raw_data = get_data_from_username(selected_name)
 with st.expander("📋 Full Workout Data", expanded=False):
     with st.spinner(f"Fetching and rendering {selected_name}'s data..."):
         df = create_workout_df(raw_data)
-        st.dataframe(df, use_container_width=True, height=640, hide_index=True)
 
+        # Add a scroll-friendly container
+        st.markdown(
+            """
+            <style>
+            .scroll-container {
+                overflow-x: auto;
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            .scroll-container::-webkit-scrollbar {
+                height: 8px;
+            }
+            .scroll-container::-webkit-scrollbar-thumb {
+                background-color: #bbb;
+                border-radius: 4px;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.markdown('<div class="scroll-container">', unsafe_allow_html=True)
+        st.dataframe(
+            df,
+            use_container_width=False,  # 👈 don’t stretch full screen
+            height=320,                 # 👈 make it shorter vertically
+            hide_index=True,
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
 # 
-
+# --- Add substantial vertical space before next section ---
+st.markdown(
+    """
+    <div style="height: 200px;"></div>
+    """,
+    unsafe_allow_html=True
+)
 # ======================================================
 # === SINGLE EXERCISE ==================================
 # ======================================================

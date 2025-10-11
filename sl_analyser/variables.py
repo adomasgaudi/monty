@@ -3,10 +3,11 @@ NAME_TO_USERNAME = {
     "Sandra": "sandrakri",
     "Pocius": "jpociuss",
     "Johanness": "johannesschut",
-    "dzuljeta": "dzuljeta",
-    "mantas": "mantasp",
-    "kristina": "andromeda94",
-    "andrius": "andriusp",
+    "Dzuljeta": "dzuljeta",
+    "Mantas": "mantasp",
+    "Kristina": "andromeda94",
+    "Andrius": "andriusp",
+    "Povilas": "pieringis"
 }
 
 BW_PCT_RAW = {
