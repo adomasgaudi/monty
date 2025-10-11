@@ -158,8 +158,8 @@ def enrich_workouts_with_volume(raw_data):
                 total_volume += w * r
                 if one_rm > 0:
                     relative_volume += (w * r) / (one_rm * 0.8)
-            exercise["volume_raw"] = round(total_volume, 2)
-            exercise["volume_relative"] = round(relative_volume, 3)
+            exercise["volume_raw"] = round(total_volume, 0)
+            exercise["volume_relative"] = round(relative_volume, 0)
     return raw_data
 
 
@@ -190,20 +190,36 @@ def enrich_workouts_with_heavy_volume(raw_data):
 # ======================================================
 
 def create_workout_df(all_workouts):
-    """Flatten enriched JSON into a clean DataFrame."""
+    """Flatten enriched JSON into a clean DataFrame, adding empty row between days."""
     workout_sets = []
-    for workout_day in all_workouts:
+    for i, workout_day in enumerate(all_workouts):
+        day_rows = []
         for exercise in workout_day.get("exercises", []):
             for set_info in exercise.get("sets", []):
                 if not set_info.get("time") and not set_info.get("distance"):
-                    workout_sets.append({
+                    day_rows.append({
                         "date": format_date(workout_day["date"]),
                         "exercise": exercise["exercise_name"],
                         "weight": set_info.get("weight"),
                         "Reps": set_info.get("reps"),
                         "1RM": exercise.get("one_rep_max"),
                     })
+
+        # Add the day’s rows
+        workout_sets.extend(day_rows)
+
+        # Add an empty separator row (except after the last day)
+        if i < len(all_workouts) - 1:
+            workout_sets.append({
+                "date": "",
+                "exercise": "",
+                "weight": None,
+                "Reps": None,
+                "1RM": None,
+            })
+
     return pd.json_normalize(workout_sets)
+
 
 
 def get_data_from_username(selection):
@@ -319,20 +335,36 @@ with st.expander(f"📋 Sets for {selected_exercise}", expanded=False):
 
 with st.expander("📊 Daily Exercise Volume Summary", expanded=False):
     summary_rows = []
-    for workout_day in raw_data:
+    for i, workout_day in enumerate(raw_data):
         date_str = format_date(workout_day["date"])
+        day_rows = []
+
         for exercise in workout_day.get("exercises", []):
-            summary_rows.append({
+            day_rows.append({
                 "date": date_str,
                 "exercise": exercise.get("exercise_name", ""),
                 "Relative Volume": exercise.get("volume_relative", 0),
                 "Heavy Volume": exercise.get("volume_heavy", 0),
             })
+
+        # Add the day’s rows
+        summary_rows.extend(day_rows)
+
+        # Add an empty separator row (except after the last day)
+        if i < len(raw_data) - 1:
+            summary_rows.append({
+                "date": "",
+                "exercise": "",
+                "Relative Volume": None,
+                "Heavy Volume": None,
+            })
+
     if summary_rows:
         df_summary = pd.DataFrame(summary_rows)
         st.dataframe(df_summary, use_container_width=True, hide_index=True, height=480)
     else:
         st.info("No volume data available yet.")
+
 
 
 # ======================================================
