@@ -310,10 +310,11 @@ with st.expander(f"📋 Sets for {selected_exercise}", expanded=False):
                  use_container_width=True, height=480, hide_index=True)
 
 
+
 # ======================================================
 # === DAILY VOLUME SUMMARY =============================
 # ======================================================
-
+st.write("-------------------ehehe")
 with st.expander("📊 Daily Exercise Volume Summary", expanded=False):
     summary_rows = []
     for i, workout_day in enumerate(raw_data):
@@ -336,6 +337,110 @@ with st.expander("📊 Daily Exercise Volume Summary", expanded=False):
         st.dataframe(df_summary, use_container_width=True, hide_index=True, height=480)
     else:
         st.info("No volume data available yet.")
+
+# ======================================================
+# === WEEKLY VOLUME SUMMARY + HISTOGRAM ================
+# ======================================================
+
+weekly_rows = []
+
+# Flatten all exercises with metrics and week labels
+for workout_day in raw_data:
+    raw_date = workout_day.get("date")
+    if not raw_date:
+        continue
+    date_obj = datetime.strptime(raw_date, "%Y-%m-%d")
+    iso_year, iso_week, _ = date_obj.isocalendar()
+    week_label = f"{iso_year}-W{iso_week:02d}"
+
+    for exercise in workout_day.get("exercises", []):
+        weekly_rows.append({
+            "week": week_label,
+            "week_start": date_obj - timedelta(days=date_obj.weekday()),  # Monday of that week
+            "exercise": exercise.get("exercise_name", ""),
+            "Relative Volume": exercise.get("volume_relative", 0),
+            "Heavy Volume": exercise.get("volume_heavy", 0),
+            "Hard Sets": exercise.get("hard_sets", 0),
+        })
+
+if weekly_rows:
+    df_weekly = pd.DataFrame(weekly_rows)
+
+    # --- Aggregate per week & exercise ---
+    df_weekly_summary = (
+        df_weekly.groupby(["week", "week_start", "exercise"], as_index=False)
+        .agg({
+            "Relative Volume": "sum",
+            "Heavy Volume": "sum",
+            "Hard Sets": "sum",
+        })
+        .sort_values("week_start")
+    )
+
+    # --- Show summary table ---
+    st.dataframe(df_weekly_summary, use_container_width=True, hide_index=True, height=480)
+
+    # --- Select exercise for visualization ---
+    exercises_available = sorted(df_weekly_summary["exercise"].unique())
+    selected_exercise_weekly = st.selectbox("Select exercise for weekly volume histogram", exercises_available)
+
+    # --- Filter data for selected exercise and last 16 weeks ---
+    df_plot_weekly = df_weekly_summary[df_weekly_summary["exercise"] == selected_exercise_weekly].copy()
+    df_plot_weekly = df_plot_weekly.sort_values("week_start")
+    cutoff_date = datetime.now() - timedelta(weeks=16)
+    df_plot_weekly = df_plot_weekly[df_plot_weekly["week_start"] >= cutoff_date]
+
+    if not df_plot_weekly.empty:
+        import plotly.graph_objects as go
+
+        fig = go.Figure()
+
+        # Each metric as a bar (histogram style)
+        fig.add_trace(go.Bar(
+            x=df_plot_weekly["week_start"],
+            y=df_plot_weekly["Relative Volume"],
+            name="Relative Volume",
+            marker_color="#9bafd9",
+            opacity=0.8
+        ))
+        fig.add_trace(go.Bar(
+            x=df_plot_weekly["week_start"],
+            y=df_plot_weekly["Heavy Volume"],
+            name="Heavy Volume",
+            marker_color="#d9534f",
+            opacity=0.8
+        ))
+        fig.add_trace(go.Bar(
+            x=df_plot_weekly["week_start"],
+            y=df_plot_weekly["Hard Sets"],
+            name="Hard Sets",
+            marker_color="#5cb85c",
+            opacity=0.8
+        ))
+
+        fig.update_layout(
+            barmode="group",
+            title=f"{selected_exercise_weekly} — Weekly Training Metrics (Last 4 Months)",
+            xaxis=dict(
+                title="Week Starting",
+                tickformat="%b %d",
+                showgrid=False
+            ),
+            yaxis=dict(title="Total Value"),
+            bargap=0.15,
+            legend=dict(x=0.02, y=1.1, orientation="h"),
+            margin=dict(l=40, r=30, t=60, b=40),
+            template="plotly_white",
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No weekly data for the selected exercise in the last 4 months.")
+
+else:
+    st.info("No weekly data available yet.")
+
+
 
 
 # ======================================================
@@ -403,3 +508,4 @@ if history_rows:
         )
         st.plotly_chart(fig, use_container_width=True)
         st.write("v.a3")
+
