@@ -198,7 +198,7 @@ def enrich_workouts_with_heavy_volume(raw_data):
                     heavy_points += 2 * r
                 elif w > t85_external:
                     heavy_points += r
-            exercise["volume_heavy"] = heavy_points/3
+            exercise["volume_heavy"] = round(heavy_points/3,1)
     return raw_data
 
 
