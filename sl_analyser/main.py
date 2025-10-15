@@ -254,55 +254,22 @@ st.title("StrengthLevel DATA")
 # === FULL WORKOUT DATA ================================
 # ======================================================
 
-with st.expander("📋 Full Workout Data", expanded=False):
-    with st.spinner(f"Fetching and rendering {selected_name}'s data..."):
-        df = create_workout_df(raw_data)
+with st.spinner(f"Fetching and rendering {selected_name}'s data..."):
+    df = create_workout_df(raw_data)
 
         # ======================================================
         # === EXERCISE ACTIVITY (LAST 4 MONTHS) ================
         # ======================================================
-        df["date_dt"] = pd.to_datetime(df["date"], format="%b-%d", errors="coerce")
-        cutoff_date = datetime.now() - timedelta(days=120)
-        df_recent = df[df["date_dt"] >= cutoff_date].copy()
-
-        df_exercise_counts_4m = (
-            df_recent.groupby("exercise")
-            .size()
-            .reset_index(name="entries_last_4m")
-            .sort_values("entries_last_4m", ascending=False)
-        )
-
-        st.subheader("📈 Exercise Frequency (Last 4 Months)")
-        st.dataframe(df_exercise_counts_4m, use_container_width=True, hide_index=True)
-        st.session_state["exercise_counts_4m"] = df_exercise_counts_4m
-
-        st.markdown(
-            """
-            <style>
-            .scroll-container {overflow-x: auto; padding-left: 10px; padding-right: 10px;}
-            .scroll-container::-webkit-scrollbar {height: 8px;}
-            .scroll-container::-webkit-scrollbar-thumb {background-color: #bbb; border-radius: 4px;}
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-        st.markdown('<div class="scroll-container">', unsafe_allow_html=True)
-        st.dataframe(df, use_container_width=False, height=320, hide_index=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-st.markdown("""<div style="height: 200px;"></div>""", unsafe_allow_html=True)
-
+        
 # ======================================================
 # === SINGLE EXERCISE ==================================
 # ======================================================
 
 exercise_counts = df["exercise"].value_counts().reset_index()
 exercise_counts.columns = ["exercise", "count"]
-st.subheader("Exercise Selector")
 
 exercise_dict = dict(zip(exercise_counts["exercise"], exercise_counts["count"]))
 selected_exercise = st.selectbox("Choose an exercise", list(exercise_dict.keys()))
-st.write(f"You selected **{selected_exercise}** — {exercise_dict[selected_exercise]} sets recorded.")
 
 df_selected_exercise = df[df["exercise"] == selected_exercise].reset_index(drop=True)
 with st.expander(f"📋 Sets for {selected_exercise}", expanded=False):
@@ -314,31 +281,30 @@ with st.expander(f"📋 Sets for {selected_exercise}", expanded=False):
 # ======================================================
 # === DAILY VOLUME SUMMARY =============================
 # ======================================================
-st.write("-------------------ehehe")
-with st.expander("📊 Daily Exercise Volume Summary", expanded=False):
-    summary_rows = []
-    for i, workout_day in enumerate(raw_data):
-        date_str = format_date(workout_day["date"])
-        day_rows = []
-        for exercise in workout_day.get("exercises", []):
-            day_rows.append({
-                "date": date_str,
-                "exercise": exercise.get("exercise_name", ""),
-                "Relative Volume": exercise.get("volume_relative", 0),
-                "Heavy Volume": exercise.get("volume_heavy", 0),
-                "Hard Sets": exercise.get("hard_sets", 0),  # 👈 new column
-            })
-        summary_rows.extend(day_rows)
-        if i < len(raw_data) - 1:
-            summary_rows.append({"date": "", "exercise": "", "Relative Volume": None, "Heavy Volume": None, "Hard Sets": None})
 
-    if summary_rows:
-        df_summary = pd.DataFrame(summary_rows)
-        st.dataframe(df_summary, use_container_width=True, hide_index=True, height=480)
-    else:
-        st.info("No volume data available yet.")
+summary_rows = []
+for i, workout_day in enumerate(raw_data):
+    date_str = format_date(workout_day["date"])
+    day_rows = []
+    for exercise in workout_day.get("exercises", []):
+        day_rows.append({
+            "date": date_str,
+            "exercise": exercise.get("exercise_name", ""),
+            "Relative Volume": exercise.get("volume_relative", 0),
+            "Heavy Volume": exercise.get("volume_heavy", 0),
+            "Hard Sets": exercise.get("hard_sets", 0),  # 👈 new column
+        })
+    summary_rows.extend(day_rows)
+    if i < len(raw_data) - 1:
+        summary_rows.append({"date": "", "exercise": "", "Relative Volume": None, "Heavy Volume": None, "Hard Sets": None})
 
-# ======================================================
+if summary_rows:
+    df_summary = pd.DataFrame(summary_rows)
+    st.dataframe(df_summary, use_container_width=True, hide_index=True, height=480)
+else:
+    st.info("No volume data available yet.")
+
+# # ======================================================
 # === WEEKLY VOLUME SUMMARY + HISTOGRAM ================
 # ======================================================
 
@@ -366,7 +332,7 @@ for workout_day in raw_data:
 if weekly_rows:
     df_weekly = pd.DataFrame(weekly_rows)
 
-    # --- Aggregate per week & exercise ---
+    # --- Aggregate per week, week_start & exercise ---
     df_weekly_summary = (
         df_weekly.groupby(["week", "week_start", "exercise"], as_index=False)
         .agg({
@@ -395,41 +361,71 @@ if weekly_rows:
 
         fig = go.Figure()
 
-        # Each metric as a bar (histogram style)
+        # --- Add Relative Volume ---
         fig.add_trace(go.Bar(
             x=df_plot_weekly["week_start"],
             y=df_plot_weekly["Relative Volume"],
             name="Relative Volume",
             marker_color="#9bafd9",
-            opacity=0.8
+            opacity=0.8,
+            yaxis="y1"
         ))
+
+        # --- Add Heavy Volume ---
         fig.add_trace(go.Bar(
             x=df_plot_weekly["week_start"],
             y=df_plot_weekly["Heavy Volume"],
             name="Heavy Volume",
             marker_color="#d9534f",
-            opacity=0.8
+            opacity=0.8,
+            yaxis="y2"
         ))
+
+        # --- Add Hard Sets ---
         fig.add_trace(go.Bar(
             x=df_plot_weekly["week_start"],
             y=df_plot_weekly["Hard Sets"],
             name="Hard Sets",
             marker_color="#5cb85c",
-            opacity=0.8
+            opacity=0.8,
+            yaxis="y3"
         ))
 
+        # --- Configure layout with 3 vertical axes ---
         fig.update_layout(
-            barmode="group",
             title=f"{selected_exercise_weekly} — Weekly Training Metrics (Last 4 Months)",
+            barmode="group",
             xaxis=dict(
                 title="Week Starting",
                 tickformat="%b %d",
                 showgrid=False
             ),
-            yaxis=dict(title="Total Value"),
-            bargap=0.15,
+            yaxis=dict(  # y1
+                title="Relative Volume",
+                titlefont=dict(color="#9bafd9"),
+                tickfont=dict(color="#9bafd9")
+            ),
+            yaxis2=dict(  # y2
+                title="Heavy Volume",
+                titlefont=dict(color="#d9534f"),
+                tickfont=dict(color="#d9534f"),
+                anchor="free",
+                overlaying="y",
+                side="right",
+                position=1.0
+            ),
+            yaxis3=dict(  # y3
+                title="Hard Sets",
+                titlefont=dict(color="#5cb85c"),
+                tickfont=dict(color="#5cb85c"),
+                anchor="free",
+                overlaying="y",
+                side="right",
+                position=1.08  # slightly further right
+            ),
             legend=dict(x=0.02, y=1.1, orientation="h"),
-            margin=dict(l=40, r=30, t=60, b=40),
+            bargap=0.15,
+            margin=dict(l=60, r=90, t=60, b=40),
             template="plotly_white",
         )
 
@@ -439,9 +435,6 @@ if weekly_rows:
 
 else:
     st.info("No weekly data available yet.")
-
-
-
 
 # ======================================================
 # === EXERCISE HISTORY OVERVIEW ========================
@@ -473,8 +466,8 @@ for workout_day in raw_data:
 
 if history_rows:
     df_history = pd.DataFrame(history_rows).sort_values("raw_date", ascending=False).drop(columns=["raw_date"])
-    with st.expander(f"📅 Workouts for {selected_history_ex}", expanded=True):
-        st.dataframe(df_history, use_container_width=True, hide_index=True, height=480)
+   
+    st.dataframe(df_history, use_container_width=True, hide_index=True, height=480)
 else:
     st.info("No records found for this exercise.")
 
@@ -508,4 +501,35 @@ if history_rows:
         )
         st.plotly_chart(fig, use_container_width=True)
         st.write("v.a4")
+
+        df["date_dt"] = pd.to_datetime(df["date"], format="%b-%d", errors="coerce")
+        cutoff_date = datetime.now() - timedelta(days=120)
+        df_recent = df[df["date_dt"] >= cutoff_date].copy()
+
+        df_exercise_counts_4m = (
+            df_recent.groupby("exercise")
+            .size()
+            .reset_index(name="entries_last_4m")
+            .sort_values("entries_last_4m", ascending=False)
+        )
+
+        st.subheader("📈 Exercise Frequency (Last 4 Months)")
+        st.dataframe(df_exercise_counts_4m, use_container_width=True, hide_index=True)
+        st.session_state["exercise_counts_4m"] = df_exercise_counts_4m
+
+        st.markdown(
+            """
+            <style>
+            .scroll-container {overflow-x: auto; padding-left: 10px; padding-right: 10px;}
+            .scroll-container::-webkit-scrollbar {height: 8px;}
+            .scroll-container::-webkit-scrollbar-thumb {background-color: #bbb; border-radius: 4px;}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown('<div class="scroll-container">', unsafe_allow_html=True)
+        st.dataframe(df, use_container_width=False, height=320, hide_index=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+st.markdown("""<div style="height: 200px;"></div>""", unsafe_allow_html=True)
 
