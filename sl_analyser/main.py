@@ -5,7 +5,7 @@ from variables import NAME_TO_USERNAME, EXERCISE_DATA
 from datetime import datetime, timedelta
 
 # --- Mobile-friendly styling ---
-st.write("v.a4.1")
+st.write("v.a5")
 st.markdown("""
 <style>
 /* Make select boxes shrink to content width instead of 100% */
