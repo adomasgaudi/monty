@@ -5,7 +5,7 @@ from variables import NAME_TO_USERNAME, EXERCISE_DATA
 from datetime import datetime, timedelta
 
 # --- Mobile-friendly styling ---
-st.write("v.a4")
+st.write("v.a4.1")
 st.markdown("""
 <style>
 /* Make select boxes shrink to content width instead of 100% */
@@ -198,7 +198,7 @@ def enrich_workouts_with_heavy_volume(raw_data):
                     heavy_points += 2 * r
                 elif w > t85_external:
                     heavy_points += r
-            exercise["volume_heavy"] = heavy_points
+            exercise["volume_heavy"] = heavy_points/3
     return raw_data
 
 
