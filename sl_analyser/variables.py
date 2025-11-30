@@ -102,7 +102,7 @@ EXERCISE_DATA = {
     "Dips": 
         {"bwp": 1.0, "eq_w": 0},
     "Dumbbell Bench Press": 
-        {"bwp": 0.0, "eq_w": 0},
+        {"bwp": 0.05, "eq_w": 0},
     "Dumbbell Curl": 
         {"bwp": 0.0, "eq_w": 0},
     "Dumbbell Finger Curl": 
@@ -110,9 +110,11 @@ EXERCISE_DATA = {
     "Dumbbell Lunge": 
         {"bwp": 0.6, "eq_w": 0},
     "Dumbbell Shoulder Press": 
-        {"bwp": 0.0, "eq_w": 0},
+        {"bwp": 0.05, "eq_w": 0},
     "Front lever raise": 
         {"bwp": 0.3, "eq_w": 0},
+    "Front lever tuck raise": 
+        {"bwp": 0.4, "eq_w": 0},
     "Goblet Squat": 
         {"bwp": 0.6, "eq_w": 0},
     "Hack Squat": 
