@@ -114,7 +114,7 @@ EXERCISE_DATA = {
     "Front lever raise": 
         {"bwp": 0.3, "eq_w": 0},
     "Front lever tuck raise": 
-        {"bwp": 0.4, "eq_w": 0},
+        {"bwp": 0.175, "eq_w": 0},
     "Goblet Squat": 
         {"bwp": 0.6, "eq_w": 0},
     "Hack Squat": 

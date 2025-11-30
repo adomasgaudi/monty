@@ -3,6 +3,11 @@ import pandas as pd
 from utils import fetch_user_id, fetch_raw_workouts
 from variables import NAME_TO_USERNAME, EXERCISE_DATA
 from datetime import datetime, timedelta
+from enrich import enrich_workouts_with_bodyweight_load, enrich_workouts_with_1rm, enrich_workouts_with_rir, enrich_workouts_with_hard_sets, enrich_workouts_with_volume, enrich_workouts_with_heavy_volume, format_date
+
+BASE_URL = "https://my.strengthlevel.com"
+HEADERS = {"User-Agent": "Mozilla/5.0"}
+
 
 # --- Mobile-friendly styling ---
 st.write("v.b0.2")
@@ -36,328 +41,7 @@ div[data-baseweb="select"] > div {
 """, unsafe_allow_html=True
 )
 
-BASE_URL = "https://my.strengthlevel.com"
-HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-
-# ======================================================
-# === HELPERS ==========================================
-# ======================================================
-
-def format_date(d: str) -> str:
-    return datetime.strptime(d, "%Y-%m-%d").strftime("%b-%d")
-
-def epley3_reps(w: float, w_rec: float, w_i: float) -> float:
-    """Estimate reps given weight, 1RM, and internal load."""
-    if w is None or w_rec is None or w_i is None:
-        return None
-    denom = 3.33 * (w + w_i)
-    if denom == 0:
-        return None
-    try:
-        reps = (100 * (w_rec + w_i)) / denom - 29
-        return round(reps, 2)
-    except Exception:
-        return None
-
-def epley3_record(w: float, reps: float, w_i: float) -> float:
-    """Estimate 1RM given working weight, reps, and internal load."""
-    if w is None or reps is None or w_i is None:
-        return None
-    try:
-        return round((3.33 * (w + w_i) * (reps + 29)) / 100 - w_i, 2)
-    except ZeroDivisionError:
-        return None
-
-def epley3_weight(w_rec: float, reps: float, w_i: float) -> float:
-    """Estimate working weight given 1RM, target reps, and internal load."""
-    if w_rec is None or reps is None or w_i is None:
-        return None
-    try:
-        return round((100 * (w_rec + w_i)) / (3.33 * (reps + 29)) - w_i, 2)
-    except ZeroDivisionError:
-        return None
-
-
-# ======================================================
-# === DATA ENRICHMENT ==================================
-# ======================================================
-
-
-def enrich_workouts_with_bodyweight_load(raw_data):
-    """Attach bodyweight contribution and equipment weight to each exercise."""
-
-    # --- local helpers (fully collapsible inside outer function) -----
-
-    def get_bodyweight(workout):
-        return float(workout.get("bodyweight") or 0.0)
-
-    def get_exercise_load_params(ex_name):
-        name = (ex_name or "").strip()
-        data = EXERCISE_DATA.get(name, {})
-        bwp = float(data.get("bwp") or 0.0)
-        eq_w = float(data.get("eq_w") or 0.0)
-        return bwp, eq_w
-
-    def compute_loads(bodyweight, bwp, eq_w):
-        bw_load = round(bodyweight * bwp, 2)
-        internal = round(bw_load + eq_w, 2)
-        return bw_load, internal
-
-    
-
-    # --- main logic --------------------------------------------------
-
-    for workout in raw_data:
-        bw = get_bodyweight(workout)
-        for exercise in workout.get("exercises", []):
-            def attach_fields(exercise, bodyweight):
-                bwp, eq_w = get_exercise_load_params(exercise.get("exercise_name", ""))
-                bw_load, internal = compute_loads(bodyweight, bwp, eq_w)
-
-                exercise["bodyweight_p"] = bwp
-                exercise["bodyweight_load"] = bw_load
-                exercise["equipment_weight"] = eq_w
-                exercise["internal_load"] = internal
-            attach_fields(exercise, bw)
-
-    return raw_data
-
-def enrich_workouts_with_1rm(raw_data):
-    """Compute per-set and per-exercise 1RM using modified Epley3 formula."""
-
-    def compute_set_1rm(weight, reps, internal_load):
-        if weight > 0 and reps > 0:
-            return epley3_record(weight, reps, internal_load)
-        return None
-
-    # --- main logic ------------------------------------------------
-
-    for workout in raw_data:
-        for exercise in workout.get("exercises", []):
-            def process_exercise(exercise):
-                internal_load = float(exercise.get("internal_load") or 0.0)
-                set_1rms = []
-
-                for s in exercise.get("sets", []):
-                    w = float(s.get("weight") or 0.0)
-                    r = int(s.get("reps") or 0)
-
-                    one_rm = compute_set_1rm(w, r, internal_load)
-                    s["one_rep_max"] = one_rm
-                    if one_rm is not None:
-                        set_1rms.append(one_rm)
-
-                exercise["one_rep_max"] = max(set_1rms) if set_1rms else None
-            process_exercise(exercise)
-
-    return raw_data
-def enrich_workouts_with_rir(raw_data):
-    """Estimate Reps in Reserve (RIR) for each set based on exercise 1RM."""
-
-    # --- helpers -----------------------------------------------------
-
-    def compute_rir(weight, reps, one_rm, internal_load):
-        if weight > 0 and reps > 0 and one_rm is not None:
-            max_reps = epley3_reps(weight, one_rm, internal_load)
-            if max_reps is None:
-                return None, None
-            rir = round(max_reps - reps, 2)
-            return rir, max_reps
-        return None, None
-
-    def process_exercise(exercise):
-        one_rm = exercise.get("one_rep_max")
-        internal = float(exercise.get("internal_load") or 0.0)
-        if one_rm is None:
-            return
-        for s in exercise.get("sets", []):
-            w = float(s.get("weight") or 0.0)
-            r = int(s.get("reps") or 0)
-            rir, max_reps = compute_rir(w, r, one_rm, internal)
-            s["RIR"] = rir
-            s["max_reps"] = max_reps
-
-    # --- main logic --------------------------------------------------
-
-    for workout in raw_data:
-        for exercise in workout.get("exercises", []):
-            process_exercise(exercise)
-
-    return raw_data
-def enrich_workouts_with_hard_sets(raw_data):
-    """Add count of 'hard sets' to each exercise (reps > 3 and RIR < 3)."""
-
-    # --- helpers -----------------------------------------------------
-
-    def is_hard_set(reps, rir):
-        return (reps is not None and rir is not None
-                and reps > 3 and rir < 3)
-
-    def process_exercise(exercise):
-        count = 0
-        for s in exercise.get("sets", []):
-            reps = s.get("reps")
-            rir = s.get("RIR")
-            if is_hard_set(reps, rir):
-                count += 1
-        exercise["hard_sets"] = count
-
-    # --- main logic --------------------------------------------------
-
-    for workout in raw_data:
-        for exercise in workout.get("exercises", []):
-            process_exercise(exercise)
-
-    return raw_data
-def enrich_workouts_with_volume(raw_data):
-    """Compute per-exercise training volume."""
-
-    # --- helpers -----------------------------------------------------
-
-    def compute_volumes(exercise):
-        one_rm = float(exercise.get("one_rep_max") or 0.0)
-        total = 0.0
-        relative = 0.0
-
-        for s in exercise.get("sets", []):
-            w = float(s.get("weight") or 0.0)
-            r = int(s.get("reps") or 0)
-            total += w * r
-            if one_rm > 0:
-                relative += (w * r) / (one_rm * 0.8)
-
-        return round(total, 0), round(relative, 0)
-
-    def process_exercise(exercise):
-        vol_raw, vol_rel = compute_volumes(exercise)
-        exercise["volume_raw"] = vol_raw
-        exercise["volume_relative"] = vol_rel
-
-    # --- main logic --------------------------------------------------
-
-    for workout in raw_data:
-        for exercise in workout.get("exercises", []):
-            process_exercise(exercise)
-
-    return raw_data
-def enrich_workouts_with_heavy_volume(raw_data):
-    """Compute heavy volume (85% & 93%) adjusted for internal load."""
-
-    # --- helpers -----------------------------------------------------
-
-    def calc_thresholds(one_rm, internal_load):
-        t85 = (0.85 * (one_rm + internal_load)) - internal_load
-        t93 = (0.93 * (one_rm + internal_load)) - internal_load
-        return t85, t93
-
-    def score_set(weight, reps, t85, t93):
-        if weight > t93:
-            return 2 * reps
-        if weight > t85:
-            return reps
-        return 0
-
-    def process_exercise(exercise):
-        one_rm = float(exercise.get("one_rep_max") or 0.0)
-        internal = float(exercise.get("internal_load") or 0.0)
-
-        if one_rm <= 0:
-            exercise["volume_heavy"] = 0
-            return
-
-        t85, t93 = calc_thresholds(one_rm, internal)
-        score = 0
-
-        for s in exercise.get("sets", []):
-            w = float(s.get("weight") or 0.0)
-            r = int(s.get("reps") or 0)
-            score += score_set(w, r, t85, t93)
-
-        exercise["volume_heavy"] = round(score / 3, 1)
-
-    # --- main logic --------------------------------------------------
-
-    for workout in raw_data:
-        for exercise in workout.get("exercises", []):
-            process_exercise(exercise)
-
-    return raw_data
-
-# def enrich_workouts_with_rir(raw_data):
-#     """Estimate Reps in Reserve (RIR) for each set based on exercise 1RM."""
-#     for workout in raw_data:
-#         for exercise in workout.get("exercises", []):
-#             one_rm = exercise.get("one_rep_max")
-#             w_i = exercise.get("internal_load", 0.0)
-#             if one_rm is None:
-#                 continue
-#             for s in exercise.get("sets", []):
-#                 w = s.get("weight") or 0
-#                 r = s.get("reps") or 0
-#                 if w > 0 and r > 0:
-#                     max_reps = epley3_reps(w, one_rm, w_i)
-#                     if max_reps is not None:
-#                         rir = round(max_reps - r, 2)
-#                         s["RIR"] = rir
-#                         s["max_reps"] = max_reps
-#                 else:
-#                     s["RIR"] = None
-#                     s["max_reps"] = None
-#     return raw_data
-
-# def enrich_workouts_with_hard_sets(raw_data):
-#     """Add count of 'hard sets' to each exercise (reps > 3 and RIR < 3)."""
-#     for workout in raw_data:
-#         for exercise in workout.get("exercises", []):
-#             hard_count = 0
-#             for s in exercise.get("sets", []):
-#                 reps = s.get("reps")
-#                 rir = s.get("RIR")
-#                 if reps is not None and rir is not None:
-#                     if reps > 3 and rir < 3:
-#                         hard_count += 1
-#             exercise["hard_sets"] = hard_count
-#     return raw_data
-
-# def enrich_workouts_with_volume(raw_data):
-#     """Compute per-exercise training volume for each workout."""
-#     for workout in raw_data:
-#         for exercise in workout.get("exercises", []):
-#             one_rm = exercise.get("one_rep_max") or 0
-#             total_volume = 0
-#             relative_volume = 0
-#             for s in exercise.get("sets", []):
-#                 w = s.get("weight") or 0
-#                 r = s.get("reps") or 0
-#                 total_volume += w * r
-#                 if one_rm > 0:
-#                     relative_volume += (w * r) / (one_rm * 0.8)
-#             exercise["volume_raw"] = round(total_volume, 0)
-#             exercise["volume_relative"] = round(relative_volume, 0)
-#     return raw_data
-
-# def enrich_workouts_with_heavy_volume(raw_data):
-#     """Compute heavy volume (85% & 93% thresholds) adjusted for internal load."""
-#     for workout in raw_data:
-#         for exercise in workout.get("exercises", []):
-#             one_rm = exercise.get("one_rep_max") or 0
-#             w_i = exercise.get("internal_load", 0.0)
-#             if one_rm <= 0:
-#                 exercise["volume_heavy"] = 0
-#                 continue
-#             t85_external = (0.85 * (one_rm + w_i)) - w_i
-#             t93_external = (0.93 * (one_rm + w_i)) - w_i
-#             heavy_points = 0
-#             for s in exercise.get("sets", []):
-#                 w = s.get("weight") or 0
-#                 r = s.get("reps") or 0
-#                 if w > t93_external:
-#                     heavy_points += 2 * r
-#                 elif w > t85_external:
-#                     heavy_points += r
-#             exercise["volume_heavy"] = round(heavy_points/3,1)
-#     return raw_data
 
 
 # ======================================================
@@ -383,7 +67,6 @@ def create_workout_df(all_workouts):
         if i < len(all_workouts) - 1:
             workout_sets.append({"date": "", "exercise": "", "weight": None, "Reps": None, "1RM": None})
     return pd.json_normalize(workout_sets)
-
 
 def get_data_from_username(selection):
     username = NAME_TO_USERNAME[selection]
@@ -432,16 +115,16 @@ exercise_dict = dict(zip(exercise_counts["exercise"], exercise_counts["count"]))
 selected_exercise = st.selectbox("Choose an exercise", list(exercise_dict.keys()))
 
 df_selected_exercise = df[df["exercise"] == selected_exercise].reset_index(drop=True)
-with st.expander(f"📋 Sets for {selected_exercise}", expanded=False):
-    st.dataframe(df_selected_exercise.drop(columns=["exercise"], errors="ignore"),
-                 use_container_width=True, height=480, hide_index=True)
+st.write("table 1")
+st.dataframe(df_selected_exercise.drop(columns=["exercise"], errors="ignore"),
+                use_container_width=True, height=480, hide_index=True)
 
 
 
 # ======================================================
 # === DAILY VOLUME SUMMARY =============================
 # ======================================================
-
+st.write("table 2")
 summary_rows = []
 for i, workout_day in enumerate(raw_data):
     date_str = format_date(workout_day["date"])
@@ -451,7 +134,7 @@ for i, workout_day in enumerate(raw_data):
             "date": date_str,
             "exercise": exercise.get("exercise_name", ""),
             "Relative Volume": exercise.get("volume_relative", 0),
-            "Heavy Volume": exercise.get("volume_heavy", 0),
+            "Heavy Volume": exercise.get("heavy_sets", 0),
             "Hard Sets": exercise.get("hard_sets", 0),  # 👈 new column
         })
     summary_rows.extend(day_rows)
@@ -469,7 +152,7 @@ else:
 # ======================================================
 
 weekly_rows = []
-
+st.write("table 3")
 # Flatten all exercises with metrics and week labels
 for workout_day in raw_data:
     raw_date = workout_day.get("date")
@@ -485,7 +168,7 @@ for workout_day in raw_data:
             "week_start": date_obj - timedelta(days=date_obj.weekday()),  # Monday of that week
             "exercise": exercise.get("exercise_name", ""),
             "Relative Volume": exercise.get("volume_relative", 0),
-            "Heavy Volume": exercise.get("volume_heavy", 0),
+            "Heavy Volume": exercise.get("heavy_sets", 0),
             "Hard Sets": exercise.get("hard_sets", 0),
         })
 
@@ -551,43 +234,54 @@ if weekly_rows:
             yaxis="y3"
         ))
 
-        # --- Configure layout with 3 vertical axes ---
+     
+        # )
         fig.update_layout(
             title=f"{selected_exercise_weekly} — Weekly Training Metrics (Last 4 Months)",
             barmode="group",
+
+            # Shrink main plot horizontally so multiple right y-axes fit
             xaxis=dict(
+                domain=[0.0, 0.82],
                 title="Week Starting",
                 tickformat="%b %d",
                 showgrid=False
             ),
-            yaxis=dict(  # y1
-                title="Relative Volume",
-                titlefont=dict(color="#9bafd9"),
-                tickfont=dict(color="#9bafd9")
+
+            # y1 (left)
+            yaxis=dict(
+                title=dict(text="Relative Volume", font=dict(color="#9bafd9")),
+                tickfont=dict(color="#9bafd9"),
+                anchor="x",
+                overlaying=None
             ),
-            yaxis2=dict(  # y2
-                title="Heavy Volume",
-                titlefont=dict(color="#d9534f"),
+
+            # y2 (right, inner)
+            yaxis2=dict(
+                title=dict(text="Heavy Volume", font=dict(color="#d9534f")),
                 tickfont=dict(color="#d9534f"),
-                anchor="free",
                 overlaying="y",
                 side="right",
-                position=1.0
+                anchor="x",
+                position=0.82   # <= MAX allowed
             ),
-            yaxis3=dict(  # y3
-                title="Hard Sets",
-                titlefont=dict(color="#5cb85c"),
+
+            # y3 (right, outer)
+            yaxis3=dict(
+                title=dict(text="Hard Sets", font=dict(color="#5cb85c")),
                 tickfont=dict(color="#5cb85c"),
-                anchor="free",
                 overlaying="y",
                 side="right",
-                position=1.08  # slightly further right
+                anchor="x",
+                position=0.90   # <= MAX allowed
             ),
+
             legend=dict(x=0.02, y=1.1, orientation="h"),
             bargap=0.15,
-            margin=dict(l=60, r=90, t=60, b=40),
+            margin=dict(l=60, r=120, t=60, b=40),
             template="plotly_white",
         )
+
 
         st.plotly_chart(fig, use_container_width=True)
     else:
@@ -620,7 +314,7 @@ for workout_day in raw_data:
                 "raw_date": raw_date,
                 "date": formatted_date,
                 "Relative Volume": exercise.get("volume_relative", 0),
-                "Heavy Volume": exercise.get("volume_heavy", 0),
+                "Heavy Volume": exercise.get("heavy_sets", 0),
                 "Hard Sets": exercise.get("hard_sets", 0),
             })
 
