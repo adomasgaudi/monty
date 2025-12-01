@@ -10,7 +10,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
 # --- Mobile-friendly styling ---
-st.write("v.b0.3")
+st.write("v.b0.5")
 st.markdown(
 """
 <style>
@@ -349,3 +349,40 @@ df_history = (
 )
 
 st.dataframe(df_history, use_container_width=True, hide_index=True, height=480)
+
+
+# ======================================================
+# === CLEAN DISPLAY: ONE TABLE PER DAY, PER EXERCISE ===
+# ======================================================
+
+st.title("Workout History (Clean Tables)")
+
+for workout_day in raw_data:
+    date_str = format_date(workout_day["date"])
+    st.header(f"📅 {date_str}")
+
+    # Iterate exercises
+    for ex in workout_day.get("exercises", []):
+        ex_name = ex.get("exercise_name", "")
+        st.subheader(ex_name)
+
+        rows = []
+        for s in ex.get("sets", []):
+            # skip non-strength sets (time, distance)
+            if s.get("time") or s.get("distance"):
+                continue
+
+            rows.append({
+                "Weight (kg)": s.get("weight"),
+                "Reps": s.get("reps"),
+                "1RM (kg)": ex.get("one_rep_max"),
+            })
+
+        if rows:
+            df_ex = pd.DataFrame(rows)
+            st.dataframe(df_ex,
+                         use_container_width=True,
+                         hide_index=True,
+                         height=220)
+        else:
+            st.info("No strength sets logged.")
