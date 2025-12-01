@@ -1,347 +1,269 @@
 import streamlit as st
 import pandas as pd
-from utils import fetch_user_id, fetch_raw_workouts
-from variables import NAME_TO_USERNAME, EXERCISE_DATA
 from datetime import datetime, timedelta
-from enrich import enrich_workouts_with_bodyweight_load, enrich_workouts_with_1rm, enrich_workouts_with_rir, enrich_workouts_with_hard_sets, enrich_workouts_with_volume, enrich_workouts_with_heavy_volume, format_date
+
+from utils import fetch_user_id, fetch_raw_workouts
+from variables import NAME_TO_USERNAME
+from enrich import (
+    enrich_workouts_with_bodyweight_load,
+    enrich_workouts_with_1rm,
+    enrich_workouts_with_rir,
+    enrich_workouts_with_hard_sets,
+    enrich_workouts_with_volume,
+    enrich_workouts_with_heavy_volume,
+    format_date,
+)
 
 BASE_URL = "https://my.strengthlevel.com"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
-# --- Mobile-friendly styling ---
-st.write("v.b0.5")
-st.markdown(
-"""
+# ------------------------------------------------------
+# MOBILE STYLING
+# ------------------------------------------------------
+st.write("v.b0.7b")
+st.markdown("""
 <style>
-/* Make select boxes shrink to content width instead of 100% */
 div[data-baseweb="select"] > div {
     width: fit-content !important;
     min-width: 180px !important;
-    max-width: 90vw !important; /* prevent overflow on phones */
+    max-width: 90vw !important;
 }
-
-/* Add some margin so it doesn’t hug the edges */
-.stSelectbox {
-    padding-left: 5px;
-    padding-right: 5px;
-}
-
-/* Make Streamlit widgets not stretch full width */
-.stSelectbox > div > div {
-    display: inline-block !important;
-}
-
-/* Center buttons and inputs better on narrow screens */
+.stSelectbox { padding-left: 5px; padding-right: 5px; }
+.stSelectbox > div > div { display: inline-block !important; }
 [data-testid="stFormSubmitButton"], .stButton button {
     width: fit-content !important;
     padding: 0.4rem 1rem !important;
 }
 </style>
-""", unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
 
 
-
-
-# ======================================================
-# === DATAFRAME CREATION ===============================
-# ======================================================
-
+# ------------------------------------------------------
+# DATAFRAME CREATION
+# ------------------------------------------------------
 def create_workout_df(all_workouts):
-    """Flatten enriched JSON into a clean DataFrame, adding empty row between days."""
-    workout_sets = []
-    for i, workout_day in enumerate(all_workouts):
-        day_rows = []
-        for exercise in workout_day.get("exercises", []):
-            for set_info in exercise.get("sets", []):
-                if not set_info.get("time") and not set_info.get("distance"):
-                    day_rows.append({
-                        "date": format_date(workout_day["date"]),
-                        "exercise": exercise["exercise_name"],
-                        "weight": set_info.get("weight"),
-                        "Reps": set_info.get("reps"),
-                        "1RM": exercise.get("one_rep_max"),
-                    })
-        workout_sets.extend(day_rows)
-        if i < len(all_workouts) - 1:
-            workout_sets.append({"date": "", "exercise": "", "weight": None, "Reps": None, "1RM": None})
-    return pd.json_normalize(workout_sets)
+    rows = []
+    for workout_day in all_workouts:
+        for ex in workout_day.get("exercises", []):
+            for s in ex.get("sets", []):
+                if s.get("time") or s.get("distance"):
+                    continue
+                rows.append({
+                    "date": format_date(workout_day["date"]),
+                    "exercise": ex["exercise_name"],
+                    "weight": s.get("weight"),
+                    "Reps": s.get("reps"),
+                    "1RM": ex.get("one_rep_max"),
+                })
+    return pd.DataFrame(rows)
+
 
 def get_data_from_username(selection):
     username = NAME_TO_USERNAME[selection]
     user_id = fetch_user_id(username, HEADERS, BASE_URL)
-    raw_data = fetch_raw_workouts(user_id, HEADERS, BASE_URL)
+    raw = fetch_raw_workouts(user_id, HEADERS, BASE_URL)
 
-    enriched = enrich_workouts_with_bodyweight_load(raw_data)
-    enriched = enrich_workouts_with_1rm(enriched)
-    enriched = enrich_workouts_with_rir(enriched)
-    enriched = enrich_workouts_with_hard_sets(enriched)  # 👈 new step
-    enriched = enrich_workouts_with_volume(enriched)
-    enriched = enrich_workouts_with_heavy_volume(enriched)
-    st.write("enriched!")
-    return enriched
+    raw = enrich_workouts_with_bodyweight_load(raw)
+    raw = enrich_workouts_with_1rm(raw)
+    raw = enrich_workouts_with_rir(raw)
+    raw = enrich_workouts_with_hard_sets(raw)
+    raw = enrich_workouts_with_volume(raw)
+    raw = enrich_workouts_with_heavy_volume(raw)
+
+    return raw
 
 
-# ======================================================
-# === UI: SELECTION ====================================
-# ======================================================
-
+# ------------------------------------------------------
+# UI SETUP
+# ------------------------------------------------------
 selected_name = st.selectbox("Select person", list(NAME_TO_USERNAME.keys()))
 raw_data = get_data_from_username(selected_name)
-st.write("raw_data")
-st.write(raw_data)
+
 st.title("StrengthLevel DATA")
 
-# ======================================================
-# === FULL WORKOUT DATA ================================
-# ======================================================
+df = create_workout_df(raw_data)
 
-with st.spinner(f"Fetching and rendering {selected_name}'s data..."):
-    df = create_workout_df(raw_data)
 
-        # ======================================================
-        # === EXERCISE ACTIVITY (LAST 4 MONTHS) ================
-        # ======================================================
-        
-# ======================================================
-# === SINGLE EXERCISE ==================================
-# ======================================================
-
+# ------------------------------------------------------
+# SINGLE EXERCISE VIEW
+# ------------------------------------------------------
 exercise_counts = df["exercise"].value_counts().reset_index()
 exercise_counts.columns = ["exercise", "count"]
 
-exercise_dict = dict(zip(exercise_counts["exercise"], exercise_counts["count"]))
-selected_exercise = st.selectbox("Choose an exercise", list(exercise_dict.keys()))
+selected_exercise = st.selectbox("Choose an exercise", exercise_counts["exercise"])
 
-df_selected_exercise = df[df["exercise"] == selected_exercise].reset_index(drop=True)
-st.write("table 1")
-st.dataframe(df_selected_exercise.drop(columns=["exercise"], errors="ignore"),
-                use_container_width=True, height=480, hide_index=True)
+st.subheader("Training Sets")
+df_selected = df[df["exercise"] == selected_exercise]
+st.dataframe(df_selected.drop(columns=["exercise"]), use_container_width=True, hide_index=True, height=480)
 
 
-
-# ======================================================
-# === DAILY VOLUME SUMMARY =============================
-# ======================================================
-st.write("table 2")
-summary_rows = []
-for i, workout_day in enumerate(raw_data):
-    date_str = format_date(workout_day["date"])
-    day_rows = []
-    for exercise in workout_day.get("exercises", []):
-        day_rows.append({
-            "date": date_str,
-            "exercise": exercise.get("exercise_name", ""),
-            "Relative Volume": exercise.get("volume_relative", 0),
-            "Heavy Volume": exercise.get("heavy_sets", 0),
-            "Hard Sets": exercise.get("hard_sets", 0),  # 👈 new column
-        })
-    summary_rows.extend(day_rows)
-    if i < len(raw_data) - 1:
-        summary_rows.append({"date": "", "exercise": "", "Relative Volume": None, "Heavy Volume": None, "Hard Sets": None})
-
-if summary_rows:
-    df_summary = pd.DataFrame(summary_rows)
-    st.dataframe(df_summary, use_container_width=True, hide_index=True, height=480)
-else:
-    st.info("No volume data available yet.")
-
-# # ======================================================
-# === WEEKLY VOLUME SUMMARY + HISTOGRAM ================
-# ======================================================
+# ------------------------------------------------------
+# WEEKLY SUMMARY (NO week_start column)
+# ------------------------------------------------------
+st.header("📊 Weekly Volume Summary")
 
 weekly_rows = []
-st.write("table 3")
-# Flatten all exercises with metrics and week labels
-for workout_day in raw_data:
-    raw_date = workout_day.get("date")
+for w in raw_data:
+    raw_date = w.get("date")
     if not raw_date:
         continue
-    date_obj = datetime.strptime(raw_date, "%Y-%m-%d")
-    iso_year, iso_week, _ = date_obj.isocalendar()
-    week_label = f"{iso_year}-W{iso_week:02d}"
 
-    for exercise in workout_day.get("exercises", []):
+    d = datetime.strptime(raw_date, "%Y-%m-%d")
+    year, week, day = d.isocalendar()
+    week_label = f"{year}-W{week:02d}"
+
+    for ex in w.get("exercises", []):
         weekly_rows.append({
             "week": week_label,
-            "week_start": date_obj - timedelta(days=date_obj.weekday()),  # Monday of that week
-            "exercise": exercise.get("exercise_name", ""),
-            "Relative Volume": exercise.get("volume_relative", 0),
-            "Heavy Volume": exercise.get("heavy_sets", 0),
-            "Hard Sets": exercise.get("hard_sets", 0),
+            "exercise": ex.get("exercise_name", ""),
+            "Relative Volume": ex.get("volume_relative", 0),
+            "Heavy Volume": ex.get("heavy_sets", 0),
+            "Hard Sets": ex.get("hard_sets", 0),
         })
 
-if weekly_rows:
-    df_weekly = pd.DataFrame(weekly_rows)
+df_weekly = pd.DataFrame(weekly_rows)
 
-    # --- Aggregate per week, week_start & exercise ---
-    df_weekly_summary = (
-        df_weekly.groupby(["week", "week_start", "exercise"], as_index=False)
-        .agg({
-            "Relative Volume": "sum",
-            "Heavy Volume": "sum",
-            "Hard Sets": "sum",
-        })
-        .sort_values("week_start")
+df_weekly_summary = (
+    df_weekly.groupby(["week", "exercise"], as_index=False)
+    .agg({
+        "Relative Volume": "sum",
+        "Heavy Volume": "sum",
+        "Hard Sets": "sum",
+    })
+    .sort_values("week", ascending=False)
+)
+
+st.dataframe(df_weekly_summary, use_container_width=True, hide_index=True, height=480)
+
+
+# --- weekly plot ---
+exercises_available = sorted(df_weekly_summary["exercise"].unique())
+selected_ex_hist = st.selectbox("Select exercise for weekly histogram", exercises_available)
+
+df_plot = df_weekly_summary[df_weekly_summary["exercise"] == selected_ex_hist].copy()
+
+
+def iso_week_to_date(week_str):
+    year_str, wk_str = week_str.split("-W")
+    return datetime.fromisocalendar(int(year_str), int(wk_str), 1)
+
+
+df_plot["plot_date"] = df_plot["week"].apply(iso_week_to_date)
+df_plot["plot_date"] += timedelta(days=1)  # spacing
+
+cutoff = datetime.now() - timedelta(weeks=16)
+df_plot = df_plot[df_plot["plot_date"] >= cutoff]
+df_plot = df_plot.sort_values("plot_date")
+
+if not df_plot.empty:
+    import plotly.graph_objects as go
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        x=df_plot["plot_date"],
+        y=df_plot["Relative Volume"],
+        name="Relative Volume",
+        marker_color="#9bafd9",
+        opacity=0.8,
+        yaxis="y1"
+    ))
+
+    fig.add_trace(go.Bar(
+        x=df_plot["plot_date"],
+        y=df_plot["Heavy Volume"],
+        name="Heavy Volume",
+        marker_color="#d9534f",
+        opacity=0.8,
+        yaxis="y2"
+    ))
+
+    fig.add_trace(go.Bar(
+        x=df_plot["plot_date"],
+        y=df_plot["Hard Sets"],
+        name="Hard Sets",
+        marker_color="#5cb85c",
+        opacity=0.8,
+        yaxis="y3"
+    ))
+
+    fig.update_layout(
+        title=f"{selected_ex_hist} — Weekly Training Metrics (Last 4 Months)",
+        barmode="group",
+        xaxis=dict(
+            domain=[0.0, 0.82],
+            title="Week",
+            tickformat="%b %d",
+            showgrid=False
+        ),
+        yaxis=dict(
+            title=dict(text="Relative Volume", font=dict(color="#9bafd9")),
+            tickfont=dict(color="#9bafd9"),
+        ),
+        yaxis2=dict(
+            title=dict(text="Heavy Volume", font=dict(color="#d9534f")),
+            tickfont=dict(color="#d9534f"),
+            overlaying="y",
+            side="right",
+            position=0.82
+        ),
+        yaxis3=dict(
+            title=dict(text="Hard Sets", font=dict(color="#5cb85c")),
+            tickfont=dict(color="#5cb85c"),
+            overlaying="y",
+            side="right",
+            position=0.90
+        ),
+        legend=dict(x=0.02, y=1.1, orientation="h"),
+        margin=dict(l=60, r=120, t=60, b=40),
+        template="plotly_white",
     )
 
-    # --- Show summary table ---
-    st.dataframe(df_weekly_summary, use_container_width=True, hide_index=True, height=480)
-
-    # --- Select exercise for visualization ---
-    exercises_available = sorted(df_weekly_summary["exercise"].unique())
-    selected_exercise_weekly = st.selectbox("Select exercise for weekly volume histogram", exercises_available)
-
-    # --- Filter data for selected exercise and last 16 weeks ---
-    df_plot_weekly = df_weekly_summary[df_weekly_summary["exercise"] == selected_exercise_weekly].copy()
-    df_plot_weekly = df_plot_weekly.sort_values("week_start")
-    cutoff_date = datetime.now() - timedelta(weeks=16)
-    df_plot_weekly = df_plot_weekly[df_plot_weekly["week_start"] >= cutoff_date]
-
-    if not df_plot_weekly.empty:
-        import plotly.graph_objects as go
-
-        fig = go.Figure()
-
-        # --- Add Relative Volume ---
-        fig.add_trace(go.Bar(
-            x=df_plot_weekly["week_start"],
-            y=df_plot_weekly["Relative Volume"],
-            name="Relative Volume",
-            marker_color="#9bafd9",
-            opacity=0.8,
-            yaxis="y1"
-        ))
-
-        # --- Add Heavy Volume ---
-        fig.add_trace(go.Bar(
-            x=df_plot_weekly["week_start"],
-            y=df_plot_weekly["Heavy Volume"],
-            name="Heavy Volume",
-            marker_color="#d9534f",
-            opacity=0.8,
-            yaxis="y2"
-        ))
-
-        # --- Add Hard Sets ---
-        fig.add_trace(go.Bar(
-            x=df_plot_weekly["week_start"],
-            y=df_plot_weekly["Hard Sets"],
-            name="Hard Sets",
-            marker_color="#5cb85c",
-            opacity=0.8,
-            yaxis="y3"
-        ))
-
-     
-        # )
-        fig.update_layout(
-            title=f"{selected_exercise_weekly} — Weekly Training Metrics (Last 4 Months)",
-            barmode="group",
-
-            # Shrink main plot horizontally so multiple right y-axes fit
-            xaxis=dict(
-                domain=[0.0, 0.82],
-                title="Week Starting",
-                tickformat="%b %d",
-                showgrid=False
-            ),
-
-            # y1 (left)
-            yaxis=dict(
-                title=dict(text="Relative Volume", font=dict(color="#9bafd9")),
-                tickfont=dict(color="#9bafd9"),
-                anchor="x",
-                overlaying=None
-            ),
-
-            # y2 (right, inner)
-            yaxis2=dict(
-                title=dict(text="Heavy Volume", font=dict(color="#d9534f")),
-                tickfont=dict(color="#d9534f"),
-                overlaying="y",
-                side="right",
-                anchor="x",
-                position=0.82   # <= MAX allowed
-            ),
-
-            # y3 (right, outer)
-            yaxis3=dict(
-                title=dict(text="Hard Sets", font=dict(color="#5cb85c")),
-                tickfont=dict(color="#5cb85c"),
-                overlaying="y",
-                side="right",
-                anchor="x",
-                position=0.90   # <= MAX allowed
-            ),
-
-            legend=dict(x=0.02, y=1.1, orientation="h"),
-            bargap=0.15,
-            margin=dict(l=60, r=120, t=60, b=40),
-            template="plotly_white",
-        )
-
-
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No weekly data for the selected exercise in the last 4 months.")
-
+    st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("No weekly data available yet.")
+    st.info("No weekly data available for this exercise.")
 
-# ======================================================
-# === EXERCISE HISTORY OVERVIEW ========================
-# ======================================================
-st.subheader("🏋️ Exercise History Overview")
 
-# ----- collect all exercise names -----
+# ------------------------------------------------------
+# EXERCISE HISTORY (with zero-days)
+# ------------------------------------------------------
+st.header("🏋️ Exercise History Overview")
+
 all_exercises = sorted({
     ex.get("exercise_name", "")
     for w in raw_data
     for ex in w.get("exercises", [])
     if ex.get("exercise_name")
 })
-selected_history_ex = st.selectbox("Select an exercise to view history", all_exercises)
+
+selected_history = st.selectbox("Exercise history:", all_exercises)
 
 history_rows = []
+for w in raw_data:
+    raw_date = w["date"]
+    formatted = format_date(raw_date)
 
-# ----- iterate per workout day (ONLY real logged days) -----
-for workout_day in raw_data:
-    raw_date = workout_day.get("date")
-    if not raw_date:
-        continue
+    todays = [ex for ex in w["exercises"] if ex["exercise_name"] == selected_history]
 
-    formatted_date = format_date(raw_date)
-
-    # find selected exercise inside this workout
-    exercises_today = workout_day.get("exercises", [])
-    matches = [
-        ex for ex in exercises_today
-        if ex.get("exercise_name") == selected_history_ex
-    ]
-
-    if matches:
-        # If exercise exists → use REAL values (only one per day)
-        ex = matches[0]
+    if todays:
+        ex = todays[0]
         history_rows.append({
             "raw_date": raw_date,
-            "date": formatted_date,
+            "date": formatted,
             "Relative Volume": ex.get("volume_relative", 0),
             "Heavy Volume": ex.get("heavy_sets", 0),
             "Hard Sets": ex.get("hard_sets", 0),
         })
     else:
-        # If exercise does NOT exist that day → add zero day
         history_rows.append({
             "raw_date": raw_date,
-            "date": formatted_date,
+            "date": formatted,
             "Relative Volume": 0,
             "Heavy Volume": 0,
             "Hard Sets": 0,
         })
 
-# ----- Build DataFrame -----
 df_history = (
     pd.DataFrame(history_rows)
     .sort_values("raw_date", ascending=False)
@@ -351,27 +273,23 @@ df_history = (
 st.dataframe(df_history, use_container_width=True, hide_index=True, height=480)
 
 
-# ======================================================
-# === CLEAN DISPLAY: ONE TABLE PER DAY, PER EXERCISE ===
-# ======================================================
-
+# ------------------------------------------------------
+# CLEAN DISPLAY: ONE TABLE PER DAY, PER EXERCISE
+# ------------------------------------------------------
 st.title("Workout History (Clean Tables)")
 
 for workout_day in raw_data:
     date_str = format_date(workout_day["date"])
     st.header(f"📅 {date_str}")
 
-    # Iterate exercises
     for ex in workout_day.get("exercises", []):
         ex_name = ex.get("exercise_name", "")
         st.subheader(ex_name)
 
         rows = []
         for s in ex.get("sets", []):
-            # skip non-strength sets (time, distance)
             if s.get("time") or s.get("distance"):
                 continue
-
             rows.append({
                 "Weight (kg)": s.get("weight"),
                 "Reps": s.get("reps"),
@@ -380,9 +298,23 @@ for workout_day in raw_data:
 
         if rows:
             df_ex = pd.DataFrame(rows)
-            st.dataframe(df_ex,
-                         use_container_width=True,
-                         hide_index=True,
-                         height=220)
+            st.dataframe(df_ex, use_container_width=True, hide_index=True, height=220)
         else:
             st.info("No strength sets logged.")
+
+
+# ------------------------------------------------------
+# QUICK TABLE: ALL SETS OF SELECTED EXERCISE
+# ------------------------------------------------------
+exercise_dict = dict(zip(exercise_counts["exercise"], exercise_counts["count"]))
+selected_exercise = st.selectbox("Choose an exercise", list(exercise_dict.keys()))
+
+df_selected_exercise = df[df["exercise"] == selected_exercise].reset_index(drop=True)
+
+st.write("table 1")
+st.dataframe(
+    df_selected_exercise.drop(columns=["exercise"], errors="ignore"),
+    use_container_width=True,
+    hide_index=True,
+    height=480
+)
