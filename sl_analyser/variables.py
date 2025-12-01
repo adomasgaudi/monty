@@ -178,7 +178,7 @@ EXERCISE_DATA = {
     "Preacher Curl": 
         {"bwp": 0.0, "eq_w": 0},
     "Pull Ups": 
-        {"bwp": 1.0, "eq_w": 0},
+        {"bwp": 1.0, "eq_w": 7},
     "Push Ups": 
         {"bwp": 1.0, "eq_w": 0},
     "Reverse Grip Lat Pulldown": 

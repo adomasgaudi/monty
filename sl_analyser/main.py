@@ -10,7 +10,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
 # --- Mobile-friendly styling ---
-st.write("v.b0.2")
+st.write("v.b0.3")
 st.markdown(
 """
 <style>
@@ -293,9 +293,9 @@ else:
 # ======================================================
 # === EXERCISE HISTORY OVERVIEW ========================
 # ======================================================
-
 st.subheader("🏋️ Exercise History Overview")
 
+# ----- collect all exercise names -----
 all_exercises = sorted({
     ex.get("exercise_name", "")
     for w in raw_data
@@ -305,85 +305,47 @@ all_exercises = sorted({
 selected_history_ex = st.selectbox("Select an exercise to view history", all_exercises)
 
 history_rows = []
+
+# ----- iterate per workout day (ONLY real logged days) -----
 for workout_day in raw_data:
-    raw_date = workout_day.get("date") or ""
-    formatted_date = format_date(raw_date) if raw_date else "—"
-    for exercise in workout_day.get("exercises", []):
-        if exercise.get("exercise_name") == selected_history_ex:
-            history_rows.append({
-                "raw_date": raw_date,
-                "date": formatted_date,
-                "Relative Volume": exercise.get("volume_relative", 0),
-                "Heavy Volume": exercise.get("heavy_sets", 0),
-                "Hard Sets": exercise.get("hard_sets", 0),
-            })
+    raw_date = workout_day.get("date")
+    if not raw_date:
+        continue
 
-if history_rows:
-    df_history = pd.DataFrame(history_rows).sort_values("raw_date", ascending=False).drop(columns=["raw_date"])
-   
-    st.dataframe(df_history, use_container_width=True, hide_index=True, height=480)
-else:
-    st.info("No records found for this exercise.")
+    formatted_date = format_date(raw_date)
 
+    # find selected exercise inside this workout
+    exercises_today = workout_day.get("exercises", [])
+    matches = [
+        ex for ex in exercises_today
+        if ex.get("exercise_name") == selected_history_ex
+    ]
 
-# ======================================================
-# === PLOTLY VOLUME TREND (MOBILE SAFE) ================
-# ======================================================
+    if matches:
+        # If exercise exists → use REAL values (only one per day)
+        ex = matches[0]
+        history_rows.append({
+            "raw_date": raw_date,
+            "date": formatted_date,
+            "Relative Volume": ex.get("volume_relative", 0),
+            "Heavy Volume": ex.get("heavy_sets", 0),
+            "Hard Sets": ex.get("hard_sets", 0),
+        })
+    else:
+        # If exercise does NOT exist that day → add zero day
+        history_rows.append({
+            "raw_date": raw_date,
+            "date": formatted_date,
+            "Relative Volume": 0,
+            "Heavy Volume": 0,
+            "Hard Sets": 0,
+        })
 
-if history_rows:
-    import plotly.graph_objects as go
-    df_plot = pd.DataFrame(history_rows).copy()
-    df_plot["raw_date"] = pd.to_datetime(df_plot["date"], errors="coerce")
-    df_plot = df_plot.dropna(subset=["raw_date"]).sort_values("raw_date")
-    cutoff_date = datetime.now() - timedelta(days=180)
-    df_plot = df_plot[df_plot["raw_date"] >= cutoff_date]
+# ----- Build DataFrame -----
+df_history = (
+    pd.DataFrame(history_rows)
+    .sort_values("raw_date", ascending=False)
+    .drop(columns=["raw_date"])
+)
 
-    if not df_plot.empty:
-        fig = go.Figure()
-        fig.add_trace(go.Bar(x=df_plot["raw_date"], y=df_plot["Relative Volume"], name="Relative Volume", marker_color="#9bafd9", opacity=0.8))
-        fig.add_trace(go.Scatter(x=df_plot["raw_date"], y=df_plot["Heavy Volume"], mode="lines+markers", name="Heavy Volume",
-                                 line=dict(color="#d9534f", width=3), marker=dict(size=8), yaxis="y2"))
-        fig.update_layout(
-            title=f"{selected_history_ex} — Volume Trends (Last 6 Months)",
-            xaxis=dict(title="Date", tickformat="%b-%d", showgrid=False),
-            yaxis=dict(title=dict(text="Relative Volume", font=dict(color="#3e64ad")), tickfont=dict(color="#3e64ad")),
-            yaxis2=dict(title=dict(text="Heavy Volume", font=dict(color="#d9534f")), tickfont=dict(color="#d9534f"), overlaying="y", side="right"),
-            bargap=0.2,
-            legend=dict(x=0.02, y=1.1, orientation="h"),
-            margin=dict(l=50, r=50, t=80, b=50),
-            template="plotly_white",
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        st.write("v.a4")
-
-        df["date_dt"] = pd.to_datetime(df["date"], format="%b-%d", errors="coerce")
-        cutoff_date = datetime.now() - timedelta(days=120)
-        df_recent = df[df["date_dt"] >= cutoff_date].copy()
-
-        df_exercise_counts_4m = (
-            df_recent.groupby("exercise")
-            .size()
-            .reset_index(name="entries_last_4m")
-            .sort_values("entries_last_4m", ascending=False)
-        )
-
-        st.subheader("📈 Exercise Frequency (Last 4 Months)")
-        st.dataframe(df_exercise_counts_4m, use_container_width=True, hide_index=True)
-        st.session_state["exercise_counts_4m"] = df_exercise_counts_4m
-
-        st.markdown(
-            """
-            <style>
-            .scroll-container {overflow-x: auto; padding-left: 10px; padding-right: 10px;}
-            .scroll-container::-webkit-scrollbar {height: 8px;}
-            .scroll-container::-webkit-scrollbar-thumb {background-color: #bbb; border-radius: 4px;}
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-        st.markdown('<div class="scroll-container">', unsafe_allow_html=True)
-        st.dataframe(df, use_container_width=False, height=320, hide_index=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-st.markdown("""<div style="height: 200px;"></div>""", unsafe_allow_html=True)
-
+st.dataframe(df_history, use_container_width=True, hide_index=True, height=480)
