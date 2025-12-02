@@ -20,17 +20,35 @@ HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
 # ------------------------------------------------------
+# VERSION + STYLES
 # ------------------------------------------------------
-# ------------------------------------------------------
-# ------------------------------------------------------
-
-
-st.write("v.b0.8")
+st.write("v.b0.9")
 st.markdown(load_styles(), unsafe_allow_html=True)
 
 # ------------------------------------------------------
-# DATAFRAME CREATION
+# SIMPLE PAGE SWITCH USING SESSION STATE
+# ------------------------------------------------------
+if "show_hello" not in st.session_state:
+    st.session_state.show_hello = False
 
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("Go to Hello Page"):
+        st.session_state.show_hello = True
+with col2:
+    if st.button("Go Back"):
+        st.session_state.show_hello = False
+
+# If Hello mode is active — show ONLY Hello world and stop the app
+if st.session_state.show_hello:
+    st.title("exercises page")
+    
+    st.stop()
+
+
+# ------------------------------------------------------
+# DATAFRAME CREATION
+# ------------------------------------------------------
 def create_workout_df(all_workouts):
     rows = []
     for workout_day in all_workouts:
@@ -65,23 +83,32 @@ def get_data_from_username(selection):
 
 # ------------------------------------------------------
 # UI SETUP
-
+# ------------------------------------------------------
 selected_name = st.selectbox("Select person", list(NAME_TO_USERNAME.keys()))
 raw_data = get_data_from_username(selected_name)
 
 df = create_workout_df(raw_data)
 
 
+# ------------------------------------------------------
+# WORKOUT HISTORY (WITH CUSTOM STYLING)
+# ------------------------------------------------------
 for workout_day in raw_data:
     date_str = format_date(workout_day["date"])
     st.divider()
-    st.markdown(f"<h3 class='subheader-date'>📅 {date_str}</h3>", unsafe_allow_html=True)
-    
+
+    st.markdown(
+        f"<h3 class='subheader-date'>📅 {date_str}</h3>",
+        unsafe_allow_html=True
+    )
 
     for ex in workout_day.get("exercises", []):
         ex_name = ex.get("exercise_name", "")
 
-        st.markdown(f"<h3 class='subheader-exercise'>{ex_name}</h3>", unsafe_allow_html=True)
+        st.markdown(
+            f"<h3 class='subheader-exercise'>{ex_name}</h3>",
+            unsafe_allow_html=True
+        )
 
         rows = []
         for s in ex.get("sets", []):
@@ -108,6 +135,9 @@ for workout_day in raw_data:
 # ------------------------------------------------------
 # QUICK TABLE: ALL SETS OF SELECTED EXERCISE
 # ------------------------------------------------------
+exercise_counts = df["exercise"].value_counts().reset_index()
+exercise_counts.columns = ["exercise", "count"]
+
 exercise_dict = dict(zip(exercise_counts["exercise"], exercise_counts["count"]))
 selected_exercise = st.selectbox("Choose an exercise", list(exercise_dict.keys()))
 
