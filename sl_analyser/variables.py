@@ -155,6 +155,8 @@ EXERCISE_DATA = {
         {"bwp": 0.05, "eq_w": 0},
     "Standing Leg Curl": 
         {"bwp": 0.05, "eq_w": 0},
+    "Single Dumbbell Cossack Squat": 
+        {"bwp": 0.6, "eq_w": 0},
     "Machine Lateral Raise": 
         {"bwp": None, "eq_w": 0},
     "Machine Calf Raise": 

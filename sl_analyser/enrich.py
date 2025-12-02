@@ -200,7 +200,6 @@ def enrich_workouts_with_heavy_volume(raw_data):
     """Compute heavy volume (85% & 93%) adjusted for internal load."""
 
     # --- helpers -----------------------------------------------------
-    st.write("external enrichment!!!")
     def calc_thresholds(one_rm, internal_load):
         t85 = (0.85 * (one_rm + internal_load)) - internal_load
         t93 = (0.93 * (one_rm + internal_load)) - internal_load
