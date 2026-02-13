@@ -88,7 +88,7 @@ selected_name = st.selectbox("Select person", list(NAME_TO_USERNAME.keys()))
 raw_data = get_data_from_username(selected_name)
 
 df = create_workout_df(raw_data)
-
+st.write(df)
 
 # ------------------------------------------------------
 # WORKOUT HISTORY (WITH CUSTOM STYLING)
@@ -104,11 +104,11 @@ for workout_day in raw_data:
 
     for ex in workout_day.get("exercises", []):
         ex_name = ex.get("exercise_name", "")
-
+        # st.write(ex)
         st.markdown(
-            f"<h3 class='subheader-exercise'>{ex_name}</h3>",
-            unsafe_allow_html=True
+            f"{ex_name}. :orange-badge[sets: {5*4}]"
         )
+        
 
         rows = []
         for s in ex.get("sets", []):
