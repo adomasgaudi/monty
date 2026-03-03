@@ -123,11 +123,19 @@ WARMUP_COLS = {
         ],
         "Percentage": ["30%", "50%", "60%", "70%", "85%", "87%"],
     }
+warmup_df = pd.DataFrame(WARMUP_COLS)
 
+STRENGTH_COLS = {
+        "Reps": ["1", "4", "4"],
+        "W_Lift": [
+            f"{round(recordW * 0.94):.0f}",
+            f"{round(recordW * 0.88):.0f}",
+            f"{round(recordW * 0.87):.0f}",
+        ],
+        "Percentage": ["94%", "88%", "87%"],
+    }
 
-
-
-
+strength_df = pd.DataFrame(STRENGTH_COLS)
 
 # /////////////////////////////////////////////////////////////////
 
@@ -156,19 +164,9 @@ st.button(
 
 if st.session_state.show_routines:
     st.subheader("Warmup Routine")
-    warmup_df = pd.DataFrame(WARMUP_COLS)
-    st.dataframe(warmup_df, use_container_width=True, hide_index=True)
+    st.dataframe(warmup_df)
     st.caption("Take 30–60s rest between warmup sets. Treat every rep like practice for your max.")
 
     st.subheader("💪 Strength Training Session")
-    strength_df = pd.DataFrame({
-        "Reps": ["1", "4", "4"],
-        "W_Lift": [
-            f"{round(recordW * 0.94):.0f}",
-            f"{round(recordW * 0.88):.0f}",
-            f"{round(recordW * 0.87):.0f}",
-        ],
-        "Percentage": ["94%", "88%", "87%"],
-    })
-    st.dataframe(strength_df, use_container_width=True, hide_index=True)
+    st.dataframe(strength_df)
     st.caption("Take 2–7 min rest between strength sets. Perfect form. Explosive intent.")
