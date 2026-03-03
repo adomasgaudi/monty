@@ -1,46 +1,13 @@
 import streamlit as st
 import pandas as pd
+from utils import page_setup, data_editor1
 
 
-# UTILS
-def data_editor1(
-    df: pd.DataFrame,
-    *,
-    cols: dict,          # { "df_col_name": {NumberColumn kwargs...}, ... }
-    key: str,
-    disabled: bool = False,
-):
-    column_config = {df_col: st.column_config.NumberColumn(**cfg) for df_col, cfg in cols.items()}
-    return st.data_editor(
-        df,
-        num_rows="fixed",
-        hide_index=True,
-        use_container_width=True,
-        column_config=column_config,
-        disabled=disabled,
-        key=key,
-    )
 
-
-st.set_page_config(page_title="Bench Press Calculator", page_icon="🏋️", layout="wide")
-
-st.markdown(
-    """
-<style>
-.input-grid div[data-testid="stElementToolbar"],
-.metric-grid div[data-testid="stElementToolbar"] {
-  display: none !important;
-}
-.metric-grid { max-width: 900px; }
-</style>
-
-<h3 style="margin: 0 0 16px 0;">Bench Press Calculator</h3>
-""",
-    unsafe_allow_html=True,
-)
+page_setup()
 
 # --- INPUTS ---
-input_record_df = pd.DataFrame([{"Weight (kg)": 60.0, "Reps": 1}])
+input_record_df = pd.DataFrame([{"W_Lift": 60.0, "Reps": 1}])
 input_details_df = pd.DataFrame([{"BWP": 80.0, "BPart": 0.00}])
 
 st.markdown('<div class="input-grid">', unsafe_allow_html=True)
@@ -72,8 +39,8 @@ edited_record = data_editor1(
     input_record_df,
     key="record_editor",
     cols={
-        "Weight (kg)": dict(
-            label="Weight (kg)",
+        "W_Lift": dict(
+            label="W_Lift",
             min_value=0.0,
             max_value=500.0,
             step=2.5,
@@ -94,14 +61,14 @@ edited_record = data_editor1(
 st.markdown("</div>", unsafe_allow_html=True)
 
 # Read values
-weight = float(edited_record.loc[0, "Weight (kg)"])
+weight = float(edited_record.loc[0, "W_Lift"])
 reps = int(edited_record.loc[0, "Reps"])
 body_weight = float(edited_details.loc[0, "BWP"])
 body_part = float(edited_details.loc[0, "BPart"])
 
 st.divider()
 
-if st.button("Submit Bench Press Record", type="primary"):
+if st.button("Submit Record", type="primary"):
     estimated_1rm = weight * (reps + 29) / 30
 
     # --- METRICS (cells, no wrapping) ---
@@ -128,7 +95,7 @@ if st.button("Submit Bench Press Record", type="primary"):
     st.subheader("🔥 Warmup Routine")
     warmup_df = pd.DataFrame({
         "Reps": ["10", "8", "5", "4", "1", "1"],
-        "Weight (kg)": [
+        "W_Lift": [
             f"{round(estimated_1rm * 0.30 / 5) * 5:.0f}",
             f"{round(estimated_1rm * 0.50 / 5) * 5:.0f}",
             f"{round(estimated_1rm * 0.60 / 2.5) * 2.5:.1f}",
@@ -145,7 +112,7 @@ if st.button("Submit Bench Press Record", type="primary"):
     st.subheader("💪 Strength Training Session")
     strength_df = pd.DataFrame({
         "Reps": ["1", "4", "4"],
-        "Weight (kg)": [
+        "W_Lift": [
             f"{round(estimated_1rm * 0.94):.0f}",
             f"{round(estimated_1rm * 0.88):.0f}",
             f"{round(estimated_1rm * 0.87):.0f}",
