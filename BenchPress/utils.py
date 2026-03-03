@@ -30,20 +30,14 @@ def page_setup(
 ):
     st.set_page_config(page_title=title, page_icon=icon, layout=layout)
 
-    css = ""
-    if hide_toolbars:
-        css += f"""
-<style>
-.input-grid div[data-testid="stElementToolbar"],
-.metric-grid div[data-testid="stElementToolbar"] {{
-  display: none !important;
-}}
-.metric-grid {{ max-width: {metric_max_width_px}px; }}
-</style>
-"""
-
 def h3_title(title: str, *, margin_bottom_px: int = 16):
     st.markdown(
         f'<h3 style="margin: 0 0 {margin_bottom_px}px 0;">{title}</h3>',
         unsafe_allow_html=True,
     )   
+
+def record(w: float, r: float):
+    return w * (r + 29) / 30
+
+
+# end
