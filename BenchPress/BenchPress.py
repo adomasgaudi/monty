@@ -67,6 +67,7 @@ input_details_df = pd.DataFrame([{"BWP": 80.0, "BPart": 0.00}])
 
 page_setup()
 h3_title("Bench Press Calculator")
+st.caption("v3/3")
 st.divider()
 
 # --- INPUTS ---
