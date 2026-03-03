@@ -1,50 +1,64 @@
 import streamlit as st
 import pandas as pd
 
+
+# UTILS
+def data_editor1(
+    df: pd.DataFrame,
+    *,
+    cols: dict,          # { "df_col_name": {NumberColumn kwargs...}, ... }
+    key: str,
+    disabled: bool = False,
+):
+    column_config = {df_col: st.column_config.NumberColumn(**cfg) for df_col, cfg in cols.items()}
+    return st.data_editor(
+        df,
+        num_rows="fixed",
+        hide_index=True,
+        use_container_width=True,
+        column_config=column_config,
+        disabled=disabled,
+        key=key,
+    )
+
+
 st.set_page_config(page_title="Bench Press Calculator", page_icon="🏋️", layout="wide")
 
-# Title (smaller + space under)
-st.markdown("<h3 style='margin: 0 0 16px 0;'>Bench Press Calculator</h3>", unsafe_allow_html=True)
-
-# Hide the top-right toolbar icons for ONLY the input tables
 st.markdown(
     """
-    <style>
-    .input-grid div[data-testid="stElementToolbar"] { display: none !important; }
-    </style>
-    """,
+<style>
+.input-grid div[data-testid="stElementToolbar"],
+.metric-grid div[data-testid="stElementToolbar"] {
+  display: none !important;
+}
+.metric-grid { max-width: 900px; }
+</style>
+
+<h3 style="margin: 0 0 16px 0;">Bench Press Calculator</h3>
+""",
     unsafe_allow_html=True,
 )
 
-# --- Input tables (split into Record + Details) ---
-inputRecord_df = pd.DataFrame([{
-    "Weight (kg)": 60.0,
-    "Reps": 1,
-}])
-
-inputDetails_df = pd.DataFrame([{
-    "BW (kg)": 80.0,
-    "Body Part (0–1)": 0.00,
-}])
+# --- INPUTS ---
+input_record_df = pd.DataFrame([{"Weight (kg)": 60.0, "Reps": 1}])
+input_details_df = pd.DataFrame([{"BWP": 80.0, "BPart": 0.00}])
 
 st.markdown('<div class="input-grid">', unsafe_allow_html=True)
 
-editedDetails = st.data_editor(
-    inputDetails_df,
-    num_rows="fixed",
-    hide_index=True,
-    use_container_width=True,
-    column_config={
-        "BW (kg)": st.column_config.NumberColumn(
-            "BW (kg)",
-            min_value=20.0,
-            max_value=300.0,
-            step=0.5,
+edited_details = data_editor1(
+    input_details_df,
+    key="details_editor",
+    cols={
+        "BWP": dict(
+            label="Scale KG",
+            min_value=1.0,
+            max_value=1000.0,
+            step=0.1,
             format="%.1f",
             width="small",
         ),
-        "Body Part (0–1)": st.column_config.NumberColumn(
-            "Body Part (0–1)",
+        "BPart": dict(
+            label="Body Part 0–1",
             min_value=0.0,
             max_value=1.0,
             step=0.01,
@@ -54,22 +68,20 @@ editedDetails = st.data_editor(
     },
 )
 
-editedRecord = st.data_editor(
-    inputRecord_df,
-    num_rows="fixed",
-    hide_index=True,
-    use_container_width=True,
-    column_config={
-        "Weight (kg)": st.column_config.NumberColumn(
-            "Weight (kg)",
+edited_record = data_editor1(
+    input_record_df,
+    key="record_editor",
+    cols={
+        "Weight (kg)": dict(
+            label="Weight (kg)",
             min_value=0.0,
             max_value=500.0,
             step=2.5,
             format="%.1f",
             width="small",
         ),
-        "Reps": st.column_config.NumberColumn(
-            "Reps",
+        "Reps": dict(
+            label="Reps",
             min_value=1,
             max_value=50,
             step=1,
@@ -81,21 +93,36 @@ editedRecord = st.data_editor(
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Read values (IMPORTANT: read from the right editor)
-weight = float(editedRecord.loc[0, "Weight (kg)"])
-reps = int(editedRecord.loc[0, "Reps"])
-body_weight = float(editedDetails.loc[0, "BW (kg)"])
-body_part = float(editedDetails.loc[0, "Body Part (0–1)"])
+# Read values
+weight = float(edited_record.loc[0, "Weight (kg)"])
+reps = int(edited_record.loc[0, "Reps"])
+body_weight = float(edited_details.loc[0, "BWP"])
+body_part = float(edited_details.loc[0, "BPart"])
 
 st.divider()
 
 if st.button("Submit Bench Press Record", type="primary"):
     estimated_1rm = weight * (reps + 29) / 30
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Estimated 1RM", f"{estimated_1rm:.1f} kg")
-    c2.metric("Relative strength (1RM/BW)", f"{(estimated_1rm / body_weight):.2f}" if body_weight > 0 else "—")
-    c3.metric("Body Part (0–1)", f"{body_part:.2f}")
+    # --- METRICS (cells, no wrapping) ---
+    metrics_df = pd.DataFrame([{
+        "Estimated 1RM (kg)": estimated_1rm,
+        "1RM/BW": (estimated_1rm / body_weight) if body_weight > 0 else None,
+        "BPart": body_part,
+    }])
+
+    st.markdown('<div class="metric-grid">', unsafe_allow_html=True)
+    data_editor1(
+        metrics_df,
+        key="metrics_editor",
+        disabled=True,
+        cols={
+            "Estimated 1RM (kg)": dict(label="Estimated 1RM (kg)", format="%.1f", width="medium"),
+            "1RM/BW": dict(label="1RM/BW", format="%.2f", width="small"),
+            "BPart": dict(label="BPart", format="%.2f", width="small"),
+        },
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # Warmup routine
     st.subheader("🔥 Warmup Routine")
