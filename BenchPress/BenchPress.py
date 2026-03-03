@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils import h3_title, page_setup, InputTable, record
+from utils import h3_title, page_setup, InputTable, record, recordB50
 
 
 
@@ -102,8 +102,11 @@ weight = float(recordTable.loc[0, "W_Lift"])
 reps = int(recordTable.loc[0, "Reps"])
 body_weight = float(detailsTable.loc[0, "BWP"])
 body_part = float(detailsTable.loc[0, "BPart"])
+body_partKG = body_part * body_weight
 
-recordW = record(weight, reps)
+# recordW = record(weight, reps)
+recordW = recordB50(weight, body_partKG, reps)
+
 
 metrics_df = pd.DataFrame([{
         "Record": recordW,
@@ -134,7 +137,6 @@ STRENGTH_COLS = {
         ],
         "Percentage": ["94%", "88%", "87%"],
     }
-
 strength_df = pd.DataFrame(STRENGTH_COLS)
 
 # /////////////////////////////////////////////////////////////////

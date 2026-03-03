@@ -39,5 +39,8 @@ def h3_title(title: str, *, margin_bottom_px: int = 16):
 def record(w: float, r: float):
     return w * (r + 29) / 30
 
+def recordB50(w: float, w_iq: float, reps: float) -> float:
+    xrm = (153196 / (reps + 20.1)) ** (1.0 / 1.8) - 39.0
+    return 100.0 * (w + w_iq) / xrm - w_iq
 
 # end
