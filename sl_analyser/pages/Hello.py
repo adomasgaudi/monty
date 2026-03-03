@@ -152,7 +152,7 @@ def iso_week_to_date(week_str):
 df_plot["plot_date"] = df_plot["week"].apply(iso_week_to_date)
 df_plot["plot_date"] += timedelta(days=1)  # spacing
 
-cutoff = datetime.now() - timedelta(weeks=100)
+cutoff = datetime.now() - timedelta(weeks=200)
 df_plot = df_plot[df_plot["plot_date"] >= cutoff].sort_values("plot_date")
 
 if df_plot.empty:
