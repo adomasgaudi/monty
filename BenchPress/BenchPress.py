@@ -1,73 +1,82 @@
 import streamlit as st
 import pandas as pd
-from utils import page_setup, data_editor1
+from utils import h3_title, page_setup, InputTable
+
+
+
+
+
+
+DETAILS_COLS = {
+    "BWP": dict(
+        label="Scale KG",
+        min_value=1.0,
+        max_value=1000.0,
+        step=0.1,
+        format="%.1f",
+        width="small",
+    ),
+    "BPart": dict(
+        label="Body Part 0–1",
+        min_value=0.0,
+        max_value=1.0,
+        step=0.01,
+        format="%.2f",
+        width="small",
+    ),
+}
+RECORD_COLS = {
+    "W_Lift": dict(
+        label="W_Lift",
+        min_value=0.0,
+        max_value=500.0,
+        step=2.5,
+        format="%.1f",
+        width="small",
+    ),
+    "Reps": dict(
+        label="Reps",
+        min_value=1,
+        max_value=50,
+        step=1,
+        format="%d",
+        width="small",
+    ),
+}
+input_record_df = pd.DataFrame([{"W_Lift": 60.0, "Reps": 1}])
+input_details_df = pd.DataFrame([{"BWP": 80.0, "BPart": 0.00}])
+
+
+
+
+
+
+
 
 
 
 page_setup()
-
-# --- INPUTS ---
-input_record_df = pd.DataFrame([{"W_Lift": 60.0, "Reps": 1}])
-input_details_df = pd.DataFrame([{"BWP": 80.0, "BPart": 0.00}])
-
-st.markdown('<div class="input-grid">', unsafe_allow_html=True)
-
-edited_details = data_editor1(
-    input_details_df,
-    key="details_editor",
-    cols={
-        "BWP": dict(
-            label="Scale KG",
-            min_value=1.0,
-            max_value=1000.0,
-            step=0.1,
-            format="%.1f",
-            width="small",
-        ),
-        "BPart": dict(
-            label="Body Part 0–1",
-            min_value=0.0,
-            max_value=1.0,
-            step=0.01,
-            format="%.2f",
-            width="small",
-        ),
-    },
-)
-
-edited_record = data_editor1(
-    input_record_df,
-    key="record_editor",
-    cols={
-        "W_Lift": dict(
-            label="W_Lift",
-            min_value=0.0,
-            max_value=500.0,
-            step=2.5,
-            format="%.1f",
-            width="small",
-        ),
-        "Reps": dict(
-            label="Reps",
-            min_value=1,
-            max_value=50,
-            step=1,
-            format="%d",
-            width="small",
-        ),
-    },
-)
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Read values
-weight = float(edited_record.loc[0, "W_Lift"])
-reps = int(edited_record.loc[0, "Reps"])
-body_weight = float(edited_details.loc[0, "BWP"])
-body_part = float(edited_details.loc[0, "BPart"])
-
+h3_title("Bench Press Calculator")
 st.divider()
 
+# --- INPUTS ---
+detailsTable = InputTable(
+    input_details_df,
+    key="details_editor",
+    cols=DETAILS_COLS,
+)
+recordTable = InputTable(
+    input_record_df,
+    key="record_editor",
+    cols=RECORD_COLS,
+)
+weight = float(recordTable.loc[0, "W_Lift"])
+reps = int(recordTable.loc[0, "Reps"])
+body_weight = float(detailsTable.loc[0, "BWP"])
+body_part = float(detailsTable.loc[0, "BPart"])
+
+
+# --- SUBMIT ---
 if st.button("Submit Record", type="primary"):
     estimated_1rm = weight * (reps + 29) / 30
 
@@ -79,7 +88,7 @@ if st.button("Submit Record", type="primary"):
     }])
 
     st.markdown('<div class="metric-grid">', unsafe_allow_html=True)
-    data_editor1(
+    InputTable(
         metrics_df,
         key="metrics_editor",
         disabled=True,

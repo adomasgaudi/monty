@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-def data_editor1(
+def InputTable(
     df: pd.DataFrame,
     *,
     cols: dict,          # { "df_col_name": {NumberColumn kwargs...}, ... }
@@ -42,9 +42,8 @@ def page_setup(
 </style>
 """
 
+def h3_title(title: str, *, margin_bottom_px: int = 16):
     st.markdown(
-        f"""{css}
-<h3 style="margin: 0 0 16px 0;">{title}</h3>
-""",
+        f'<h3 style="margin: 0 0 {margin_bottom_px}px 0;">{title}</h3>',
         unsafe_allow_html=True,
-    )
+    )   
