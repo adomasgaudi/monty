@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.9.0 -->
+<!-- Cosmic Crossing v1.10.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.9.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.10.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -392,53 +392,127 @@
     </div>
   </section>
 </div>
-<div class="version">v1.9.0</div>
+<div class="version">v1.10.0</div>
 
 <script>
-/* ===== math helpers ===== */
+/* ============================================================================
+ * Cosmic Crossing — single-file math drill app
+ * ----------------------------------------------------------------------------
+ * ARCHITECTURE (top → bottom, in the order things execute on load):
+ *   1. Math helpers          — pure number / string utilities (no DOM)
+ *   2. SCENARIOS             — real-world story templates per math family
+ *   3. SVG diagram helpers   — vecDiag, drawArrow, gaBreakdown
+ *   4. TOPICS                — one entry per (numberSet, op): makes a question
+ *   5. Navigation metadata   — NUMBER_TYPES, categoriesFor, operationsFor
+ *   6. Settings model        — SET (persisted), constants for option lists
+ *   7. User / points         — localStorage-backed accounts
+ *   8. UI rendering          — buildTopics, renderQuestion, showExplain, profile
+ *   9. Game loop             — startGame, resolve, nextQuestion, endGame
+ *  10. Init                  — load persisted state, render home screen
+ *
+ * CODE STYLE: targeted for LLM readability per evidence in commit notes for
+ * v1.10.0 — short functions, descriptive names, multi-line expansion of dense
+ * helpers, duplication tolerated over premature abstraction. No bundler; one
+ * file ships as-is.
+ * ========================================================================== */
+
+
+/* ─── 1. Math helpers ─────────────────────────────────────────────────────── */
+
+/** Shift the decimal point of a number-string by `places` (positive = right). */
 function shiftPoint(numStr, places){
-  let s=String(numStr), neg=s.startsWith('-'); if(neg)s=s.slice(1);
-  let [intPart, fracPart='']=s.split('.');
-  let digits=(intPart+fracPart).replace(/^0+(?=\d)/,'');
-  let pfr=fracPart.length-places;
-  if(pfr<=0){digits=digits+'0'.repeat(-pfr);fracPart='';intPart=digits;}
-  else if(pfr>=digits.length){digits='0'.repeat(pfr-digits.length+1)+digits;intPart=digits.slice(0,digits.length-pfr);fracPart=digits.slice(digits.length-pfr);}
-  else{intPart=digits.slice(0,digits.length-pfr);fracPart=digits.slice(digits.length-pfr);}
-  intPart=intPart.replace(/^0+(?=\d)/,''); if(intPart==='')intPart='0';
-  fracPart=fracPart.replace(/0+$/,'');
-  let out=fracPart?intPart+'.'+fracPart:intPart;
-  if(neg&&out!=='0')out='-'+out; return out;
-}
-function normalize(s){
-  s=String(s).trim().replace(/\s+/g,'').replace(/^\+/,'');
-  if(s==='')return null;
-  const fm = s.match(/^(-?)(\d+)\/(\d+)$/);
-  if(fm){
-    const num=parseInt(fm[2],10), den=parseInt(fm[3],10);
-    if(den===0) return 'INVALID';
-    const val=(num/den)*(fm[1]?-1:1);
-    s = String(val);
+  let s = String(numStr);
+  const neg = s.startsWith('-');
+  if(neg) s = s.slice(1);
+
+  let [intPart, fracPart = ''] = s.split('.');
+  let digits = (intPart + fracPart).replace(/^0+(?=\d)/, '');
+
+  const fracTail = fracPart.length - places;
+  if(fracTail <= 0){
+    digits = digits + '0'.repeat(-fracTail);
+    intPart = digits;
+    fracPart = '';
+  } else if(fracTail >= digits.length){
+    digits = '0'.repeat(fracTail - digits.length + 1) + digits;
+    const splitAt = digits.length - fracTail;
+    intPart = digits.slice(0, splitAt);
+    fracPart = digits.slice(splitAt);
+  } else {
+    const splitAt = digits.length - fracTail;
+    intPart = digits.slice(0, splitAt);
+    fracPart = digits.slice(splitAt);
   }
-  if(!/^-?\d*\.?\d*$/.test(s)||s==='-'||s==='.')return 'INVALID';
-  let neg=s.startsWith('-'); if(neg)s=s.slice(1);
-  let [i='',f='']=s.split('.');
-  i=i.replace(/^0+(?=\d)/,''); if(i==='')i='0'; f=f.replace(/0+$/,'');
-  let out=f?i+'.'+f:i; if(neg&&out!=='0')out='-'+out; return out;
+
+  intPart = intPart.replace(/^0+(?=\d)/, '') || '0';
+  fracPart = fracPart.replace(/0+$/, '');
+
+  let out = fracPart ? intPart + '.' + fracPart : intPart;
+  if(neg && out !== '0') out = '-' + out;
+  return out;
 }
-function fracToDec(n,d){let s=(n/d).toFixed(8);return s.replace(/0+$/,'').replace(/\.$/,'');}
-const intStr = n => String(n===0?0:n);
-const rnd = a => a[Math.floor(Math.random()*a.length)];
-function gcd(a,b){a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b];}return a||1;}
+
+/** Normalise a user-typed number string. Accepts decimal or "n/d" fraction.
+ *  Returns null for empty input, 'INVALID' for unparseable, else canonical decimal string. */
+function normalize(s){
+  s = String(s).trim().replace(/\s+/g, '').replace(/^\+/, '');
+  if(s === '') return null;
+
+  // Accept fraction form "n/d" or "-n/d" by converting to decimal first.
+  const fracMatch = s.match(/^(-?)(\d+)\/(\d+)$/);
+  if(fracMatch){
+    const num = parseInt(fracMatch[2], 10);
+    const den = parseInt(fracMatch[3], 10);
+    if(den === 0) return 'INVALID';
+    const signed = (num / den) * (fracMatch[1] ? -1 : 1);
+    s = String(signed);
+  }
+
+  if(!/^-?\d*\.?\d*$/.test(s) || s === '-' || s === '.') return 'INVALID';
+
+  const neg = s.startsWith('-');
+  if(neg) s = s.slice(1);
+
+  let [intPart = '', fracPart = ''] = s.split('.');
+  intPart = intPart.replace(/^0+(?=\d)/, '') || '0';
+  fracPart = fracPart.replace(/0+$/, '');
+
+  let out = fracPart ? intPart + '.' + fracPart : intPart;
+  if(neg && out !== '0') out = '-' + out;
+  return out;
+}
+
+/** Divide two integers, return a short decimal string (no trailing zeros). */
+function fracToDec(n, d){
+  const s = (n / d).toFixed(8);
+  return s.replace(/0+$/, '').replace(/\.$/, '');
+}
+
+const intStr = n => String(n === 0 ? 0 : n);
+const rnd    = arr => arr[Math.floor(Math.random() * arr.length)];
+
+function gcd(a, b){
+  a = Math.abs(a);
+  b = Math.abs(b);
+  while(b){ [a, b] = [b, a % b]; }
+  return a || 1;
+}
+
+/** Convert a decimal string to [numerator, denominator] in lowest terms.
+ *  Returns null for integers (caller should show the integer as-is). */
 function decToFrac(s){
-  const x = parseFloat(s); if(Number.isInteger(x)) return null;
-  const sign = x<0 ? '-' : '';
-  const abs = Math.abs(x);
-  const str = String(abs); const dot = str.indexOf('.');
-  const dp = str.length - dot - 1;
-  let num = Math.round(abs * Math.pow(10, dp));
-  let den = Math.pow(10, dp);
+  const x = parseFloat(s);
+  if(Number.isInteger(x)) return null;
+
+  const sign = x < 0 ? '-' : '';
+  const abs  = Math.abs(x);
+  const str  = String(abs);
+  const decimalPlaces = str.length - str.indexOf('.') - 1;
+
+  let num = Math.round(abs * Math.pow(10, decimalPlaces));
+  let den = Math.pow(10, decimalPlaces);
   const g = gcd(num, den);
-  return [sign + (num/g), den/g];
+  return [sign + (num / g), den / g];
 }
 function fmtVal(s){
   if(SET.numForm!=='fraction') return String(s);
@@ -454,7 +528,21 @@ function shiftPrompt(a, op){
   return `${fmtVal(a)} <span class="${cls}">${op}</span> = <span class="qmark">?</span>`;
 }
 
-/* ===== Real-world scenarios ===== */
+/* ─── 2. SCENARIOS — real-world story templates ─────────────────────────────
+ * Each entry has:
+ *   tag    — short label shown above the prose
+ *   intro  — (args) => HTML string for "show equation" mode
+ *   prose  — optional (args) => HTML for fully-prose "infer the math" mode
+ *   fact   — one-line piece of trivia shown in the feedback panel
+ *   unit   — physical unit for "with units" answer toggle (string, may be empty)
+ * Keyed by SCENARIOS[category], where category matches the topic type:
+ *   scale  → shift / powers     (×10, ÷10, etc.)
+ *   cross  → integer +/− across zero
+ *   ratio  → fraction → decimal
+ *   vec    → vector dot product
+ *   mat    → general matrix multiplication
+ *   vcm    → 2D forms (vector / complex / matrix unified)
+ * ─────────────────────────────────────────────────────────────────────────── */
 const _opPhrase = {
   '×10':'ten times','×100':'a hundred times','×1000':'a thousand times',
   '÷10':'one tenth','÷100':'one hundredth','÷1000':'one thousandth'
@@ -628,7 +716,7 @@ function matHTML(M, hlRow, hlCol){
   }
   return html + `</span>`;
 }
-/* ===== SVG vector diagrams ===== */
+/* ─── 3. SVG diagram helpers ────────────────────────────────────────────── */
 function drawArrow(x1,y1,x2,y2,color,lw,dashed){
   const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy);
   if(len<.001) return '';
@@ -742,7 +830,21 @@ function pickScenario(category){
   return list[Math.floor(Math.random()*list.length)];
 }
 
-/* ===== topics — keyed by (numberType, category, operation) ===== */
+/* ─── 4. TOPICS — one per (numberSet, operation) ────────────────────────────
+ * Each topic exposes:
+ *   title  — shown as the settings-screen crumb
+ *   diffs  — array of difficulty labels (Easy / Medium / Hard, etc.)
+ *   make(diff) — returns one question:
+ *     { promptHTML,   scenarioHTML, proseHTML,
+ *       scenarioFact, answer,       distractors,
+ *       type,         exp }
+ *   `answer` is the canonical string compared against user input.
+ *   `distractors` are extra option strings (duplicates auto-deduped later).
+ *   `type` keys into showExplain to pick the right feedback panel.
+ *   `exp` carries whatever the explain panel needs (start, end, A, B, …).
+ * Duplication between topics is intentional — keeping the math for each leaf
+ * concrete reads better for LLMs than a shared abstract base class would.
+ * ─────────────────────────────────────────────────────────────────────────── */
 const TOPICS = {
   intAdd:{
     title:'Integer addition',
@@ -986,7 +1088,7 @@ const TOPICS = {
   }
 };
 
-/* ===== hierarchy metadata ===== */
+/* ─── 5. Navigation hierarchy ───────────────────────────────────────────── */
 const NUMBER_TYPES = [
   {key:'natural',label:'Natural numbers',desc:'1, 2, 3 …',symbol:'ℕ',enabled:false},
   {key:'integers',label:'Integers',desc:'… −2, −1, 0, 1, 2 …',symbol:'ℤ',enabled:true},
@@ -1046,7 +1148,7 @@ function operationsFor(nt,cat){
 }
 const NAV = {numberType:null,category:null,operation:null};
 
-/* ===== settings model ===== */
+/* ─── 6. Settings model ─────────────────────────────────────────────────── */
 const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:true, mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector' };
 const COUNTS=[5,10,15,20];
 const MODES=[['pure','Pure math','just numbers'],['real','Real world','physics & alchemy']];
@@ -1059,12 +1161,12 @@ const METHODS=[['choice','Multiple choice','easier'],['type','Type the answer','
 const FBS=[[true,'On','see why'],[false,'Off','speed run']];
 const DIFF_MULT={Easy:1,Medium:2,Hard:3};
 
-/* ===== runtime ===== */
+/* ─── 7. Runtime state + screen switcher ────────────────────────────────── */
 let queue, idx, score, correctCount, attempts, startTime, timerInt, locked;
 const $=id=>document.getElementById(id);
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');}
 
-/* ===== user / points ===== */
+/* ─── 8. User account + points (localStorage-backed) ────────────────────── */
 const USER_KEY='cc_currentUser';
 function userKey(email){return `cc_user_${email.toLowerCase()}`;}
 function getCurrentUser(){
@@ -1231,7 +1333,7 @@ function renderOpts(containerId, items, field, onChange){
   });
 }
 
-/* ===== persisted settings + nav ===== */
+/* ─── 9. Persistence — settings + nav ───────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
 function loadSettings(){
   try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'null'); if(s&&typeof s==='object') Object.assign(SET, s); }catch{}
@@ -1354,7 +1456,7 @@ function resolve(right, btn, q){
   else { setTimeout(nextQuestion, 650); }
 }
 
-/* ===== explainers ===== */
+/* ─── 10. Explainers — one helper per question type ─────────────────────── */
 function renderNum(str, move){
   let h='';
   for(const ch of str){
@@ -1377,79 +1479,144 @@ function numberLine(start,end){
   }
   return `<div class="nlwrap"><div class="nl">${cells}</div></div>`;
 }
-function showExplain(q,right){
-  const v=$('verdict'); v.textContent=right?'Correct':'Not quite'; v.className='verdict '+(right?'ok':'no');
-  const body=$('explainBody'); let html='';
-  const isReal = SET.mode==='real';
-  const showFact = isReal && q.scenarioFact;
-  const unit = (isReal && SET.useUnits && q.exp && q.exp.unit) ? ` ${q.exp.unit}` : '';
+/** Helper: build the trailing "fact" span from the scenario, if applicable. */
+function factSpan(q){
+  const isReal = SET.mode === 'real';
+  return (isReal && q.scenarioFact) ? `<span class="fact">${q.scenarioFact}</span>` : '';
+}
 
-  if(q.type==='shift'){
-    const e=q.exp, steps=Math.abs(e.places), dir=e.places>0?'right':'left', arr=e.places>0?'→':'←';
-    html=`<div class="slidebox">
-      <div class="numline">${renderNum(e.a,false)}</div>
-      <div class="moveword">${e.op} → slide the point ${steps} step${steps>1?'s':''} ${dir} ${arr}</div>
-      <div class="numline">${renderNum(e.ans,true)}${unit?`<span style="font-size:.55em;color:var(--muted);margin-left:8px;">${e.unit}</span>`:''}</div>
-    </div>
-    <div class="why">${e.places>0?'Bigger: each digit climbs a place value.':'Smaller: each digit drops a place value.'}${e.a.startsWith('-')?' The minus sign rides along.':''}${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
-  }
-  else if(q.type==='neg'){
-    const e=q.exp, dir=e.delta>=0?'right':'left', mag=Math.abs(e.delta);
-    html=`<div class="slidebox">${numberLine(e.start,e.end)}
-      <div class="moveword">Start at <b>${e.start}${unit}</b>, hop <span class="${e.delta>=0?'r':'l'}">${mag} ${dir}</span>, land on <b>${e.end}${unit}</b></div></div>
-      <div class="why">${(e.start<0)!==(e.end<0)?'You cross zero — that\'s the tricky part.':'Same side of zero the whole way.'}${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
-  }
-  else if(q.type==='frac'){
-    const e=q.exp;
-    html=`<div class="slidebox">
-      <div class="fexp"><span class="frac"><span>${e.n}</span><span class="den">${e.d}</span></span> &nbsp;=&nbsp; ${e.n} ÷ ${e.d}</div>
-      <div class="moveword">${e.n} ÷ ${e.d} = <b class="mono">${e.ans}</b></div></div>
-      <div class="why">A fraction is just a division waiting to happen.${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
-  }
-  else if(q.type==='vcm'){
-    const e=q.exp;
-    const isMul = e.op==='×';
-    let arrows=[{v:[e.a,e.b],label:'u',color:'#FF3D71'},{v:[e.c,e.d],label:'v',color:'#3A6EA5'}];
-    let diagOpts;
-    if(e.op==='+') diagOpts={resultant:[e.a+e.c,e.b+e.d], resultantLabel:'u+v'};
-    else if(e.op==='−') diagOpts={resultant:[e.a-e.c,e.b-e.d], resultantLabel:'u−v'};
-    else diagOpts={parallelogram:true, projection:true};
-    const diag = vecDiag(arrows, diagOpts);
-    const compName = e.op==='×' ? (e.idx===0?'real part':'imag part')
-                                : (e.idx===0?'1st':'2nd')+' component';
-    html = `<div class="slidebox">${diag}<div class="moveword">Answer (${compName}) = <b class="mono">${e.ans}</b></div></div>` +
-           (isMul ? gaBreakdown(e.a,e.b,e.c,e.d) : '') +
-           `<div class="why">${isMul?'Complex × matrix × vector are three views of one operation.':'Addition / subtraction is identical in all three views.'}${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
-  }
-  else if(q.type==='vecdot'){
-    const e=q.exp;
-    let diag = '';
-    if(e.u.length===2){
-      diag = vecDiag([{v:e.u,label:'u',color:'#FF3D71'},{v:e.v,label:'v',color:'#3A6EA5'}], {projection:true});
-    }
-    const wedge = e.u.length===2 ? (e.u[0]*e.v[1]-e.u[1]*e.v[0]) : null;
-    html = `<div class="slidebox">${diag}<div class="moveword">u · v = ${e.u.map((ui,i)=>`${ui}·${e.v[i]}`).join(' + ')} = <b class="mono">${e.ans}</b></div></div>` +
-           (wedge!==null ? gaBreakdown(e.u[0],e.u[1],e.v[0],e.v[1]) : '') +
-           `<div class="why">Dot product is the sum of like-direction products (xx + yy + zz) — the cosine half of the geometric product.${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
-  }
-  else if(q.type==='wedge'){
-    const e=q.exp;
-    const diag = vecDiag([{v:[e.a,e.b],label:'u',color:'#FF3D71'},{v:[e.c,e.d],label:'v',color:'#3A6EA5'}], {parallelogram:true});
-    html = `<div class="slidebox">${diag}<div class="moveword">u ∧ v = ${e.a}·${e.d} − ${e.b}·${e.c} = <b class="mono">${e.ans}</b></div></div>` +
-           gaBreakdown(e.a,e.b,e.c,e.d) +
-           `<div class="why">The wedge is the signed area of the purple parallelogram — the sine half of the geometric product. Strip the bivector basis and you get the cross product.${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
-  }
-  else if(q.type==='matmul'){
-    const e=q.exp;
-    const row = e.A[e.r], col = e.B.map(rw=>rw[e.c]);
-    const terms = row.map((v,k)=>`${v}·${col[k]}`).join(' + ');
-    html = `<div class="slidebox">${matHTML(e.A, e.r, undefined)} <span class="op">·</span> ${matHTML(e.B, undefined, e.c)}
-      <div class="moveword">row ${e.r+1} · column ${e.c+1} = ${terms} = <b class="mono">${e.ans}</b></div></div>
-      <div class="why">Matrix multiplication: each output cell is a dot product of a row from A and a column from B.${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
-  }
-  body.innerHTML=html;
+/** Helper: build the unit suffix used inside explainer panels. */
+function unitSuffix(q){
+  const isReal = SET.mode === 'real';
+  return (isReal && SET.useUnits && q.exp && q.exp.unit) ? ` ${q.exp.unit}` : '';
+}
+
+/* ── Per-type explainer panels ── */
+
+function explainShift(q){
+  const e = q.exp;
+  const steps = Math.abs(e.places);
+  const dir = e.places > 0 ? 'right' : 'left';
+  const arr = e.places > 0 ? '→' : '←';
+  const unitTag = unitSuffix(q)
+    ? `<span style="font-size:.55em;color:var(--muted);margin-left:8px;">${e.unit}</span>`
+    : '';
+  const why = (e.places > 0 ? 'Bigger: each digit climbs a place value.'
+                            : 'Smaller: each digit drops a place value.')
+            + (e.a.startsWith('-') ? ' The minus sign rides along.' : '');
+  return `<div class="slidebox">
+    <div class="numline">${renderNum(e.a, false)}</div>
+    <div class="moveword">${e.op} → slide the point ${steps} step${steps>1?'s':''} ${dir} ${arr}</div>
+    <div class="numline">${renderNum(e.ans, true)}${unitTag}</div>
+  </div>
+  <div class="why">${why}${factSpan(q)}</div>`;
+}
+
+function explainNeg(q){
+  const e = q.exp;
+  const dir = e.delta >= 0 ? 'right' : 'left';
+  const mag = Math.abs(e.delta);
+  const unit = unitSuffix(q);
+  const crossed = (e.start < 0) !== (e.end < 0);
+  const why = crossed ? "You cross zero — that's the tricky part." : 'Same side of zero the whole way.';
+  return `<div class="slidebox">${numberLine(e.start, e.end)}
+    <div class="moveword">Start at <b>${e.start}${unit}</b>, hop <span class="${e.delta>=0?'r':'l'}">${mag} ${dir}</span>, land on <b>${e.end}${unit}</b></div>
+  </div>
+  <div class="why">${why}${factSpan(q)}</div>`;
+}
+
+function explainFrac(q){
+  const e = q.exp;
+  return `<div class="slidebox">
+    <div class="fexp"><span class="frac"><span>${e.n}</span><span class="den">${e.d}</span></span> &nbsp;=&nbsp; ${e.n} ÷ ${e.d}</div>
+    <div class="moveword">${e.n} ÷ ${e.d} = <b class="mono">${e.ans}</b></div>
+  </div>
+  <div class="why">A fraction is just a division waiting to happen.${factSpan(q)}</div>`;
+}
+
+function explainVcm(q){
+  const e = q.exp;
+  const isMul = e.op === '×';
+  const arrows = [{v:[e.a,e.b], label:'u', color:'#FF3D71'},
+                  {v:[e.c,e.d], label:'v', color:'#3A6EA5'}];
+  let diagOpts;
+  if(e.op === '+')      diagOpts = {resultant:[e.a+e.c, e.b+e.d], resultantLabel:'u+v'};
+  else if(e.op === '−') diagOpts = {resultant:[e.a-e.c, e.b-e.d], resultantLabel:'u−v'};
+  else                  diagOpts = {parallelogram:true, projection:true};
+  const diagram = vecDiag(arrows, diagOpts);
+  const compName = isMul ? (e.idx === 0 ? 'real part' : 'imag part')
+                         : (e.idx === 0 ? '1st' : '2nd') + ' component';
+  const note = isMul ? 'Complex × matrix × vector are three views of one operation.'
+                     : 'Addition / subtraction is identical in all three views.';
+  return `<div class="slidebox">${diagram}
+    <div class="moveword">Answer (${compName}) = <b class="mono">${e.ans}</b></div>
+  </div>
+  ${isMul ? gaBreakdown(e.a, e.b, e.c, e.d) : ''}
+  <div class="why">${note}${factSpan(q)}</div>`;
+}
+
+function explainVecDot(q){
+  const e = q.exp;
+  const is2D = e.u.length === 2;
+  const diagram = is2D
+    ? vecDiag([{v:e.u, label:'u', color:'#FF3D71'}, {v:e.v, label:'v', color:'#3A6EA5'}], {projection:true})
+    : '';
+  const sumExpr = e.u.map((ui, i) => `${ui}·${e.v[i]}`).join(' + ');
+  const gaPart = is2D ? gaBreakdown(e.u[0], e.u[1], e.v[0], e.v[1]) : '';
+  return `<div class="slidebox">${diagram}
+    <div class="moveword">u · v = ${sumExpr} = <b class="mono">${e.ans}</b></div>
+  </div>
+  ${gaPart}
+  <div class="why">Dot product is the sum of like-direction products (xx + yy + zz) — the cosine half of the geometric product.${factSpan(q)}</div>`;
+}
+
+function explainWedge(q){
+  const e = q.exp;
+  const diagram = vecDiag(
+    [{v:[e.a,e.b], label:'u', color:'#FF3D71'},
+     {v:[e.c,e.d], label:'v', color:'#3A6EA5'}],
+    {parallelogram:true}
+  );
+  return `<div class="slidebox">${diagram}
+    <div class="moveword">u ∧ v = ${e.a}·${e.d} − ${e.b}·${e.c} = <b class="mono">${e.ans}</b></div>
+  </div>
+  ${gaBreakdown(e.a, e.b, e.c, e.d)}
+  <div class="why">The wedge is the signed area of the purple parallelogram — the sine half of the geometric product. Strip the bivector basis and you get the cross product.${factSpan(q)}</div>`;
+}
+
+const EXPLAINERS = {
+  shift: explainShift,
+  neg:   explainNeg,
+  frac:  explainFrac,
+  vcm:   explainVcm,
+  vecdot: explainVecDot,
+  wedge: explainWedge,
+};
+
+function showExplain(q, right){
+  const verdict = $('verdict');
+  verdict.textContent = right ? 'Correct' : 'Not quite';
+  verdict.className = 'verdict ' + (right ? 'ok' : 'no');
+
+  const body = $('explainBody');
+  const handler = EXPLAINERS[q.type] || explainMatMul;
+  let html = handler(q);
+
+  body.innerHTML = html;
   $('explain').classList.add('on');
 }
+
+function explainMatMul(q){
+  const e = q.exp;
+  const row = e.A[e.r];
+  const col = e.B.map(rw => rw[e.c]);
+  const terms = row.map((v, k) => `${v}·${col[k]}`).join(' + ');
+  return `<div class="slidebox">${matHTML(e.A, e.r, undefined)} <span class="op">·</span> ${matHTML(e.B, undefined, e.c)}
+    <div class="moveword">row ${e.r+1} · column ${e.c+1} = ${terms} = <b class="mono">${e.ans}</b></div>
+  </div>
+  <div class="why">Matrix multiplication: each output cell is a dot product of a row from A and a column from B.${factSpan(q)}</div>`;
+}
+EXPLAINERS.matmul = explainMatMul;
 
 function nextQuestion(){
   idx++;
