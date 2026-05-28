@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.16.0 -->
+<!-- Cosmic Crossing v1.16.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.16.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.16.1 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -561,7 +561,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.16.0</div>
+<div class="version">v1.16.1</div>
 
 <script>
 /* ============================================================================
@@ -1421,7 +1421,7 @@ const NUMBER_TYPES = [
   {key:'integers',label:'Integers',desc:'… −2, −1, 0, 1, 2 …',symbol:'ℤ',enabled:true},
   {key:'fractions',label:'Fractions',desc:'½, ¾, ⅛ …',symbol:'¾',enabled:true},
   {key:'real',label:'Real numbers',desc:'0.5, 3.14 …',symbol:'ℝ',enabled:true},
-  {key:'vcm',label:'Vectors · Complex · Matrices',desc:'Three views of the same 2D space',symbol:'⊕',enabled:true}
+  {key:'vcm',label:'3D',desc:'vectors · matrix · complex',symbol:'⊕',enabled:true}
 ];
 const CATEGORIES_BASE = [
   {key:'arithmetic',label:'Arithmetic',desc:'+, −, ×, ÷',symbol:'+÷'},
@@ -1777,7 +1777,7 @@ function renderUserChip(){
 }
 /** Build an SVG radar showing the best tier achieved per discipline. */
 function radarChartSVG(user){
-  const labels = ['Natural','Integers','Fractions','Real','VCM'];
+  const labels = ['Natural','Integers','Fractions','Real','3D'];
   const nts    = ['natural','integers','fractions','real','vcm'];
   // Highest tier number observed in any topic under each discipline.
   const peak = {};
@@ -2161,7 +2161,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.16.0';
+const APP_VERSION = 'v1.16.1';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
