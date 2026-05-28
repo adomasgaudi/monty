@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.14.3 -->
+<!-- Cosmic Crossing v1.14.4 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.14.3 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.14.4 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -133,16 +133,15 @@
 
   /* mid-game save toast with discard undo */
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-    background:var(--ink);color:var(--bg);padding:12px 16px 14px;
-    border-radius:12px;display:flex;align-items:center;gap:14px;
-    box-shadow:0 10px 28px rgba(0,0,0,.22);z-index:200;
-    font-family:'Fredoka',sans-serif;animation:toastpop .25s ease;}
+    background:var(--ink);color:var(--bg);padding:14px 22px 18px;
+    border:none;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:6px;
+    box-shadow:0 10px 28px rgba(0,0,0,.22);z-index:200;cursor:pointer;
+    font-family:'Fredoka',sans-serif;animation:toastpop .25s ease;
+    min-width:260px;text-align:center;}
+  .toast:hover{background:#000;}
   @keyframes toastpop{from{opacity:0;transform:translateX(-50%) translateY(8px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
-  .toastmsg{font-size:.92rem;}
-  .toastbtn{background:none;border:1px solid rgba(255,255,255,.45);color:var(--bg);
-    border-radius:8px;padding:4px 11px;cursor:pointer;font-family:inherit;font-size:.85rem;
-    transition:background .12s,border-color .12s;}
-  .toastbtn:hover{background:rgba(255,255,255,.12);border-color:#fff;}
+  .toastmsg{font-size:.98rem;font-weight:500;}
+  .toasthint{font-size:.78rem;opacity:.75;letter-spacing:.04em;}
   .toastbar{position:absolute;bottom:0;left:0;height:2px;width:100%;background:rgba(255,255,255,.2);border-radius:0 0 12px 12px;overflow:hidden;}
   .toastbar > div{height:100%;background:rgba(255,255,255,.85);width:100%;transition:width 5s linear;}
   .gabreak{margin-top:14px;font-family:'DM Mono',monospace;font-size:.85rem;text-align:left;
@@ -253,6 +252,13 @@
   .proftopic .diffrow{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
   .diffpill{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);
     border:1px solid var(--line);border-radius:8px;padding:1px 7px;}
+  .profactions{display:inline-flex;gap:4px;margin-left:8px;}
+  .profact{background:none;border:1px solid var(--line);border-radius:6px;
+    width:24px;height:24px;font-family:'DM Mono',monospace;font-size:.9rem;
+    color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+    transition:border-color .12s,color .12s,background .12s;}
+  .profact:hover{border-color:var(--ink);color:var(--ink);background:rgba(0,0,0,.03);}
+  .profact.delact:hover{border-color:var(--no);color:var(--no);background:rgba(192,70,58,.06);}
 
   /* start gate */
   .startgate{padding:32px 8px 16px;text-align:center;}
@@ -307,11 +313,11 @@
 <div class="stage">
   <div class="confetti" id="confetti"></div>
 
-  <div class="toast" id="discardToast" style="display:none;">
+  <button class="toast" id="discardToast" type="button" style="display:none;">
     <span class="toastmsg" id="toastMsg"></span>
-    <button class="toastbtn" id="toastDiscard" type="button">Discard</button>
+    <span class="toasthint">Tap anywhere to discard</span>
     <div class="toastbar"><div id="toastBar"></div></div>
-  </div>
+  </button>
 
   <nav class="navbar" id="navbar">
     <button class="navbtn" id="navBack" type="button" title="Back">←</button>
@@ -508,7 +514,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.14.3</div>
+<div class="version">v1.14.4</div>
 
 <script>
 /* ============================================================================
@@ -527,7 +533,7 @@
  *  10. Init                  — load persisted state, render home screen
  *
  * CODE STYLE: targeted for LLM readability per evidence in commit notes for
- * v1.14.3 — short functions, descriptive names, multi-line expansion of dense
+ * v1.14.4 — short functions, descriptive names, multi-line expansion of dense
  * helpers, duplication tolerated over premature abstraction. No bundler; one
  * file ships as-is.
  * ========================================================================== */
@@ -869,6 +875,25 @@ function vecDiag(arrows, opts){
   parts.push(`<rect x="${minX}" y="${-maxY}" width="${W}" height="${H}" fill="url(#${pid})"/>`);
   parts.push(`<line x1="${minX}" y1="0" x2="${maxX}" y2="0" stroke="rgba(0,0,0,.25)" stroke-width="${lw*0.65}"/>`);
   parts.push(`<line x1="0" y1="${-maxY}" x2="0" y2="${-minY}" stroke="rgba(0,0,0,.25)" stroke-width="${lw*0.65}"/>`);
+  // Integer tick marks + numeric labels on both axes.
+  const tickLen = scale * 0.04;
+  const tickFont = scale * 0.05;
+  for(let x = Math.ceil(minX); x <= Math.floor(maxX); x++){
+    if(x === 0) continue;
+    parts.push(`<line x1="${x}" y1="${-tickLen}" x2="${x}" y2="${tickLen}" stroke="rgba(0,0,0,.4)" stroke-width="${lw*0.5}"/>`);
+    parts.push(`<text x="${x}" y="${tickFont*1.6}" fill="rgba(0,0,0,.55)" font-size="${tickFont}" font-family="DM Mono" text-anchor="middle">${x}</text>`);
+  }
+  for(let y = Math.ceil(minY); y <= Math.floor(maxY); y++){
+    if(y === 0) continue;
+    parts.push(`<line x1="${-tickLen}" y1="${-y}" x2="${tickLen}" y2="${-y}" stroke="rgba(0,0,0,.4)" stroke-width="${lw*0.5}"/>`);
+    parts.push(`<text x="${-tickLen*1.6}" y="${-y + tickFont*0.35}" fill="rgba(0,0,0,.55)" font-size="${tickFont}" font-family="DM Mono" text-anchor="end">${y}</text>`);
+  }
+  // Origin label
+  parts.push(`<text x="${-tickLen*0.5}" y="${tickFont*1.6}" fill="rgba(0,0,0,.5)" font-size="${tickFont}" font-family="DM Mono" text-anchor="end">0</text>`);
+  // Axis labels (x and y)
+  parts.push(`<text x="${maxX - tickFont*0.5}" y="${-tickFont*0.6}" fill="rgba(0,0,0,.55)" font-size="${tickFont*1.1}" font-family="DM Mono" text-anchor="end" font-style="italic">x</text>`);
+  parts.push(`<text x="${tickFont*0.8}" y="${-maxY + tickFont*1.4}" fill="rgba(0,0,0,.55)" font-size="${tickFont*1.1}" font-family="DM Mono" font-style="italic">y</text>`);
+
   if(opts.parallelogram && arrows.length>=2){
     const u=arrows[0].v, w=arrows[1].v;
     parts.push(`<path d="M0,0 L${u[0]},${-u[1]} L${u[0]+w[0]},${-(u[1]+w[1])} L${w[0]},${-w[1]} Z" fill="rgba(155,92,255,.13)" stroke="rgba(155,92,255,.5)" stroke-width="${lw*0.55}" stroke-dasharray="0.2,0.12"/>`);
@@ -1190,8 +1215,10 @@ const TOPICS = {
     title:'Vector dot product',
     diffs:['Easy','Medium','Hard'],
     make(diff){
+      // Pools deliberately tiny: with 0s and 1s the dot a·c+b·d = how many
+      // matched basis directions, focusing learning on what pairs up.
       let u,v;
-      const easyR=[1,2,3,4,5], medR=[-3,-2,-1,1,2,3,4,5], hardR=[-3,-2,-1,1,2,3,4];
+      const easyR=[0,1], medR=[-1,0,1,2], hardR=[-1,0,1,2];
       if(diff==='Easy'){ u=[rnd(easyR),rnd(easyR)]; v=[rnd(easyR),rnd(easyR)]; }
       else if(diff==='Medium'){ u=[rnd(medR),rnd(medR)]; v=[rnd(medR),rnd(medR)]; }
       else { u=[rnd(hardR),rnd(hardR),rnd(hardR)]; v=[rnd(hardR),rnd(hardR),rnd(hardR)]; }
@@ -1201,7 +1228,8 @@ const TOPICS = {
       const wrongSwap = u[0]*v[1] + u[1]*v[0] + (u[2]?u[2]*v[2]:0);
       const dist = [ intStr(wrongAdd), intStr(wrongSwap), intStr(ans+1), intStr(-ans) ];
       const sc = pickScenario('vec');
-      const diagram = (u.length===2) ? vecDiag([{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}], {projection:true}) : '';
+      // Projection only after answering — prompt diagram is just u, v.
+      const diagram = (u.length===2) ? vecDiag([{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}], {}) : '';
       return {promptHTML:`${vecHTML(u)} <span class="op">·</span> ${vecHTML(v)} = <span class="qmark">?</span>`,
               diagramHTML:diagram,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(u,v)}</div>`,
@@ -1215,10 +1243,11 @@ const TOPICS = {
     title:'Matrix multiplication',
     diffs:['Easy','Medium','Hard'],
     make(diff){
+      // Entries kept tiny — the lesson is row · column, not multiplication.
       let n=2,m=2,p=2,range;
-      if(diff==='Easy'){ range=[1,2,3,4,5]; }
-      else if(diff==='Medium'){ range=[-3,-2,-1,1,2,3,4]; }
-      else { n=m=p=3; range=[-2,-1,1,2,3]; }
+      if(diff==='Easy'){ range=[0,1]; }
+      else if(diff==='Medium'){ range=[-1,0,1,2]; }
+      else { n=m=p=3; range=[-1,0,1,2]; }
       const mkM = (rows,cols)=>Array.from({length:rows},()=>Array.from({length:cols},()=>rnd(range)));
       const A = mkM(n,m), B = mkM(m,p);
       const r = Math.floor(Math.random()*n), c = Math.floor(Math.random()*p);
@@ -1241,7 +1270,9 @@ const TOPICS = {
     title:'2D addition (vector / complex / matrix)',
     diffs:['Easy','Medium','Hard'],
     make(diff){
-      const ranges={Easy:[1,2,3,4,5,6,7,8],Medium:[-5,-4,-3,-2,-1,1,2,3,4,5,6],Hard:[-9,-7,-5,-3,3,5,7,9]};
+      // Pools deliberately small (0, 1, ±2, 10) so the student focuses
+      // on *which* component combines with which, not on arithmetic.
+      const ranges={Easy:[0,1,2],Medium:[-1,0,1,2,10],Hard:[-2,-1,0,1,2,10]};
       const range=ranges[diff]||ranges.Easy;
       const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
       const idx=Math.floor(Math.random()*2);
@@ -1249,7 +1280,9 @@ const TOPICS = {
       const ansStr=intStr(ans);
       const dist=[intStr(idx===0?a-c:b-d), intStr(-ans), intStr(ans+1), intStr(idx===0?b+d:a+c)];
       const sc = pickScenario('vcm');
-      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {resultant:[a+c,b+d], resultantLabel:'u+v'});
+      // Prompt diagram shows only u and v — the resultant arrow appears in
+      // the explainer after the player answers, so it doesn't give it away.
+      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {});
       return {promptHTML:vcmPrompt(a,b,c,d,'+',idx),
               diagramHTML:diagram,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'+')}</div>`,
@@ -1263,7 +1296,7 @@ const TOPICS = {
     title:'2D subtraction (vector / complex / matrix)',
     diffs:['Easy','Medium','Hard'],
     make(diff){
-      const ranges={Easy:[1,2,3,4,5,6,7,8],Medium:[-5,-4,-3,-2,-1,1,2,3,4,5,6],Hard:[-9,-7,-5,-3,3,5,7,9]};
+      const ranges={Easy:[0,1,2],Medium:[-1,0,1,2,10],Hard:[-2,-1,0,1,2,10]};
       const range=ranges[diff]||ranges.Easy;
       const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
       const idx=Math.floor(Math.random()*2);
@@ -1271,7 +1304,8 @@ const TOPICS = {
       const ansStr=intStr(ans);
       const dist=[intStr(idx===0?a+c:b+d), intStr(-ans), intStr(ans+1), intStr(idx===0?b-d:a-c)];
       const sc = pickScenario('vcm');
-      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {resultant:[a-c,b-d], resultantLabel:'u−v'});
+      // Prompt diagram shows only u and v — resultant is revealed in the explainer.
+      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {});
       return {promptHTML:vcmPrompt(a,b,c,d,'−',idx),
               diagramHTML:diagram,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'−')}</div>`,
@@ -1285,7 +1319,9 @@ const TOPICS = {
     title:'2D multiplication (complex · Argand)',
     diffs:['Easy','Medium','Hard'],
     make(diff){
-      const ranges={Easy:[1,2,3,4,5],Medium:[-4,-3,-2,-1,1,2,3,4],Hard:[-5,-3,-2,-1,1,2,3,5]};
+      // Mostly 0 and 1 so a·c − b·d and a·d + b·c are obvious — the
+      // point is which pairs go together, not multiplying big numbers.
+      const ranges={Easy:[0,1],Medium:[-1,0,1,2],Hard:[-2,-1,0,1,2]};
       const range=ranges[diff]||ranges.Easy;
       const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
       const idx=Math.floor(Math.random()*2);
@@ -1296,7 +1332,8 @@ const TOPICS = {
       const wrongOther = idx===0 ? imag : real;
       const dist=[intStr(wrongSign), intStr(wrongOther), intStr(-ans), intStr(ans+1)];
       const sc = pickScenario('vcm');
-      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {parallelogram:true, projection:true});
+      // Bare u, v in the prompt — parallelogram + projection only in the explainer.
+      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {});
       return {promptHTML:vcmPrompt(a,b,c,d,'·',idx),
               diagramHTML:diagram,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'×')}</div>`,
@@ -1310,7 +1347,7 @@ const TOPICS = {
     title:'Wedge / cross product',
     diffs:['Easy','Medium','Hard'],
     make(diff){
-      const ranges={Easy:[1,2,3,4,5],Medium:[-4,-3,-2,-1,1,2,3,4],Hard:[-5,-3,-2,-1,1,2,3,5]};
+      const ranges={Easy:[0,1],Medium:[-1,0,1,2],Hard:[-2,-1,0,1,2]};
       const range=ranges[diff]||ranges.Easy;
       const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
       const ans = a*d - b*c;
@@ -1318,7 +1355,8 @@ const TOPICS = {
       const dot = a*c + b*d;
       const dist=[intStr(dot), intStr(-ans), intStr(a*d+b*c), intStr(ans+1)];
       const u=[a,b], v=[c,d];
-      const diagram = vecDiag([{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}], {parallelogram:true});
+      // Parallelogram (the area = wedge magnitude) only after answering.
+      const diagram = vecDiag([{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}], {});
       return {promptHTML:`${vecHTML(u)} <span class="op">∧</span> ${vecHTML(v)} = <span class="qmark">?</span>`,
               diagramHTML:diagram,
               scenarioHTML:`<span class="topictag">Signed area</span><div>The wedge of two 2-vectors is the signed area of the parallelogram they span. In 3D this becomes the cross-product vector.</div>`,
@@ -1415,7 +1453,7 @@ const FBS=[
   ['long', 'Long',  'panel · 6s, pause to read']
 ];
 const DIFF_MULT={Easy:1,Medium:2,Hard:3};
-const FB_TIMING={off:600, short:1000, long:6000};
+const FB_TIMING={off:300, short:300, long:6000};
 
 /* ─── 7. Runtime state + screen switcher ────────────────────────────────── */
 let queue, idx, score, correctCount, attempts, startTime, timerInt, locked;
@@ -1510,10 +1548,9 @@ function saveMidGameProgress(){
 }
 
 function showDiscardToast(snap){
-  const toast    = $('discardToast');
-  const msg      = $('toastMsg');
-  const bar      = $('toastBar');
-  const discard  = $('toastDiscard');
+  const toast = $('discardToast');
+  const msg   = $('toastMsg');
+  const bar   = $('toastBar');
 
   msg.textContent = `Saved ${snap.points} ★ from this run.`;
   toast.style.display = 'flex';
@@ -1523,26 +1560,26 @@ function showDiscardToast(snap){
   let undone = false;
   const dismiss = setTimeout(() => { if(!undone) toast.style.display = 'none'; }, 5000);
 
-  discard.onclick = () => {
+  toast.onclick = () => {
     undone = true;
     clearTimeout(dismiss);
     const u = getCurrentUser();
     if(u){
-      u.points         -= snap.points;
-      u.games          -= 1;
-      u.correctTotal   -= snap.correct;
-      u.answeredTotal  -= snap.answered;
+      u.points        -= snap.points;
+      u.games         -= 1;
+      u.correctTotal  -= snap.correct;
+      u.answeredTotal -= snap.answered;
       const t = u.byTopic && u.byTopic[snap.topic];
       if(t){
-        t.points  -= snap.points;
-        t.games   -= 1;
-        t.correct -= snap.correct;
+        t.points   -= snap.points;
+        t.games    -= 1;
+        t.correct  -= snap.correct;
         t.answered -= snap.answered;
         const d = t.byDiff && t.byDiff[snap.diff];
         if(d){
-          d.points  -= snap.points;
-          d.games   -= 1;
-          d.correct -= snap.correct;
+          d.points   -= snap.points;
+          d.games    -= 1;
+          d.correct  -= snap.correct;
           d.answered -= snap.answered;
         }
       }
@@ -1676,8 +1713,16 @@ function openProfile(){
           return `<span class="diffpill" title="${d}: ${dacc}%">${d[0]}·${dd.points}</span>`;
         }).join('');
       }
+      const canPlay = !!TOPICS[k];
       html += `<div class="proftopic">
-        <div class="profrow"><span class="tk">${title}</span><span class="tv">${t.points} ★ · ${pct}%</span></div>
+        <div class="profrow">
+          <span class="tk">${title}</span>
+          <span class="tv">${t.points} ★ · ${pct}%</span>
+          <span class="profactions">
+            ${canPlay ? `<button class="profact playact" data-topic="${k}" title="Play again">↻</button>` : ''}
+            <button class="profact delact" data-topic="${k}" title="Delete entry">×</button>
+          </span>
+        </div>
         <div class="bar"><div style="width:${pct}%;"></div></div>
         <div class="diffrow">${diffBits}</div>
       </div>`;
@@ -1700,6 +1745,37 @@ function openProfile(){
     acc.topics.push(k);
   });
   const opKeys = OP_ORDER.filter(op => byOp[op]);
+  // Per-row Play-again / Delete buttons (event delegation so they survive re-render).
+  tlist.querySelectorAll('.playact').forEach(btn=>{
+    btn.addEventListener('click', ev=>{
+      ev.stopPropagation();
+      const topic = btn.dataset.topic;
+      if(!TOPICS[topic]) return;
+      // Restore nav from TOPIC_NT so back-buttons still make sense.
+      const nt = TOPIC_NT[topic]; if(nt) NAV.numberType = nt;
+      NAV.category = 'arithmetic'; saveNav();
+      openSettings(topic);
+    });
+  });
+  tlist.querySelectorAll('.delact').forEach(btn=>{
+    btn.addEventListener('click', ev=>{
+      ev.stopPropagation();
+      const topic = btn.dataset.topic;
+      const title = (TOPICS[topic] && TOPICS[topic].title) || topic;
+      if(!confirm(`Delete stats for ${title}?`)) return;
+      const user = getCurrentUser(); if(!user || !user.byTopic[topic]) return;
+      const t = user.byTopic[topic];
+      user.points        -= t.points;
+      user.games         -= t.games;
+      user.correctTotal  -= t.correct;
+      user.answeredTotal -= t.answered;
+      delete user.byTopic[topic];
+      saveUser(user);
+      renderUserChip();
+      openProfile();
+    });
+  });
+
   if(opKeys.length){
     let opHtml = `<div class="profgroup">
       <div class="profhead"><span class="profheadl"><span class="profsym">·</span>By operation</span></div>`;
@@ -1904,7 +1980,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.14.3';
+const APP_VERSION = 'v1.14.4';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
