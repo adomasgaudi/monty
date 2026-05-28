@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.23.0 -->
+<!-- Riemann Surface v1.23.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.23.0 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.23.1 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -657,7 +657,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.23.0</div>
+<div class="version">v1.23.1</div>
 
 <script>
 /* ============================================================================
@@ -1958,6 +1958,21 @@ function tierName(gradeStr){
 
 /* ─── 7. Runtime state + screen switcher ────────────────────────────────── */
 let queue, idx, score, correctCount, attempts, startTime, timerInt, locked;
+let timerAccumulated = 0;      // play-time milliseconds already banked
+let timerSegmentStart = null;  // when the current play segment started (null = paused)
+
+function timerNow(){
+  return timerAccumulated + (timerSegmentStart ? Date.now() - timerSegmentStart : 0);
+}
+function pausePlayTimer(){
+  if(timerSegmentStart != null){
+    timerAccumulated += Date.now() - timerSegmentStart;
+    timerSegmentStart = null;
+  }
+}
+function resumePlayTimer(){
+  if(timerSegmentStart == null) timerSegmentStart = Date.now();
+}
 let qHistory = []; // per-question records for the end-screen summary
 let fbInterval = null, fbTimeout = null;
 let visualShown = true; // toggled per-game; init in startGame()
@@ -2101,7 +2116,8 @@ function saveMidGameProgress(){
     correct:  correctCount,
     answered: attempts || 0,
   };
-  const elapsed = startTime ? (Date.now() - startTime)/1000 : 0;
+  pausePlayTimer();
+  const elapsed = timerNow() / 1000;
   recordGame(u, snap.topic, snap.points, snap.correct, snap.answered, snap.diff, elapsed);
   renderUserChip();
   showDiscardToast(snap);
@@ -2977,7 +2993,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.23.0';
+const APP_VERSION = 'v1.23.1';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
@@ -3180,8 +3196,10 @@ function startGame(){
   show('play');
 }
 function beginPlay(){
-  startTime=Date.now();
-  timerInt=setInterval(()=>{$('timer').textContent=((Date.now()-startTime)/1000).toFixed(1)+'s';},100);
+  startTime = Date.now();
+  timerAccumulated = 0;
+  timerSegmentStart = Date.now();
+  timerInt = setInterval(()=>{ $('timer').textContent = (timerNow()/1000).toFixed(1)+'s'; }, 100);
   $('startGate').style.display='none';
   $('playBody').style.display='block';
   gameActive = true; // only after the user actually pressed Start
@@ -3268,6 +3286,9 @@ function resolve(right, btn, q){
     correct: !!right,
   });
   if(right){ score += (DIFF_MULT[SET.diff]||1); correctCount++; $('score').textContent=`★ ${score}`; burst(); }
+  // Pause the play-time clock while the player reads feedback. It resumes
+  // the moment they advance to the next question.
+  pausePlayTimer();
 
   const fb = SET.feedback;
   if(fb === 'long'){
@@ -3481,6 +3502,7 @@ function nextQuestion(){
   idx++;
   if(idx>=SET.count){ endGame(); return; }
   renderQuestion();
+  resumePlayTimer();
 }
 
 /** Player pressed "Finish" mid-game. Bail straight to the summary screen
@@ -3596,7 +3618,10 @@ function renderRatingUI(){
 
 function endGame(earlyFinish){
   clearInterval(timerInt);
-  const total=((Date.now()-startTime)/1000).toFixed(1);
+  pausePlayTimer();
+  // Time we record is *play* time — excludes any seconds spent reading
+  // explanations between questions.
+  const total = (timerNow()/1000).toFixed(1);
   // When the player finishes early, denominators reflect what they actually
   // answered. The natural-finish path keeps SET.count for the max-score line.
   const answered  = earlyFinish ? attempts : SET.count;
