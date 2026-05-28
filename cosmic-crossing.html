@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.5.0 -->
+<!-- Cosmic Crossing v1.7.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.5.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.7.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -102,6 +102,19 @@
   .frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;line-height:1.05;font-size:.7em;}
   .frac .den{border-top:2px solid currentColor;padding-top:2px;}
 
+  .vec{display:inline-flex;vertical-align:middle;font-family:'DM Mono',monospace;
+    border-left:2px solid currentColor;border-right:2px solid currentColor;
+    padding:4px 6px;line-height:1;}
+  .vec .el{padding:0 6px;}
+  .mat{display:inline-grid;vertical-align:middle;font-family:'DM Mono',monospace;
+    border-left:2px solid currentColor;border-right:2px solid currentColor;
+    padding:6px 8px;column-gap:10px;row-gap:4px;line-height:1.1;
+    grid-template-columns:repeat(var(--cols,2),auto);}
+  .mat .el{text-align:right;min-width:18px;}
+  .mat .el.hl{background:rgba(0,0,0,.08);border-radius:3px;font-weight:600;}
+  .q .vec, .q .mat{font-size:.55em;}
+  .q .matlabel{font-size:.4em;color:var(--muted);display:block;margin-top:14px;letter-spacing:.04em;}
+
   .answers{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .ans{font-family:'DM Mono',monospace;font-weight:400;font-size:1.25rem;cursor:pointer;
     background:none;border:1px solid var(--line);border-radius:10px;padding:18px 8px;color:var(--ink);
@@ -181,11 +194,22 @@
   .emailin{font-family:'DM Mono',monospace;font-size:1.05rem;width:100%;
     border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:none;color:var(--ink);}
   .emailin:focus{outline:none;border-color:var(--ink);}
-  .proftopics{display:grid;gap:6px;margin-top:10px;}
-  .proftopic{display:flex;justify-content:space-between;align-items:center;
-    padding:10px 0;border-bottom:1px solid var(--line);font-size:.92rem;}
-  .proftopic .tk{color:var(--ink);}
-  .proftopic .tv{font-family:'DM Mono',monospace;color:var(--muted);font-size:.88rem;}
+  .proftopics{display:grid;gap:18px;margin-top:10px;}
+  .emptyprof{padding:14px 0;color:var(--muted);font-size:.92rem;}
+  .profgroup{border-top:1px solid var(--line);padding-top:12px;}
+  .profhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .profheadl{font-weight:500;font-size:1rem;display:flex;align-items:center;gap:10px;}
+  .profsym{font-family:'DM Mono',monospace;color:var(--muted);font-size:1.05rem;width:18px;text-align:center;}
+  .profheadr{font-size:.82rem;color:var(--muted);}
+  .proftopic{padding:8px 0 6px;}
+  .proftopic .profrow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+  .proftopic .tk{color:var(--ink);font-size:.92rem;}
+  .proftopic .tv{font-family:'DM Mono',monospace;color:var(--muted);font-size:.82rem;}
+  .proftopic .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;}
+  .proftopic .bar > div{height:100%;background:var(--ink);transition:width .3s;}
+  .proftopic .diffrow{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
+  .diffpill{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);
+    border:1px solid var(--line);border-radius:8px;padding:1px 7px;}
 
   /* start gate */
   .startgate{padding:32px 8px 16px;text-align:center;}
@@ -284,6 +308,14 @@
       <div class="setlabel">Units in answer</div>
       <div class="opts" id="optUnit"></div>
     </div>
+    <div class="setblock" id="setNumBlock" style="display:none;">
+      <div class="setlabel">Numerals</div>
+      <div class="opts" id="optNumForm"></div>
+    </div>
+    <div class="setblock" id="setDivBlock" style="display:none;">
+      <div class="setlabel">Division shown as</div>
+      <div class="opts" id="optDivForm"></div>
+    </div>
     <div class="setblock">
       <div class="setlabel">How you answer</div>
       <div class="opts" id="optMethod"></div>
@@ -349,7 +381,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.5.0</div>
+<div class="version">v1.7.0</div>
 
 <script>
 /* ===== math helpers ===== */
@@ -369,6 +401,13 @@ function shiftPoint(numStr, places){
 function normalize(s){
   s=String(s).trim().replace(/\s+/g,'').replace(/^\+/,'');
   if(s==='')return null;
+  const fm = s.match(/^(-?)(\d+)\/(\d+)$/);
+  if(fm){
+    const num=parseInt(fm[2],10), den=parseInt(fm[3],10);
+    if(den===0) return 'INVALID';
+    const val=(num/den)*(fm[1]?-1:1);
+    s = String(val);
+  }
   if(!/^-?\d*\.?\d*$/.test(s)||s==='-'||s==='.')return 'INVALID';
   let neg=s.startsWith('-'); if(neg)s=s.slice(1);
   let [i='',f='']=s.split('.');
@@ -378,6 +417,31 @@ function normalize(s){
 function fracToDec(n,d){let s=(n/d).toFixed(8);return s.replace(/0+$/,'').replace(/\.$/,'');}
 const intStr = n => String(n===0?0:n);
 const rnd = a => a[Math.floor(Math.random()*a.length)];
+function gcd(a,b){a=Math.abs(a);b=Math.abs(b);while(b){[a,b]=[b,a%b];}return a||1;}
+function decToFrac(s){
+  const x = parseFloat(s); if(Number.isInteger(x)) return null;
+  const sign = x<0 ? '-' : '';
+  const abs = Math.abs(x);
+  const str = String(abs); const dot = str.indexOf('.');
+  const dp = str.length - dot - 1;
+  let num = Math.round(abs * Math.pow(10, dp));
+  let den = Math.pow(10, dp);
+  const g = gcd(num, den);
+  return [sign + (num/g), den/g];
+}
+function fmtVal(s){
+  if(SET.numForm!=='fraction') return String(s);
+  const f = decToFrac(s); if(!f) return String(s);
+  return `<span class="frac"><span>${f[0]}</span><span class="den">${f[1]}</span></span>`;
+}
+function shiftPrompt(a, op){
+  const sym = op[0]; const k = op.slice(1);
+  if(SET.divForm==='fraction' && sym==='÷'){
+    return `<span class="frac"><span>${fmtVal(a)}</span><span class="den">${k}</span></span> = <span class="qmark">?</span>`;
+  }
+  const cls = sym==='÷' ? 'opd' : 'op';
+  return `${fmtVal(a)} <span class="${cls}">${op}</span> = <span class="qmark">?</span>`;
+}
 
 /* ===== Real-world scenarios ===== */
 const _opPhrase = {
@@ -498,8 +562,47 @@ const SCENARIOS = {
       intro:(n,d)=>`The Moon covers <b>${n}/${d}</b> of the Sun's disk. As a decimal fraction:`,
       prose:(n,d)=>`The Moon covers ${n} parts out of every ${d} of the Sun's disk. As a decimal?`,
       fact:`A total eclipse needs 1.000 coverage. At 0.999 you still need eye protection.`}
+  ],
+  vec:[
+    {tag:'Work Done', unit:'J',
+      intro:(u,v)=>`A force vector <b>F = ${vecHTML(u)} N</b> acts along displacement <b>d = ${vecHTML(v)} m</b>. The work done is F·d.`,
+      prose:(u,v)=>{
+        const names=['east','north','up'].slice(0,u.length);
+        const fParts=u.map((c,i)=>`${c} N ${names[i]}`).join(', ');
+        const dParts=v.map((c,i)=>`${c} m ${names[i]}`).join(', ');
+        return `A force of (${fParts}) pushes a cart through a displacement of (${dParts}). How much work is done?`;
+      },
+      fact:`Work = F·d. Only the component of force parallel to the path counts.`},
+    {tag:'Quantum Inner Product', unit:'',
+      intro:(u,v)=>`Two state amplitudes are <b>${vecHTML(u)}</b> and <b>${vecHTML(v)}</b>. Their inner product:`,
+      fact:`Quantum states live in inner-product spaces. The dot product probes how parallel two states are.`},
+    {tag:'Render Lighting', unit:'',
+      intro:(u,v)=>`A surface normal is <b>${vecHTML(u)}</b> and a light direction is <b>${vecHTML(v)}</b>. The diffuse-light coefficient is n·l.`,
+      fact:`In computer graphics, dot(normal, light) gives the cosine of the angle — it's how every pixel decides brightness.`}
+  ],
+  mat:[
+    {tag:'Linear Transform', unit:'',
+      intro:(A,B,r,c)=>`Matrix <b>A</b> transforms then <b>B</b> transforms. The composition <b>B·A</b> applies both. What lives at row ${r+1}, column ${c+1} of the product?`,
+      fact:`Matrix multiplication composes transformations — first the right one, then the left one.`},
+    {tag:'Markov Step', unit:'',
+      intro:(A,B,r,c)=>`Transition matrix <b>P</b> followed by another <b>P'</b> gives <b>P·P'</b>. What's entry (${r+1}, ${c+1}) of the two-step matrix?`,
+      fact:`Multiplying a Markov matrix by itself gives the two-step transition probabilities.`},
+    {tag:'Quantum Gate', unit:'',
+      intro:(A,B,r,c)=>`Gate <b>U₁</b> then gate <b>U₂</b>. The combined unitary is <b>U₂·U₁</b>. Compute entry (${r+1}, ${c+1}):`,
+      fact:`Quantum circuits multiply gates in matrix form. Order matters — U₂·U₁ ≠ U₁·U₂ in general.`}
   ]
 };
+
+function vecHTML(v){ return `<span class="vec">${v.map(e=>`<span class="el">${e}</span>`).join('')}</span>`; }
+function matHTML(M, hlRow, hlCol){
+  const cols = M[0].length;
+  let html = `<span class="mat" style="--cols:${cols};">`;
+  for(let i=0;i<M.length;i++) for(let j=0;j<cols;j++){
+    const hl = (hlRow===i || hlCol===j) ? ' hl' : '';
+    html += `<span class="el${hl}">${M[i][j]}</span>`;
+  }
+  return html + `</span>`;
+}
 
 /* Pick scenario per category, keeping it stable for the explain step */
 function pickScenario(category){
@@ -564,7 +667,7 @@ const TOPICS = {
       const ans = shiftPoint(a, places);
       const dist=[shiftPoint(a,-places), shiftPoint(a,places-1), shiftPoint(a,places+1), a];
       const sc = pickScenario('scale');
-      return {promptHTML:`${a} <span class="op">${op}</span> = <span class="qmark">?</span>`,
+      return {promptHTML:shiftPrompt(a, op),
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,op)}</div>`,
               proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(a,op)}</div>`:null,
               scenarioFact:sc.fact,
@@ -585,7 +688,7 @@ const TOPICS = {
       const ans = shiftPoint(a, places);
       const dist=[shiftPoint(a,-places), shiftPoint(a,places+1), shiftPoint(a,places-1), a];
       const sc = pickScenario('scale');
-      return {promptHTML:`${a} <span class="opd">${op}</span> = <span class="qmark">?</span>`,
+      return {promptHTML:shiftPrompt(a, op),
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,op)}</div>`,
               proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(a,op)}</div>`:null,
               scenarioFact:sc.fact,
@@ -610,6 +713,55 @@ const TOPICS = {
               scenarioFact:sc.fact,
               answer:ans, distractors:dist, type:'frac',
               exp:{n, d, ans, tag:sc.tag}};
+    }
+  },
+  vecDot:{
+    title:'Vector dot product',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      let u,v;
+      const easyR=[1,2,3,4,5], medR=[-3,-2,-1,1,2,3,4,5], hardR=[-3,-2,-1,1,2,3,4];
+      if(diff==='Easy'){ u=[rnd(easyR),rnd(easyR)]; v=[rnd(easyR),rnd(easyR)]; }
+      else if(diff==='Medium'){ u=[rnd(medR),rnd(medR)]; v=[rnd(medR),rnd(medR)]; }
+      else { u=[rnd(hardR),rnd(hardR),rnd(hardR)]; v=[rnd(hardR),rnd(hardR),rnd(hardR)]; }
+      const ans = u.reduce((s,ui,i)=>s+ui*v[i], 0);
+      const ansStr = intStr(ans);
+      const wrongAdd = u.reduce((s,ui,i)=>s+ui+v[i], 0);
+      const wrongSwap = u[0]*v[1] + u[1]*v[0] + (u[2]?u[2]*v[2]:0);
+      const dist = [ intStr(wrongAdd), intStr(wrongSwap), intStr(ans+1), intStr(-ans) ];
+      const sc = pickScenario('vec');
+      return {promptHTML:`${vecHTML(u)} <span class="op">·</span> ${vecHTML(v)} = <span class="qmark">?</span>`,
+              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(u,v)}</div>`,
+              proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(u,v)}</div>`:null,
+              scenarioFact:sc.fact,
+              answer:ansStr, distractors:dist, type:'vecdot',
+              exp:{u, v, ans:ansStr, unit:sc.unit||'', tag:sc.tag}};
+    }
+  },
+  matMul:{
+    title:'Matrix multiplication',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      let n=2,m=2,p=2,range;
+      if(diff==='Easy'){ range=[1,2,3,4,5]; }
+      else if(diff==='Medium'){ range=[-3,-2,-1,1,2,3,4]; }
+      else { n=m=p=3; range=[-2,-1,1,2,3]; }
+      const mkM = (rows,cols)=>Array.from({length:rows},()=>Array.from({length:cols},()=>rnd(range)));
+      const A = mkM(n,m), B = mkM(m,p);
+      const r = Math.floor(Math.random()*n), c = Math.floor(Math.random()*p);
+      let ans = 0; for(let k=0;k<m;k++) ans += A[r][k]*B[k][c];
+      const ansStr = intStr(ans);
+      const wrongRow = (r+1)%n, wrongCol = (c+1)%p;
+      let w1=0; for(let k=0;k<m;k++) w1 += A[wrongRow][k]*B[k][c];
+      let w2=0; for(let k=0;k<m;k++) w2 += A[r][k]*B[k][wrongCol];
+      const dist = [ intStr(w1), intStr(w2), intStr(A[r][0]*B[0][c]), intStr(ans + (Math.random()<.5?1:-1)) ];
+      const sc = pickScenario('mat');
+      return {promptHTML:`${matHTML(A, r, undefined)} <span class="op">·</span> ${matHTML(B, undefined, c)}<span class="matlabel">cell (${r+1}, ${c+1}) = ?</span>`,
+              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(A,B,r,c)}</div>`,
+              proseHTML:null,
+              scenarioFact:sc.fact,
+              answer:ansStr, distractors:dist, type:'matmul',
+              exp:{A, B, r, c, ans:ansStr, unit:'', tag:sc.tag}};
     }
   }
 };
@@ -667,16 +819,19 @@ function operationsFor(nt,cat){
 const NAV = {numberType:null,category:null,operation:null};
 
 /* ===== settings model ===== */
-const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:true, mode:'pure', showEq:'show', useUnits:false };
+const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:true, mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol' };
 const COUNTS=[5,10,15,20];
 const MODES=[['pure','Pure math','just numbers'],['real','Real world','physics & alchemy']];
 const EQS=[['show','Show','equation visible'],['hide','Hide','text only'],['prose','Prose','infer the math']];
 const UNITS=[[false,'Plain','just the number'],[true,'With units','km, V, °C…']];
+const NUMFORMS=[['decimal','Decimal','0.5'],['fraction','Fraction','½']];
+const DIVFORMS=[['symbol','÷ symbol','30 ÷ 10'],['fraction','Fraction bar','³⁰⁄₁₀']];
 const METHODS=[['choice','Multiple choice','easier'],['type','Type the answer','harder']];
 const FBS=[[true,'On','see why'],[false,'Off','speed run']];
+const DIFF_MULT={Easy:1,Medium:2,Hard:3};
 
 /* ===== runtime ===== */
-let queue, idx, score, attempts, startTime, timerInt, locked;
+let queue, idx, score, correctCount, attempts, startTime, timerInt, locked;
 const $=id=>document.getElementById(id);
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');}
 
@@ -698,10 +853,15 @@ function signInWithEmail(email){
   return u;
 }
 function signOut(){localStorage.removeItem(USER_KEY);renderUserChip();}
-function recordGame(u,topicKey,score,count){
-  u.points+=score; u.games+=1; u.correctTotal+=score; u.answeredTotal+=count;
-  if(!u.byTopic[topicKey]) u.byTopic[topicKey]={points:0,games:0,correct:0,answered:0};
-  const t=u.byTopic[topicKey]; t.points+=score; t.games+=1; t.correct+=score; t.answered+=count;
+function recordGame(u,topicKey,points,correct,count,diff){
+  u.points+=points; u.games+=1; u.correctTotal+=correct; u.answeredTotal+=count;
+  if(!u.byTopic[topicKey]) u.byTopic[topicKey]={points:0,games:0,correct:0,answered:0,byDiff:{}};
+  const t=u.byTopic[topicKey];
+  t.points+=points; t.games+=1; t.correct+=correct; t.answered+=count;
+  if(!t.byDiff) t.byDiff={};
+  if(!t.byDiff[diff]) t.byDiff[diff]={points:0,games:0,correct:0,answered:0};
+  const d=t.byDiff[diff];
+  d.points+=points; d.games+=1; d.correct+=correct; d.answered+=count;
   saveUser(u);
 }
 function renderUserChip(){
@@ -709,6 +869,7 @@ function renderUserChip(){
   if(!u){ chip.innerHTML=`<span>Sign in →</span>`; chip.onclick=()=>{$('emailIn').value='';show('signin');setTimeout(()=>$('emailIn').focus(),50);}; }
   else { const short=u.email.split('@')[0]; chip.innerHTML=`<span>${short}</span><span class="pts">★ ${u.points}</span>`; chip.onclick=()=>openProfile(); }
 }
+const TOPIC_NT = {intAdd:'integers',intSub:'integers',realMul:'real',realDiv:'real',fracDiv:'fractions',vecDot:'vectors',matMul:'matrices'};
 function openProfile(){
   const u=getCurrentUser(); if(!u){show('signin');return;}
   $('profEmail').textContent=u.email;
@@ -717,11 +878,38 @@ function openProfile(){
   $('profAcc').textContent=u.answeredTotal ? Math.round(u.correctTotal/u.answeredTotal*100)+'%' : '—';
   const tlist=$('profTopics'); tlist.innerHTML='';
   const keys=Object.keys(u.byTopic);
-  if(!keys.length){ tlist.innerHTML=`<div class="proftopic"><span class="tk" style="color:var(--muted);">No games yet.</span></div>`; }
-  else keys.forEach(k=>{
-    const t=u.byTopic[k]; const title=(TOPICS[k]&&TOPICS[k].title)||k;
-    const acc=t.answered?Math.round(t.correct/t.answered*100)+'%':'—';
-    tlist.innerHTML+=`<div class="proftopic"><span class="tk">${title}</span><span class="tv">${t.points} ★ · ${t.games} games · ${acc}</span></div>`;
+  if(!keys.length){ tlist.innerHTML=`<div class="emptyprof">No games yet. Pick a topic and play one to see your stats here.</div>`; show('profile'); return; }
+  /* group by number type */
+  const groups={};
+  keys.forEach(k=>{ const nt=TOPIC_NT[k]||'other'; (groups[nt]=groups[nt]||[]).push(k); });
+  const ntOrder=['integers','fractions','real','vectors','matrices','complex','natural','other'];
+  ntOrder.filter(nt=>groups[nt]).forEach(nt=>{
+    const ntDef = NUMBER_TYPES.find(n=>n.key===nt);
+    const ntLabel = ntDef ? ntDef.label : nt;
+    const ntSymbol = ntDef ? ntDef.symbol : '·';
+    const ntPoints = groups[nt].reduce((s,k)=>s+u.byTopic[k].points, 0);
+    const ntGames = groups[nt].reduce((s,k)=>s+u.byTopic[k].games, 0);
+    let html = `<div class="profgroup">
+      <div class="profhead"><span class="profheadl"><span class="profsym">${ntSymbol}</span>${ntLabel}</span><span class="profheadr mono">${ntPoints} ★ · ${ntGames}</span></div>`;
+    groups[nt].forEach(k=>{
+      const t=u.byTopic[k]; const title=(TOPICS[k]&&TOPICS[k].title)||k;
+      const acc = t.answered ? t.correct/t.answered : 0;
+      const pct = Math.round(acc*100);
+      let diffBits='';
+      if(t.byDiff){
+        diffBits = Object.keys(t.byDiff).map(d=>{
+          const dd=t.byDiff[d]; const dacc=dd.answered?Math.round(dd.correct/dd.answered*100):0;
+          return `<span class="diffpill" title="${d}: ${dacc}%">${d[0]}·${dd.points}</span>`;
+        }).join('');
+      }
+      html += `<div class="proftopic">
+        <div class="profrow"><span class="tk">${title}</span><span class="tv">${t.points} ★ · ${pct}%</span></div>
+        <div class="bar"><div style="width:${pct}%;"></div></div>
+        <div class="diffrow">${diffBits}</div>
+      </div>`;
+    });
+    html += `</div>`;
+    tlist.innerHTML += html;
   });
   show('profile');
 }
@@ -783,6 +971,8 @@ function openSettings(key){
   renderOpts('optMode', MODES, 'mode', refreshConditionals);
   renderOpts('optEq', EQS, 'showEq');
   renderOpts('optUnit', UNITS, 'useUnits');
+  renderOpts('optNumForm', NUMFORMS, 'numForm');
+  renderOpts('optDivForm', DIVFORMS, 'divForm');
   renderOpts('optMethod', METHODS, 'method');
   renderOpts('optFb', FBS, 'feedback');
   refreshConditionals();
@@ -791,8 +981,12 @@ function openSettings(key){
 function refreshConditionals(){
   const isReal = SET.mode==='real';
   const topicHasUnits = ['intAdd','intSub','realMul','realDiv'].includes(SET.topic);
+  const topicHasDecimals = ['realMul','realDiv'].includes(SET.topic);
+  const topicHasDiv = ['realDiv'].includes(SET.topic);
   $('setEqBlock').style.display = isReal ? 'block' : 'none';
   $('setUnitBlock').style.display = (isReal && topicHasUnits) ? 'block' : 'none';
+  $('setNumBlock').style.display = topicHasDecimals ? 'block' : 'none';
+  $('setDivBlock').style.display = topicHasDiv ? 'block' : 'none';
 }
 function renderOpts(containerId, items, field, onChange){
   const c=$(containerId); c.innerHTML='';
@@ -839,7 +1033,7 @@ function startGame(){
     }
     queue.push(q);
   }
-  idx=0; score=0; attempts=0; locked=false;
+  idx=0; score=0; correctCount=0; attempts=0; locked=false;
   clearInterval(timerInt);
   $('timer').textContent='0.0s';
   $('qcount').textContent=`1 / ${SET.count}`;
@@ -890,7 +1084,8 @@ function renderQuestion(){
     const wrap=$('answers'); wrap.innerHTML='';
     opts.forEach(o=>{
       const btn=document.createElement('button'); btn.className='ans mono';
-      btn.textContent = unit ? `${o} ${unit}` : o;
+      const val = fmtVal(o);
+      btn.innerHTML = unit ? `${val} ${unit}` : val;
       btn.dataset.val = o;
       btn.addEventListener('click',()=>resolve(o===q.answer, btn, q));
       wrap.appendChild(btn);
@@ -921,7 +1116,7 @@ function resolve(right, btn, q){
     document.querySelectorAll('.ans').forEach(b=>{ b.disabled=true; if(b.dataset.val===q.answer) b.classList.add('correct'); });
     if(btn && !right) btn.classList.add('wrong');
   }
-  if(right){ score++; $('score').textContent=`★ ${score}`; burst(); }
+  if(right){ score += (DIFF_MULT[SET.diff]||1); correctCount++; $('score').textContent=`★ ${score}`; burst(); }
 
   if(SET.feedback){ showExplain(q,right); }
   else { setTimeout(nextQuestion, 650); }
@@ -992,13 +1187,14 @@ function nextQuestion(){
 function endGame(){
   clearInterval(timerInt);
   const total=((Date.now()-startTime)/1000).toFixed(1);
+  const maxScore = SET.count * (DIFF_MULT[SET.diff]||1);
   const u=getCurrentUser();
-  if(u){ recordGame(u, SET.topic, score, SET.count); renderUserChip(); }
+  if(u){ recordGame(u, SET.topic, score, correctCount, SET.count, SET.diff); renderUserChip(); }
   show('end');
   $('finalScore').textContent=score;
-  $('finalOf').textContent=' / '+SET.count;
+  $('finalOf').textContent=' / '+maxScore+'  ('+SET.diff+' ×'+(DIFF_MULT[SET.diff]||1)+')';
   $('finalTime').textContent=total+'s';
-  $('finalAcc').textContent=Math.round(score/SET.count*100)+'%';
+  $('finalAcc').textContent=Math.round(correctCount/SET.count*100)+'%';
   $('bar').style.width='100%';
   const pct=score/SET.count;
   let title,msg;
