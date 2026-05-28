@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.15.1 -->
+<!-- Cosmic Crossing v1.16.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.15.1 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.16.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -260,6 +260,8 @@
   .emailin{font-family:'DM Mono',monospace;font-size:1.05rem;width:100%;
     border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:none;color:var(--ink);}
   .emailin:focus{outline:none;border-color:var(--ink);}
+  .profspider{display:flex;justify-content:center;align-items:center;margin:8px auto 0;}
+  .spider{width:100%;max-width:320px;height:auto;display:block;}
   .proftopics{display:grid;gap:18px;margin-top:10px;}
   .emptyprof{padding:14px 0;color:var(--muted);font-size:.92rem;}
   .profgroup{border-top:1px solid var(--line);padding-top:12px;}
@@ -422,7 +424,9 @@
         <div class="stat"><div class="v" id="profGames">0</div><div class="k">games played</div></div>
         <div class="stat"><div class="v" id="profAcc">0%</div><div class="k">lifetime accuracy</div></div>
       </div>
-      <div class="setlabel" style="margin-top:24px;">By topic</div>
+      <div class="setlabel" style="margin-top:24px;">Discipline overview</div>
+      <div id="profSpider" class="profspider"></div>
+      <div class="setlabel" style="margin-top:24px;">History</div>
       <div id="profTopics" class="proftopics"></div>
       <div class="endbtns" style="margin-top:24px;">
         <button class="next" id="resetStatsBtn" type="button" style="background:none;color:var(--ink);border:1px solid var(--line);">Reset my stats</button>
@@ -557,7 +561,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.15.1</div>
+<div class="version">v1.16.0</div>
 
 <script>
 /* ============================================================================
@@ -1504,13 +1508,21 @@ const FBS=[
 const DIFF_MULT={Easy:1,Medium:2,Hard:3};
 const FB_TIMING={off:300, short:300, long:6000};
 
-/* Grade tiers — each finished exam earns a 1–10 grade with a name.
- *   Easy   caps at 6 (Gradschool) — kid stuff.
- *   Medium caps at 8 (Frontier).
- *   Hard   caps at 10 (Nobel) — only if accuracy is near-perfect.
- * Floors are 1 / 3 / 5 so a 0% Hard run still earns Highschool. */
-const TIER_CEILING = {Easy:6, Medium:8, Hard:10};
-const TIER_FLOOR   = {Easy:1, Medium:3, Hard:5};
+/* Grade system — every finished exam earns a grade like "4A · Beginner".
+ * The number tier is set by topic (intrinsic difficulty) modulated by the
+ * chosen exam difficulty. The letter sub-grade comes from accuracy.
+ *
+ * Tier ceilings per topic — intentionally cap "easier" math low. The user's
+ * rule: all integer algebra stays below Highschool (max grade < 5). */
+const TOPIC_GRADE_CEIL = {
+  natAdd:4, natSub:4, natMul:4, natDiv:4, natExp:4,
+  intAdd:4, intSub:4, intExp:4,
+  fracDiv:5,
+  realMul:7, realDiv:7, realExp:7,
+  vcmAdd:8, vcmSub:8, vcmMul:8,
+  vecDot:9, vecWedge:9,
+  matMul:10,
+};
 const TIER_NAMES = {
   1:'Layman',   2:'Layman',   3:'Layman',
   4:'Beginner',
@@ -1521,16 +1533,35 @@ const TIER_NAMES = {
   9:'Nobel',    10:'Nobel'
 };
 
-/** Convert (accuracy 0..1, difficulty) into a 1–10 grade. */
-function gradeFor(accuracy, diff){
-  const ceil  = TIER_CEILING[diff] || 6;
-  const floor = TIER_FLOOR[diff]   || 1;
-  const span  = ceil - floor;
-  // Slight curve so near-perfect is rewarded; 0% still yields the floor.
-  const g = floor + Math.round(span * Math.pow(Math.max(0, accuracy), 0.9));
-  return Math.max(1, Math.min(10, g));
+/** Returns {number, letter, full} where:
+ *    number 1–10 — which tier
+ *    letter A/B/C — sub-grade by accuracy (A best, C lowest)
+ *    full  e.g. "4A" — number + letter concatenated
+ *  Easy / Medium cap two / one tiers below the topic's ceiling, so the same
+ *  topic on Hard reaches its full ceiling. */
+function gradeFor(accuracy, diff, topic){
+  const cap   = TOPIC_GRADE_CEIL[topic] || 6;
+  const ceil  = ({Easy:Math.max(1,cap-2), Medium:Math.max(1,cap-1), Hard:cap})[diff] || cap;
+  const acc   = Math.max(0, Math.min(1, accuracy));
+  const numeric = 1 + (ceil - 1) * acc;
+  const number  = Math.max(1, Math.min(10, Math.round(numeric)));
+  const letter  = acc >= 0.85 ? 'A' : acc >= 0.55 ? 'B' : 'C';
+  return { number, letter, full: `${number}${letter}` };
 }
-function tierLabel(grade){ return `${grade} · ${TIER_NAMES[grade] || '—'}`; }
+
+/** Compare two grade strings ("4A", "7C"). Returns >0 if a is the higher grade. */
+function gradeCompare(a, b){
+  const ma = String(a||'').match(/^(\d+)([A-C])?$/) || [];
+  const mb = String(b||'').match(/^(\d+)([A-C])?$/) || [];
+  const na = parseInt(ma[1]||0,10), nb = parseInt(mb[1]||0,10);
+  if(na !== nb) return na - nb;
+  const lmap = {A:2, B:1, C:0};
+  return (lmap[ma[2]] || 0) - (lmap[mb[2]] || 0);
+}
+function tierName(gradeStr){
+  const num = parseInt(String(gradeStr||'').match(/^(\d+)/)?.[1]||0, 10);
+  return TIER_NAMES[num] || '—';
+}
 
 /* ─── 7. Runtime state + screen switcher ────────────────────────────────── */
 let queue, idx, score, correctCount, attempts, startTime, timerInt, locked;
@@ -1727,16 +1758,16 @@ function recordGame(u,topicKey,points,correct,count,diff){
   const t=u.byTopic[topicKey];
   t.points+=points; t.games+=1; t.correct+=correct; t.answered+=count;
   if(!t.byDiff) t.byDiff={};
-  if(!t.byDiff[diff]) t.byDiff[diff]={points:0,games:0,correct:0,answered:0,bestGrade:0};
+  if(!t.byDiff[diff]) t.byDiff[diff]={points:0,games:0,correct:0,answered:0,bestGrade:''};
   const d=t.byDiff[diff];
   d.points+=points; d.games+=1; d.correct+=correct; d.answered+=count;
-  // Per-game grade + best-grade trackers.
+  // Per-game grade ("4A") + best-ever trackers, sorted via gradeCompare.
   const acc = count > 0 ? correct / count : 0;
-  const g = gradeFor(acc, diff);
-  d.lastGrade = g;
-  d.bestGrade = Math.max(d.bestGrade || 0, g);
-  t.lastGrade = g;
-  t.bestGrade = Math.max(t.bestGrade || 0, g);
+  const g = gradeFor(acc, diff, topicKey);
+  d.lastGrade = g.full;
+  if(gradeCompare(g.full, d.bestGrade) > 0) d.bestGrade = g.full;
+  t.lastGrade = g.full;
+  if(gradeCompare(g.full, t.bestGrade) > 0) t.bestGrade = g.full;
   saveUser(u);
 }
 function renderUserChip(){
@@ -1744,6 +1775,64 @@ function renderUserChip(){
   if(!u){ chip.innerHTML=`<span>Sign in →</span>`; chip.onclick=()=>{$('emailIn').value='';show('signin');setTimeout(()=>$('emailIn').focus(),50);}; }
   else { const short=u.email.split('@')[0]; chip.innerHTML=`<span>${short}</span><span class="pts">★ ${u.points}</span>`; chip.onclick=()=>openProfile(); }
 }
+/** Build an SVG radar showing the best tier achieved per discipline. */
+function radarChartSVG(user){
+  const labels = ['Natural','Integers','Fractions','Real','VCM'];
+  const nts    = ['natural','integers','fractions','real','vcm'];
+  // Highest tier number observed in any topic under each discipline.
+  const peak = {};
+  nts.forEach(k => peak[k] = 0);
+  Object.entries(user.byTopic || {}).forEach(([k, t])=>{
+    const nt = TOPIC_NT[k]; if(!nt || !(nt in peak)) return;
+    const num = parseInt(String(t.bestGrade||'').match(/^(\d+)/)?.[1]||0, 10);
+    if(num > peak[nt]) peak[nt] = num;
+  });
+
+  const n = labels.length;
+  const R = 80; // outer radius (10-tier ring)
+  const angles = labels.map((_, i) => -Math.PI/2 + i * (2*Math.PI / n));
+  const pt = (a, r) => `${(r*Math.cos(a)).toFixed(2)},${(r*Math.sin(a)).toFixed(2)}`;
+
+  const parts = [];
+  parts.push(`<svg class="spider" viewBox="-135 -110 270 230" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">`);
+
+  // Concentric rings at grades 2, 4, 6, 8, 10
+  [2,4,6,8,10].forEach(g => {
+    const r = R * g / 10;
+    parts.push(`<polygon points="${angles.map(a => pt(a, r)).join(' ')}" fill="${g===10?'rgba(155,92,255,.04)':'none'}" stroke="rgba(0,0,0,.07)" stroke-width="0.7"/>`);
+  });
+
+  // Spoke axes
+  angles.forEach(a => parts.push(`<line x1="0" y1="0" x2="${R*Math.cos(a).toFixed(2)}" y2="${R*Math.sin(a).toFixed(2)}" stroke="rgba(0,0,0,.1)" stroke-width="0.6"/>`));
+
+  // Player polygon (filled in violet, only if there's any data)
+  const values = nts.map(k => peak[k]);
+  if(values.some(v => v > 0)){
+    const playerPts = values.map((v, i) => pt(angles[i], (v/10)*R)).join(' ');
+    parts.push(`<polygon points="${playerPts}" fill="rgba(155,92,255,.22)" stroke="rgba(155,92,255,.85)" stroke-width="1.6" stroke-linejoin="round"/>`);
+    // little dots at each vertex
+    values.forEach((v, i) => {
+      if(v <= 0) return;
+      const [x, y] = pt(angles[i], (v/10)*R).split(',');
+      parts.push(`<circle cx="${x}" cy="${y}" r="2.4" fill="rgba(155,92,255,.95)"/>`);
+    });
+  }
+
+  // Axis labels and the best grade reached on each
+  labels.forEach((lbl, i) => {
+    const a = angles[i], r = R + 16;
+    const x = (r*Math.cos(a)).toFixed(1), y = (r*Math.sin(a)).toFixed(1);
+    const anchor = Math.abs(Math.cos(a)) < 0.25 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end';
+    parts.push(`<text x="${x}" y="${y}" text-anchor="${anchor}" dominant-baseline="middle" font-family="Fredoka,sans-serif" font-size="11" font-weight="500" fill="#15151B">${lbl}</text>`);
+    const v = values[i];
+    const grade = v ? `${v} · ${TIER_NAMES[v]||''}` : '—';
+    parts.push(`<text x="${x}" y="${parseFloat(y)+12}" text-anchor="${anchor}" dominant-baseline="middle" font-family="DM Mono,monospace" font-size="9" fill="#8A8A95">${grade}</text>`);
+  });
+
+  parts.push('</svg>');
+  return parts.join('');
+}
+
 const TOPIC_NT = {
   natAdd:'natural', natSub:'natural', natMul:'natural', natDiv:'natural', natExp:'natural',
   intAdd:'integers', intSub:'integers', intExp:'integers',
@@ -1772,6 +1861,7 @@ function openProfile(){
   $('profPoints').textContent=u.points;
   $('profGames').textContent=u.games;
   $('profAcc').textContent=u.answeredTotal ? Math.round(u.correctTotal/u.answeredTotal*100)+'%' : '—';
+  $('profSpider').innerHTML = radarChartSVG(u);
   const tlist=$('profTopics'); tlist.innerHTML='';
   const keys=Object.keys(u.byTopic);
   if(!keys.length){ tlist.innerHTML=`<div class="emptyprof">No games yet. Pick a topic and play one to see your stats here.</div>`; show('profile'); return; }
@@ -2071,7 +2161,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.15.1';
+const APP_VERSION = 'v1.16.0';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
@@ -2478,14 +2568,14 @@ function endGame(){
   gameActive = false;
   show('end');
   const accuracy = correctCount / SET.count;
-  const earnedGrade = gradeFor(accuracy, SET.diff);
+  const earned = gradeFor(accuracy, SET.diff, SET.topic);
   $('finalScore').textContent=score;
   $('finalOf').textContent=' / '+maxScore+'  ('+SET.diff+' ×'+(DIFF_MULT[SET.diff]||1)+')';
   $('finalTime').textContent=total+'s';
   $('finalAcc').textContent=Math.round(accuracy*100)+'%';
-  $('finalGrade').textContent='Lvl '+earnedGrade;
-  $('finalTier').textContent=TIER_NAMES[earnedGrade] || '';
-  $('finalGradeBox').setAttribute('data-tier', earnedGrade);
+  $('finalGrade').textContent='Lvl '+earned.full;
+  $('finalTier').textContent=TIER_NAMES[earned.number] || '';
+  $('finalGradeBox').setAttribute('data-tier', earned.number);
   $('bar').style.width='100%';
   const pct=score/SET.count;
   let title,msg;
