@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.20.2 -->
+<!-- Riemann Surface v1.21.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.20.2 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.21.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -280,6 +280,8 @@
   .rate-higher{border-style:dashed;color:var(--muted);}
   .rate-higher:hover{color:var(--ink);}
   .rate-higher.sel{background:transparent;color:var(--ink);border-color:var(--ink);border-style:solid;}
+  .commavg{margin-top:10px;font-size:.8rem;color:var(--muted);letter-spacing:.02em;}
+  .commavg b{color:var(--ink);}
 
   .confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
   .conf{position:absolute;width:6px;height:6px;opacity:0;background:var(--ink);}
@@ -594,6 +596,7 @@
         <div class="setlabel">Rate this game's difficulty</div>
         <div class="ratecap" id="rateCap"></div>
         <div class="rateopts" id="rateOpts"></div>
+        <div class="commavg mono" id="rateCommunity"></div>
       </div>
       <div class="qsumsection" id="qSumSection" style="display:none;">
         <div class="setlabel">Question summary</div>
@@ -606,7 +609,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.20.2</div>
+<div class="version">v1.21.0</div>
 
 <script>
 /* ============================================================================
@@ -1690,6 +1693,33 @@ function unlockedGrades(cap){
   const stop = gradeIndex(cap);
   return stop < 0 ? [] : ALL_GRADES.slice(0, stop + 1);
 }
+
+/** Walk every cc_user_* account on this browser and average their ratings
+ *  for `topic`. A ">5B" style rating is resolved to the next concrete grade
+ *  above the cap; anything unparseable is skipped. Returns { grade, count }
+ *  or null if nobody has rated this topic. */
+function communityRatingFor(topic){
+  if(!topic) return null;
+  const indices = [];
+  for(let i = 0; i < localStorage.length; i++){
+    const key = localStorage.key(i);
+    if(!key || !key.startsWith('cc_user_')) continue;
+    let u;
+    try{ u = JSON.parse(localStorage.getItem(key)); }catch{ continue; }
+    if(!u || !u.ratings || !u.ratings[topic]) continue;
+    let r = String(u.ratings[topic]);
+    if(r.startsWith('>')){
+      const base = gradeIndex(r.slice(1));
+      if(base < 0) continue;
+      r = ALL_GRADES[Math.min(base + 1, ALL_GRADES.length - 1)];
+    }
+    const idx = gradeIndex(r);
+    if(idx >= 0) indices.push(idx);
+  }
+  if(!indices.length) return null;
+  const avgIdx = Math.round(indices.reduce((a,b)=>a+b, 0) / indices.length);
+  return { grade: ALL_GRADES[avgIdx], count: indices.length };
+}
 function tierName(gradeStr){
   const num = parseInt(String(gradeStr||'').match(/^(\d+)/)?.[1]||0, 10);
   return TIER_NAMES[num] || '—';
@@ -2067,9 +2097,12 @@ function openProfile(){
         }).join('');
       }
       const canPlay = !!TOPICS[k];
+      const bestNum = parseInt(String(t.bestGrade||'').match(/^(\d+)/)?.[1]||0, 10);
       const bestGradeBadge = t.bestGrade
-        ? `<span class="gradebadge" data-tier="${t.bestGrade}" title="Best grade: ${TIER_NAMES[t.bestGrade]}">${t.bestGrade}·${TIER_NAMES[t.bestGrade]}</span>`
+        ? `<span class="gradebadge" data-tier="${bestNum}" title="Best grade: ${TIER_NAMES[bestNum]||''}">${t.bestGrade}·${TIER_NAMES[bestNum]||''}</span>`
         : '';
+      const comm = communityRatingFor(k);
+      const commLine = comm ? `<div class="commavg" style="margin-top:6px;">Community: <b>${comm.grade}</b> · ${comm.count}</div>` : '';
       html += `<div class="proftopic">
         <div class="profrow">
           <span class="tk">${title} ${bestGradeBadge}</span>
@@ -2081,6 +2114,7 @@ function openProfile(){
         </div>
         <div class="bar"><div style="width:${pct}%;"></div></div>
         <div class="diffrow">${diffBits}</div>
+        ${commLine}
       </div>`;
     });
     html += `</div>`;
@@ -2314,7 +2348,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.20.2';
+const APP_VERSION = 'v1.21.0';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
@@ -2826,6 +2860,12 @@ function renderRatingUI(){
     renderRatingUI();
   });
   wrap.appendChild(higherBtn);
+
+  // Community average — aggregated across every account on this browser.
+  const community = communityRatingFor(SET.topic);
+  $('rateCommunity').innerHTML = community
+    ? `Community average: <b>${community.grade}</b> · ${community.count} rating${community.count===1?'':'s'}`
+    : 'No community ratings yet — yours starts the average.';
 }
 
 function endGame(earlyFinish){
