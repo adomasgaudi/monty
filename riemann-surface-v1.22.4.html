@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.22.3 -->
+<!-- Riemann Surface v1.22.4 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.22.3 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.22.4 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -132,6 +132,13 @@
   .visualtoggle:hover{border-color:var(--ink);color:var(--ink);}
   .qvisual{margin:0 auto 16px;}
   .qvisual:empty{display:none !important;}
+  /* Per-arrow show/hide chips above the diagram. */
+  .vistoggles{display:flex;justify-content:center;gap:6px;margin:0 auto 8px;flex-wrap:wrap;}
+  .vischip{font-family:'DM Mono',monospace;font-size:.78rem;padding:3px 10px;
+    background:none;border:1px solid;border-radius:6px;cursor:pointer;
+    transition:opacity .12s,background .12s;}
+  .vischip:not(.on){opacity:.35;}
+  .vischip.on{background:rgba(0,0,0,.025);}
 
   /* mid-game save toast with discard undo */
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
@@ -522,6 +529,10 @@
         <div class="setlabel">Which component to ask</div>
         <div class="opts" id="optVcmComp"></div>
       </div>
+      <div class="setblock" id="setNumScaleBlock" style="display:none;">
+        <div class="setlabel">Number complexity</div>
+        <div class="opts" id="optNumScale"></div>
+      </div>
       <div class="setblock" id="setUnitBlock" style="display:none;">
         <div class="setlabel">Units in answer</div>
         <div class="opts" id="optUnit"></div>
@@ -564,6 +575,7 @@
       <div class="q mono" id="question"></div>
 
       <button class="visualtoggle" id="visualToggle" type="button" style="display:none;"></button>
+      <div class="vistoggles" id="visToggles" style="display:none;"></div>
       <div class="qvisual" id="qVisual" style="display:none;"></div>
 
       <div class="answers" id="answers"></div>
@@ -617,7 +629,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.22.3</div>
+<div class="version">v1.22.4</div>
 
 <script>
 /* ============================================================================
@@ -1060,11 +1072,14 @@ function vecDiag(arrows, opts){
 function gaBreakdown(a,b,c,d){
   const dot = a*c + b*d;
   const wedge = a*d - b*c;
+  // Use ⟨u, v⟩ for the inner / dot product so it can't be mistaken for a
+  // multiplication symbol. Wedge stays ∧. Geometric (juxtaposition) product
+  // gets an explicit ⊗ marker.
   return `<div class="gabreak">
-    <div class="ghdr">Geometric product &nbsp; <span class="mono">u v = u·v + u∧v</span></div>
-    <div class="grow"><span class="gtag">Dot (xx + yy):</span> <span>${a}·${c} + ${b}·${d} = <b>${dot}</b></span></div>
-    <div class="grow"><span class="gtag">Wedge (xy − yx):</span> <span>${a}·${d} − ${b}·${c} = <b>${wedge}</b></span></div>
-    <div class="pyth">Pythagoras view: |u+v|² = a²+b²+c²+d² + 2(u·v) &nbsp;—&nbsp; the dot is the cosine part, the wedge is the sine part (signed area of the parallelogram).</div>
+    <div class="ghdr">Geometric product &nbsp; <span class="mono">u ⊗ v  =  ⟨u, v⟩  +  u ∧ v</span></div>
+    <div class="grow"><span class="gtag">Inner ⟨u, v⟩ (xx + yy):</span> <span>${a}·${c} + ${b}·${d} = <b>${dot}</b></span></div>
+    <div class="grow"><span class="gtag">Wedge u ∧ v (xy − yx):</span> <span>${a}·${d} − ${b}·${c} = <b>${wedge}</b></span></div>
+    <div class="pyth">Pythagoras view: |u+v|² = a²+b²+c²+d² + 2⟨u, v⟩ &nbsp;—&nbsp; ⟨u, v⟩ is the cosine part, u ∧ v is the sine part (signed area of the parallelogram).</div>
   </div>`;
 }
 
@@ -1352,21 +1367,19 @@ const TOPICS = {
     make(diff){
       // Pools deliberately tiny: with 0s and 1s the dot a·c+b·d = how many
       // matched basis directions, focusing learning on what pairs up.
-      let u,v;
-      const easyR=[0,1], medR=[-1,0,1,2], hardR=[-1,0,1,2];
-      if(diff==='Easy'){ u=[rnd(easyR),rnd(easyR)]; v=[rnd(easyR),rnd(easyR)]; }
-      else if(diff==='Medium'){ u=[rnd(medR),rnd(medR)]; v=[rnd(medR),rnd(medR)]; }
-      else { u=[rnd(hardR),rnd(hardR),rnd(hardR)]; v=[rnd(hardR),rnd(hardR),rnd(hardR)]; }
+      // 2D topic — even Hard stays 2-component. Pool size honours numScale.
+      const range = vecDotPool(diff);
+      const u = [rnd(range), rnd(range)];
+      const v = [rnd(range), rnd(range)];
       const ans = u.reduce((s,ui,i)=>s+ui*v[i], 0);
       const ansStr = intStr(ans);
       const wrongAdd = u.reduce((s,ui,i)=>s+ui+v[i], 0);
       const wrongSwap = u[0]*v[1] + u[1]*v[0] + (u[2]?u[2]*v[2]:0);
       const dist = [ intStr(wrongAdd), intStr(wrongSwap), intStr(ans+1), intStr(-ans) ];
       const sc = pickScenario('vec');
-      // Projection only after answering — prompt diagram is just u, v.
-      const diagram = (u.length===2) ? vecDiag([{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}], {}) : '';
+      const dArrows = (u.length===2) ? [{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}] : null;
       return {promptHTML:`${vecHTML(u)} <span class="op">·</span> ${vecHTML(v)} = <span class="qmark">?</span>`,
-              diagramHTML:diagram,
+              diagramArrows:dArrows, diagramResultant:null,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(u,v)}</div>`,
               proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(u,v)}</div>`:null,
               scenarioFact:sc.fact,
@@ -1405,21 +1418,18 @@ const TOPICS = {
     title:'Addition (vector / complex / matrix)',
     diffs:['Easy','Medium','Hard'],
     make(diff){
-      // Pools deliberately small (0, 1, ±2, 10) so the student focuses
-      // on *which* component combines with which, not on arithmetic.
-      const ranges={Easy:[0,1,2],Medium:[-1,0,1,2,10],Hard:[-2,-1,0,1,2,10]};
-      const range=ranges[diff]||ranges.Easy;
+      // Pool size honours SET.numScale: 'simple' keeps it 0/1/2 so the lesson
+      // is structure; 'wide' brings in bigger ±values for real arithmetic.
+      const range = vcmPool(diff);
       const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
       const idx = (_vcmIdxOverride != null) ? _vcmIdxOverride : Math.floor(Math.random()*2);
       const ans = idx===0 ? a+c : b+d;
       const ansStr=intStr(ans);
       const dist=[intStr(idx===0?a-c:b-d), intStr(-ans), intStr(ans+1), intStr(idx===0?b+d:a+c)];
       const sc = pickScenario('vcm');
-      // Prompt diagram shows only u and v — the resultant arrow appears in
-      // the explainer after the player answers, so it doesn't give it away.
-      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {});
       return {promptHTML:vcmPrompt(a,b,c,d,'+',idx),
-              diagramHTML:diagram,
+              diagramArrows:[{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}],
+              diagramResultant:{v:[a+c,b+d],label:'u+v',color:'#2F8F5F'},
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'+')}</div>`,
               proseHTML:null,
               scenarioFact:sc.fact,
@@ -1431,18 +1441,16 @@ const TOPICS = {
     title:'Subtraction (vector / complex / matrix)',
     diffs:['Easy','Medium','Hard'],
     make(diff){
-      const ranges={Easy:[0,1,2],Medium:[-1,0,1,2,10],Hard:[-2,-1,0,1,2,10]};
-      const range=ranges[diff]||ranges.Easy;
+      const range = vcmPool(diff);
       const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
       const idx = (_vcmIdxOverride != null) ? _vcmIdxOverride : Math.floor(Math.random()*2);
       const ans = idx===0 ? a-c : b-d;
       const ansStr=intStr(ans);
       const dist=[intStr(idx===0?a+c:b+d), intStr(-ans), intStr(ans+1), intStr(idx===0?b-d:a-c)];
       const sc = pickScenario('vcm');
-      // Prompt diagram shows only u and v — resultant is revealed in the explainer.
-      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {});
       return {promptHTML:vcmPrompt(a,b,c,d,'−',idx),
-              diagramHTML:diagram,
+              diagramArrows:[{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}],
+              diagramResultant:{v:[a-c,b-d],label:'u−v',color:'#2F8F5F'},
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'−')}</div>`,
               proseHTML:null,
               scenarioFact:sc.fact,
@@ -1543,10 +1551,7 @@ const TOPICS = {
     title:'Multiplication (complex · Argand)',
     diffs:['Easy','Medium','Hard'],
     make(diff){
-      // Mostly 0 and 1 so a·c − b·d and a·d + b·c are obvious — the
-      // point is which pairs go together, not multiplying big numbers.
-      const ranges={Easy:[0,1],Medium:[-1,0,1,2],Hard:[-2,-1,0,1,2]};
-      const range=ranges[diff]||ranges.Easy;
+      const range = vcmMulPool(diff);
       const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
       const idx = (_vcmIdxOverride != null) ? _vcmIdxOverride : Math.floor(Math.random()*2);
       const real=a*c - b*d, imag=a*d + b*c;
@@ -1556,10 +1561,9 @@ const TOPICS = {
       const wrongOther = idx===0 ? imag : real;
       const dist=[intStr(wrongSign), intStr(wrongOther), intStr(-ans), intStr(ans+1)];
       const sc = pickScenario('vcm');
-      // Bare u, v in the prompt — parallelogram + projection only in the explainer.
-      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {});
       return {promptHTML:vcmPrompt(a,b,c,d,'·',idx),
-              diagramHTML:diagram,
+              diagramArrows:[{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}],
+              diagramResultant:null,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'×')}</div>`,
               proseHTML:null,
               scenarioFact:sc.fact,
@@ -1571,18 +1575,16 @@ const TOPICS = {
     title:'Wedge / cross product',
     diffs:['Easy','Medium','Hard'],
     make(diff){
-      const ranges={Easy:[0,1],Medium:[-1,0,1,2],Hard:[-2,-1,0,1,2]};
-      const range=ranges[diff]||ranges.Easy;
+      const range = vcmMulPool(diff);
       const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
       const ans = a*d - b*c;
       const ansStr=intStr(ans);
       const dot = a*c + b*d;
       const dist=[intStr(dot), intStr(-ans), intStr(a*d+b*c), intStr(ans+1)];
       const u=[a,b], v=[c,d];
-      // Parallelogram (the area = wedge magnitude) only after answering.
-      const diagram = vecDiag([{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}], {});
       return {promptHTML:`${vecHTML(u)} <span class="op">∧</span> ${vecHTML(v)} = <span class="qmark">?</span>`,
-              diagramHTML:diagram,
+              diagramArrows:[{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}],
+              diagramResultant:null,
               scenarioHTML:`<span class="topictag">Signed area</span><div>The wedge of two 2-vectors is the signed area of the parallelogram they span. In 3D this becomes the cross-product vector.</div>`,
               proseHTML:null,
               scenarioFact:'In geometric algebra, the full vector product is u v = u·v + u∧v — the dot is the cosine (a²+b² style), the wedge is the sine (2ab style).',
@@ -1670,7 +1672,7 @@ function operationsFor(nt,cat){
 const NAV = {numberType:null,category:null,operation:null};
 
 /* ─── 6. Settings model ─────────────────────────────────────────────────── */
-const SET = { topic:null, diff:'Easy', count:2, method:'choice', feedback:'long', mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector', vcmCompMode:'first' };
+const SET = { topic:null, diff:'Easy', count:2, method:'choice', feedback:'long', mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector', vcmCompMode:'first', numScale:'simple' };
 const COUNTS=[2,5,10,15,20];
 const MODES=[['pure','Pure math','just numbers'],['real','Real world','physics & alchemy']];
 const EQS=[['show','Show','equation visible'],['hide','Hide','text only'],['prose','Prose','infer the math']];
@@ -1684,6 +1686,31 @@ const VCM_COMPS=[
   ['half','Half-half','1st half, then 2nd'],
   ['random','Random','either each time']
 ];
+const NUM_SCALES=[
+  ['simple','Simple','0, 1, 2 — focus on structure'],
+  ['wide','Wider','larger values, harder arithmetic']
+];
+/** Returns the value pool for a 2D topic, honouring SET.numScale. */
+function vcmPool(diff){
+  if(SET.numScale === 'wide'){
+    return ({Easy:[-3,-2,-1,1,2,3,5,10],
+             Medium:[-5,-3,-2,-1,1,2,3,5,10],
+             Hard:[-9,-5,-3,-1,1,3,5,9,10]})[diff] || [];
+  }
+  return ({Easy:[0,1,2], Medium:[-1,0,1,2,10], Hard:[-2,-1,0,1,2,10]})[diff] || [];
+}
+function vcmMulPool(diff){
+  if(SET.numScale === 'wide'){
+    return ({Easy:[-2,-1,1,2,3], Medium:[-3,-2,-1,1,2,3,5], Hard:[-5,-3,-2,-1,1,2,3,5]})[diff] || [];
+  }
+  return ({Easy:[0,1], Medium:[-1,0,1,2], Hard:[-2,-1,0,1,2]})[diff] || [];
+}
+function vecDotPool(diff){
+  if(SET.numScale === 'wide'){
+    return ({Easy:[-2,-1,1,2,3], Medium:[-3,-2,-1,1,2,3], Hard:[-5,-3,-1,1,3,5]})[diff] || [];
+  }
+  return ({Easy:[0,1], Medium:[-1,0,1,2], Hard:[-2,-1,0,1,2,3]})[diff] || [];
+}
 const METHODS=[['choice','Multiple choice','easier'],['type','Type the answer','harder']];
 const FBS=[
   ['off',  'Off',   'no feedback · 0.6s'],
@@ -1691,7 +1718,7 @@ const FBS=[
   ['long', 'Long',  'panel · 6s, pause to read']
 ];
 const DIFF_MULT={Easy:1,Medium:2,Hard:3};
-const FB_TIMING={off:300, short:300, long:6000};
+const FB_TIMING={off:300, short:300, long:10000};
 
 /* Grade system — every finished exam earns a grade like "5A · Beginner".
  * Tiers run 4–11. Numbers below 4 are unused.
@@ -1853,7 +1880,7 @@ function communityRatingFor(topic){
         if(Array.isArray(bucket.ratings)) bucket.ratings.forEach(r => { userHadRating = true; pushGrade(r); });
       }
     }
-    // Legacy flat ratings (pre-v1.22.3)
+    // Legacy flat ratings (pre-v1.22.4)
     let legacy = u.ratings && u.ratings[topic];
     if(typeof legacy === 'string') legacy = [legacy];
     if(Array.isArray(legacy)){ legacy.forEach(r => { userHadRating = true; pushGrade(r); }); }
@@ -1879,26 +1906,79 @@ let _vcmIdxOverride = null; // set by startGame() to force "ask 1st / 2nd / half
 let _replayQueue = null;    // when set, startGame uses these exact questions instead of generating new
 let _currentRatingIdx = -1; // which slot in user.ratings[topic] holds this game's rating
 
+let visFlags = { u:true, v:true, result:false }; // result off by default — toggle to reveal
 function initVisualState(){
-  // Always start hidden — the diagram is a hint the user opts into.
+  // Diagram off by default; toggling shows u + v (result reserved for opt-in).
   visualShown = false;
+  visFlags = { u:true, v:true, result:false };
+}
+/** Render the diagram for queue[idx] respecting visFlags. Falls back to the
+ *  legacy diagramHTML string if a topic still produces one. */
+function buildCurrentDiagram(){
+  const q = (queue && queue[idx]) || null;
+  if(!q) return '';
+  if(q.diagramArrows){
+    const arrows = [];
+    if(visFlags.u && q.diagramArrows[0]) arrows.push(q.diagramArrows[0]);
+    if(visFlags.v && q.diagramArrows[1]) arrows.push(q.diagramArrows[1]);
+    const opts = {};
+    if(visFlags.result && q.diagramResultant){
+      opts.resultant = q.diagramResultant.v;
+      opts.resultantLabel = q.diagramResultant.label;
+      opts.resultantColor = q.diagramResultant.color;
+    }
+    if(!arrows.length && !opts.resultant) return '';
+    return vecDiag(arrows, opts);
+  }
+  return q.diagramHTML || '';
+}
+function renderVisToggles(){
+  const bar = $('visToggles');
+  bar.innerHTML = '';
+  const q = (queue && queue[idx]) || null;
+  if(!q || !q.diagramArrows){ bar.style.display = 'none'; return; }
+  const items = [];
+  if(q.diagramArrows[0]) items.push({key:'u',      label:q.diagramArrows[0].label, color:q.diagramArrows[0].color});
+  if(q.diagramArrows[1]) items.push({key:'v',      label:q.diagramArrows[1].label, color:q.diagramArrows[1].color});
+  if(q.diagramResultant) items.push({key:'result', label:q.diagramResultant.label, color:q.diagramResultant.color});
+  bar.style.display = 'flex';
+  items.forEach(it=>{
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const isOn = !!visFlags[it.key];
+    btn.className = 'vischip' + (isOn ? ' on' : '');
+    btn.style.borderColor = it.color;
+    btn.style.color = isOn ? it.color : 'var(--muted)';
+    btn.textContent = it.label;
+    btn.addEventListener('click', ()=>{
+      visFlags[it.key] = !visFlags[it.key];
+      applyVisualState();
+    });
+    bar.appendChild(btn);
+  });
 }
 
 function applyVisualState(){
   const toggle = $('visualToggle');
   const div    = $('qVisual');
-  const has    = div.innerHTML.trim().length > 0;
-  if(!has){
+  const bar    = $('visToggles');
+  const q = (queue && queue[idx]) || null;
+  const hasDiag = !!(q && (q.diagramArrows || q.diagramHTML));
+  if(!hasDiag){
     toggle.style.display = 'none';
     div.style.display = 'none';
+    bar.style.display = 'none';
     return;
   }
   toggle.style.display = 'inline-flex';
   if(visualShown){
+    div.innerHTML = buildCurrentDiagram();
     div.style.display = 'block';
+    renderVisToggles();
     toggle.textContent = '👁 Hide diagram';
   } else {
     div.style.display = 'none';
+    bar.style.display = 'none';
     toggle.textContent = '💡 Show diagram';
   }
 }
@@ -2533,6 +2613,7 @@ function openSettings(key){
   renderOpts('optDivForm', DIVFORMS, 'divForm');
   renderOpts('optView', VIEWS, 'viewForm');
   renderOpts('optVcmComp', VCM_COMPS, 'vcmCompMode');
+  renderOpts('optNumScale', NUM_SCALES, 'numScale');
   renderOpts('optMethod', METHODS, 'method');
   renderOpts('optFb', FBS, 'feedback');
   refreshConditionals();
@@ -2554,6 +2635,9 @@ function refreshConditionals(){
   $('setViewBlock').style.display = topicHasView ? 'block' : 'none';
   // Same vcm topics also pick which component (1st / 2nd / mixed) to ask.
   $('setVcmCompBlock').style.display = topicHasView ? 'block' : 'none';
+  // numScale only matters for the 2D number pool — every vcm/vec topic.
+  const topicHasNumScale = ['vcmAdd','vcmSub','vcmMul','vecDot','vecWedge'].includes(SET.topic);
+  $('setNumScaleBlock').style.display = topicHasNumScale ? 'block' : 'none';
 }
 function renderOpts(containerId, items, field, onChange){
   const c=$(containerId); c.innerHTML='';
@@ -2665,7 +2749,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.22.3';
+const APP_VERSION = 'v1.22.4';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
@@ -2791,7 +2875,7 @@ function startGame(){
     _vcmIdxOverride = null;
   }
   pushRecent(queue);
-  initVisualState();
+  initVisualState(); // resets visFlags too
   idx=0; score=0; correctCount=0; attempts=0; locked=false;
   qHistory = [];
   // gameActive flips to true only when the player presses Start on the
