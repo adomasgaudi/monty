@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.20.1 -->
+<!-- Riemann Surface v1.20.2 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.20.1 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.20.2 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -606,7 +606,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.20.1</div>
+<div class="version">v1.20.2</div>
 
 <script>
 /* ============================================================================
@@ -1545,7 +1545,7 @@ function operationsFor(nt,cat){
 const NAV = {numberType:null,category:null,operation:null};
 
 /* ─── 6. Settings model ─────────────────────────────────────────────────── */
-const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:'long', mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector', vcmCompMode:'first' };
+const SET = { topic:null, diff:'Easy', count:2, method:'choice', feedback:'long', mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector', vcmCompMode:'first' };
 const COUNTS=[2,5,10,15,20];
 const MODES=[['pure','Pure math','just numbers'],['real','Real world','physics & alchemy']];
 const EQS=[['show','Show','equation visible'],['hide','Hide','text only'],['prose','Prose','infer the math']];
@@ -1871,20 +1871,58 @@ function show(id){
 const USER_KEY='cc_currentUser';
 function userKey(email){return `cc_user_${email.toLowerCase()}`;}
 function getCurrentUser(){
-  const email=localStorage.getItem(USER_KEY); if(!email) return null;
-  const raw=localStorage.getItem(userKey(email)); if(!raw) return null;
-  try{return JSON.parse(raw);}catch{return null;}
+  const email = localStorage.getItem(USER_KEY); if(!email) return null;
+  const raw = localStorage.getItem(userKey(email)); if(!raw) return null;
+  let obj;
+  try{ obj = JSON.parse(raw); }catch{ return null; }
+  if(!obj || typeof obj !== 'object') return null;
+  // Schema mismatch — refuse stale stats but keep the account alive.
+  if((obj.__schema || 0) !== SCHEMA.user){
+    const fresh = freshUserFor(email, obj);
+    saveUser(fresh);
+    return fresh;
+  }
+  return obj;
 }
-function saveUser(u){localStorage.setItem(userKey(u.email),JSON.stringify(u));localStorage.setItem(USER_KEY,u.email);}
+function saveUser(u){
+  if(!u || !u.email) return;
+  u.__schema = SCHEMA.user;
+  try{ localStorage.setItem(userKey(u.email), JSON.stringify(u)); }catch{}
+  try{ localStorage.setItem(USER_KEY, u.email); }catch{}
+}
+
+/** Build a fresh-stats user object — used when an older schema doesn't
+ *  match the current shape. Preserves the email (and any user-set ratings
+ *  if they happen to be plain enough to keep). */
+function freshUserFor(email, salvage){
+  const u = {
+    email,
+    points:0, games:0, correctTotal:0, answeredTotal:0,
+    byTopic:{}, gradeCounts:{}, ratings:{},
+  };
+  if(salvage && salvage.ratings && typeof salvage.ratings === 'object'){
+    u.ratings = salvage.ratings;
+  }
+  return u;
+}
 function signInWithEmail(idOrEmail){
   // Accepts either a full email or a plain username. Stored case-insensitively.
   const id = String(idOrEmail || '').trim().toLowerCase();
   if(!id || id.length < 1 || id.length > 64) return null;
   if(!/^[a-z0-9._@+-]+$/.test(id)) return null;
+  let u = null;
   const existing = localStorage.getItem(userKey(id));
-  // Keep the property name `email` so older saves still work; it just holds
-  // whatever identifier the user typed in.
-  const u = existing ? JSON.parse(existing) : {email:id, points:0, games:0, correctTotal:0, answeredTotal:0, byTopic:{}};
+  if(existing){
+    let parsed;
+    try{ parsed = JSON.parse(existing); }catch{}
+    if(parsed && (parsed.__schema || 0) === SCHEMA.user){
+      u = parsed;
+    } else if(parsed){
+      // Old shape — keep email & ratings, drop incompatible stats.
+      u = freshUserFor(id, parsed);
+    }
+  }
+  if(!u) u = freshUserFor(id);
   saveUser(u);
   return u;
 }
@@ -2184,17 +2222,18 @@ function renderOpts(containerId, items, field, onChange){
 const RECENTS_KEY = 'cc_recents';
 const RECENTS_MAX = 5;
 
-/** Load recents array from localStorage, newest first. */
+/** Load recents array. Stored as { __schema, items: [...] } so schema
+ *  versioning works the same as for other objects. */
 function loadRecents(){
-  try {
-    const arr = JSON.parse(localStorage.getItem(RECENTS_KEY) || '[]');
-    return Array.isArray(arr) ? arr : [];
-  } catch { return []; }
+  const wrap = safeLoad(RECENTS_KEY, 'recents');
+  if(!wrap || !Array.isArray(wrap.items)) return [];
+  return wrap.items;
 }
 
-/** Persist the recents array (capped to RECENTS_MAX entries). */
+/** Persist the recents array (capped to RECENTS_MAX entries) with schema stamp. */
 function saveRecents(arr){
-  try { localStorage.setItem(RECENTS_KEY, JSON.stringify(arr.slice(0, RECENTS_MAX))); } catch {}
+  const items = Array.isArray(arr) ? arr.slice(0, RECENTS_MAX) : [];
+  stampSave(RECENTS_KEY, { items }, 'recents');
 }
 
 /** Push the current SET as the newest recent (dedupes by topic). */
@@ -2275,34 +2314,54 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.20.1';
-const VERSION_KEY = 'cc_app_version';
+const APP_VERSION = 'v1.20.2';
 
-/** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
- *  reset and by explicit user-initiated resets. */
-function wipeAppStorage(){
-  for(let i = localStorage.length - 1; i >= 0; i--){
-    const k = localStorage.key(i);
-    if(k && k.startsWith('cc_')) localStorage.removeItem(k);
-  }
+/* Per-object schema version. Bumped only when the SHAPE of that object
+ * actually changes in a way that breaks older saves. Version bumps that
+ * touch only UI / wording / topic content do NOT bump these — so your
+ * account survives version upgrades intact.
+ *
+ *   user     2 : tier remap (4–11) means old gradeCounts / bestGrade are
+ *                expressed on a different scale. Bumping invalidates the
+ *                stats but the migrator preserves the email + ratings.
+ *   settings 2 : feedback became a string enum, vcmCompMode added.
+ *   nav      1 : { numberType, category, operation }
+ *   recents  1 : array of snapshots with { topic, diff, ts, … }
+ */
+const SCHEMA = { user:2, settings:2, nav:1, recents:1 };
+
+/** Save a versioned object — stamps __schema so future builds can recognise it. */
+function stampSave(key, obj, schemaKey){
+  if(!obj || typeof obj !== 'object') return;
+  obj.__schema = SCHEMA[schemaKey];
+  try{ localStorage.setItem(key, JSON.stringify(obj)); }catch{}
+}
+
+/** Load an object only if its __schema matches the current build. Returns
+ *  null on missing / corrupt / mismatched data so the caller falls back to
+ *  defaults. Does NOT delete incompatible data — it just refuses to use it,
+ *  in case a future build can read it again. */
+function safeLoad(key, schemaKey){
+  try{
+    const raw = localStorage.getItem(key);
+    if(!raw) return null;
+    const obj = JSON.parse(raw);
+    if(!obj || typeof obj !== 'object') return null;
+    if((obj.__schema || 0) !== SCHEMA[schemaKey]) return null;
+    return obj;
+  }catch{ return null; }
 }
 
 function loadSettings(){
-  // Schema gate: if the stored version doesn't match this build, wipe the
-  // slate so tests across versions on the same browser don't collide.
-  const storedVersion = localStorage.getItem(VERSION_KEY);
-  if(storedVersion !== APP_VERSION){
-    wipeAppStorage();
-    try{ localStorage.setItem(VERSION_KEY, APP_VERSION); }catch{}
-  }
-  try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'null'); if(s&&typeof s==='object') Object.assign(SET, s); }catch{}
-  try{ const n=JSON.parse(localStorage.getItem(NAV_KEY)||'null'); if(n&&typeof n==='object') Object.assign(NAV, n); }catch{}
-  // Migrate older boolean SET.feedback → string enum (in case a future build
-  // bumps APP_VERSION mid-session and someone still has a string mismatch).
+  const s = safeLoad(SETTINGS_KEY, 'settings');
+  if(s) Object.assign(SET, s);
+  const n = safeLoad(NAV_KEY, 'nav');
+  if(n) Object.assign(NAV, n);
+  // Defensive: ancient boolean SET.feedback values get coerced.
   if(typeof SET.feedback === 'boolean') SET.feedback = SET.feedback ? 'long' : 'off';
 }
-function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(SET)); }catch{} }
-function saveNav(){ try{ localStorage.setItem(NAV_KEY, JSON.stringify(NAV)); }catch{} }
+function saveSettings(){ stampSave(SETTINGS_KEY, SET, 'settings'); }
+function saveNav(){ stampSave(NAV_KEY, NAV, 'nav'); }
 
 $('startBtn').addEventListener('click', startGame);
 $('finishBtn').addEventListener('click', ()=>{ finishEarly(); });
