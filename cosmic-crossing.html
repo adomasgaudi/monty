@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.21.1 -->
+<!-- Riemann Surface v1.21.2 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.21.1 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.21.2 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -610,7 +610,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.21.1</div>
+<div class="version">v1.21.2</div>
 
 <script>
 /* ============================================================================
@@ -1485,7 +1485,7 @@ const NUMBER_TYPES = [
   {key:'integers',label:'Integers',desc:'… −2, −1, 0, 1, 2 …',symbol:'ℤ',enabled:true},
   {key:'fractions',label:'Fractions',desc:'½, ¾, ⅛ …',symbol:'¾',enabled:true},
   {key:'real',label:'Real numbers',desc:'0.5, 3.14 …',symbol:'ℝ',enabled:true},
-  {key:'vcm',label:'3D',desc:'vectors · matrix · complex',symbol:'⊕',enabled:true}
+  {key:'vcm',label:'2D',desc:'vectors · matrix · complex',symbol:'⊕',enabled:true}
 ];
 const CATEGORIES_BASE = [
   {key:'arithmetic',label:'Arithmetic',desc:'+, −, ×, ÷',symbol:'+÷'},
@@ -1986,7 +1986,7 @@ function renderUserChip(){
 }
 /** Build an SVG radar showing the best tier achieved per discipline. */
 function radarChartSVG(user){
-  const labels = ['Natural','Integers','Fractions','Real','3D'];
+  const labels = ['Natural','Integers','Fractions','Real','2D'];
   const nts    = ['natural','integers','fractions','real','vcm'];
   // Highest tier number observed in any topic under each discipline.
   const peak = {};
@@ -2349,7 +2349,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.21.1';
+const APP_VERSION = 'v1.21.2';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
