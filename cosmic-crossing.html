@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.18.0 -->
+<!-- Cosmic Crossing v1.18.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.18.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.18.1 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -456,10 +456,14 @@
       <span class="crumb" id="setCrumb"></span>
     </div>
 
-    <!-- Required — the one choice every player must make -->
+    <!-- Required — choices every player can see up-front -->
     <div class="setblock">
       <div class="setlabel">Mode</div>
       <div class="opts" id="optMode"></div>
+    </div>
+    <div class="setblock" id="setViewBlock" style="display:none;">
+      <div class="setlabel">View as</div>
+      <div class="opts" id="optView"></div>
     </div>
 
     <!-- Advanced — hidden by default, revealed by the gear toggle -->
@@ -483,10 +487,6 @@
       <div class="setblock" id="setEqBlock" style="display:none;">
         <div class="setlabel">Equation</div>
         <div class="opts" id="optEq"></div>
-      </div>
-      <div class="setblock" id="setViewBlock" style="display:none;">
-        <div class="setlabel">View as</div>
-        <div class="opts" id="optView"></div>
       </div>
       <div class="setblock" id="setVcmCompBlock" style="display:none;">
         <div class="setlabel">Which component to ask</div>
@@ -582,7 +582,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.18.0</div>
+<div class="version">v1.18.1</div>
 
 <script>
 /* ============================================================================
@@ -980,12 +980,22 @@ function vecDiag(arrows, opts){
       parts.push(`<text x="${opts.resultant[0]+0.25}" y="${-opts.resultant[1]-0.3}" fill="${opts.resultantColor||'#2F8F5F'}" font-size="${scale*0.055}" font-family="DM Mono">${opts.resultantLabel}</text>`);
     }
   }
+  // Place arrows + their tip labels. When two arrows land near the same
+  // tip, the labels would stack on top of each other — detect that and
+  // bump later labels downward so they stay legible.
+  const labelTaken = [];
+  const labelFont = scale * 0.06;
   arrows.forEach(a=>{
     parts.push(drawArrow(0,0,a.v[0],-a.v[1],a.color||'#15151B',lw*1.25,false));
-    if(a.label){
-      const off = a.v[0]>=0 ? 0.3 : -0.6;
-      parts.push(`<text x="${a.v[0]+off}" y="${-a.v[1]-0.3}" fill="${a.color||'#15151B'}" font-size="${scale*0.06}" font-family="DM Mono" font-weight="600">${a.label}</text>`);
+    if(!a.label) return;
+    let lx = a.v[0] + (a.v[0]>=0 ? 0.3 : -0.6);
+    let ly = -a.v[1] - 0.3;
+    const tol = labelFont * 1.2; // ~one row of label height
+    while(labelTaken.some(p => Math.abs(p.x - lx) < tol && Math.abs(p.y - ly) < tol)){
+      ly += labelFont * 1.4;
     }
+    labelTaken.push({x: lx, y: ly});
+    parts.push(`<text x="${lx}" y="${ly}" fill="${a.color||'#15151B'}" font-size="${labelFont}" font-family="DM Mono" font-weight="600">${a.label}</text>`);
   });
   parts.push('</svg>');
   return parts.join('');
@@ -2210,7 +2220,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.18.0';
+const APP_VERSION = 'v1.18.1';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
