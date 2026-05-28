@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.7.1 -->
+<!-- Cosmic Crossing v1.8.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.7.1 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.8.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -304,6 +304,10 @@
       <div class="setlabel">Equation</div>
       <div class="opts" id="optEq"></div>
     </div>
+    <div class="setblock" id="setViewBlock" style="display:none;">
+      <div class="setlabel">View as</div>
+      <div class="opts" id="optView"></div>
+    </div>
     <div class="setblock" id="setUnitBlock" style="display:none;">
       <div class="setlabel">Units in answer</div>
       <div class="opts" id="optUnit"></div>
@@ -381,7 +385,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.7.1</div>
+<div class="version">v1.8.0</div>
 
 <script>
 /* ===== math helpers ===== */
@@ -587,9 +591,23 @@ const SCENARIOS = {
     {tag:'Markov Step', unit:'',
       intro:(A,B,r,c)=>`Transition matrix <b>P</b> followed by another <b>P'</b> gives <b>P·P'</b>. What's entry (${r+1}, ${c+1}) of the two-step matrix?`,
       fact:`Multiplying a Markov matrix by itself gives the two-step transition probabilities.`},
-    {tag:'Quantum Gate', unit:'',
-      intro:(A,B,r,c)=>`Gate <b>U₁</b> then gate <b>U₂</b>. The combined unitary is <b>U₂·U₁</b>. Compute entry (${r+1}, ${c+1}):`,
+    {tag:'Quantum Gate Product', unit:'',
+      intro:(A,B,r,c)=>`Two unitary gates compose: <b>U₂ · U₁</b>. The student must build the circuit's combined matrix. Entry (${r+1}, ${c+1}):`,
       fact:`Quantum circuits multiply gates in matrix form. Order matters — U₂·U₁ ≠ U₁·U₂ in general.`}
+  ],
+  vcm:[
+    {tag:'Spin Superposition',
+      intro:(a,b,c,d,op)=>`Two qubits sit in states with amplitudes <b>α₁ = ${a}</b>, <b>β₁ = ${b}</b> and <b>α₂ = ${c}</b>, <b>β₂ = ${d}</b>. The combined amplitude (un-normalized) is found by ${op==='+'?'adding':op==='−'?'subtracting':'multiplying'} them.`,
+      fact:`Quantum states live in a 2D complex Hilbert space. A spin-½ state |ψ⟩ = α|↑⟩ + β|↓⟩ has α and β as complex amplitudes — exactly the components of a 2-vector or a 2×1 column matrix.`},
+    {tag:'Polarized Photon',
+      intro:(a,b,c,d,op)=>`A horizontally-polarized photon has Jones vector <b>(${a}, ${b})</b>. A second has <b>(${c}, ${d})</b>. Combine their fields.`,
+      fact:`Optical polarization is described by 2-component Jones vectors — same math as spin-½.`},
+    {tag:'Phase Rotation',
+      intro:(a,b,c,d,op)=>`A complex amplitude <b>${a} + ${b}i</b> gets rotated by phase factor <b>${c} + ${d}i</b>. ${op==='×'?'Multiply':'Combine'} them in any view you like.`,
+      fact:`Multiplying by e^(iθ) rotates a complex number — the same as a 2×2 rotation matrix acting on a 2-vector.`},
+    {tag:'Pauli σ Action',
+      intro:(a,b,c,d,op)=>`A spinor (${a}, ${b}) interacts with another (${c}, ${d}). Compute their ${op==='×'?'product (with the rotational sense of complex multiplication)':'sum'}.`,
+      fact:`The Pauli matrices σx, σy, σz generate all rotations of 2D quantum states. Complex × 2D rotation matrix × spinor — three views, one operation.`}
   ]
 };
 
@@ -602,6 +620,40 @@ function matHTML(M, hlRow, hlCol){
     html += `<span class="el${hl}">${M[i][j]}</span>`;
   }
   return html + `</span>`;
+}
+function fmt2D(a, b, view){
+  if(view==='complex'){
+    const sign = b>=0 ? ' + ' : ' − ';
+    const bAbs = Math.abs(b);
+    const bStr = bAbs===1 ? 'i' : `${bAbs}i`;
+    return `<span class="cplx">(${a}${sign}${bStr})</span>`;
+  }
+  if(view==='matrix'){
+    return `<span class="mat" style="--cols:1;"><span class="el">${a}</span><span class="el">${b}</span></span>`;
+  }
+  return `<span class="vec"><span class="el">${a}</span><span class="el">${b}</span></span>`;
+}
+function askLabel(view, idx){
+  if(view==='complex') return idx===0 ? 'real part' : 'imaginary part';
+  if(view==='matrix') return idx===0 ? 'top cell' : 'bottom cell';
+  return idx===0 ? '1st component' : '2nd component';
+}
+function vcmPrompt(a,b,c,d,op,idx){
+  const v = SET.viewForm || 'vector';
+  const isMul = op==='·' || op==='×' || op==='⊗';
+  let left, right, sym;
+  if(isMul){
+    if(v==='matrix'){
+      left  = matHTML([[a,-b],[b,a]], undefined, undefined);
+      right = matHTML([[c],[d]], undefined, undefined);
+      sym   = '·';
+    } else if(v==='complex'){
+      left  = fmt2D(a,b,v); right = fmt2D(c,d,v); sym = '';
+    } else {
+      left  = fmt2D(a,b,v); right = fmt2D(c,d,v); sym = '⊗';
+    }
+  } else { left = fmt2D(a,b,v); right = fmt2D(c,d,v); sym = op; }
+  return `${left} ${sym?`<span class="op">${sym}</span> `:''}${right}<span class="matlabel">${askLabel(v,idx)} = ?</span>`;
 }
 
 /* Pick scenario per category, keeping it stable for the explain step */
@@ -763,6 +815,69 @@ const TOPICS = {
               answer:ansStr, distractors:dist, type:'matmul',
               exp:{A, B, r, c, ans:ansStr, unit:'', tag:sc.tag}};
     }
+  },
+  vcmAdd:{
+    title:'2D addition (vector / complex / matrix)',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      const ranges={Easy:[1,2,3,4,5,6,7,8],Medium:[-5,-4,-3,-2,-1,1,2,3,4,5,6],Hard:[-9,-7,-5,-3,3,5,7,9]};
+      const range=ranges[diff]||ranges.Easy;
+      const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
+      const idx=Math.floor(Math.random()*2);
+      const ans = idx===0 ? a+c : b+d;
+      const ansStr=intStr(ans);
+      const dist=[intStr(idx===0?a-c:b-d), intStr(-ans), intStr(ans+1), intStr(idx===0?b+d:a+c)];
+      const sc = pickScenario('vcm');
+      return {promptHTML:vcmPrompt(a,b,c,d,'+',idx),
+              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'+')}</div>`,
+              proseHTML:null,
+              scenarioFact:sc.fact,
+              answer:ansStr, distractors:dist, type:'vcm',
+              exp:{a,b,c,d,op:'+',idx, ans:ansStr, tag:sc.tag}};
+    }
+  },
+  vcmSub:{
+    title:'2D subtraction (vector / complex / matrix)',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      const ranges={Easy:[1,2,3,4,5,6,7,8],Medium:[-5,-4,-3,-2,-1,1,2,3,4,5,6],Hard:[-9,-7,-5,-3,3,5,7,9]};
+      const range=ranges[diff]||ranges.Easy;
+      const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
+      const idx=Math.floor(Math.random()*2);
+      const ans = idx===0 ? a-c : b-d;
+      const ansStr=intStr(ans);
+      const dist=[intStr(idx===0?a+c:b+d), intStr(-ans), intStr(ans+1), intStr(idx===0?b-d:a-c)];
+      const sc = pickScenario('vcm');
+      return {promptHTML:vcmPrompt(a,b,c,d,'−',idx),
+              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'−')}</div>`,
+              proseHTML:null,
+              scenarioFact:sc.fact,
+              answer:ansStr, distractors:dist, type:'vcm',
+              exp:{a,b,c,d,op:'−',idx, ans:ansStr, tag:sc.tag}};
+    }
+  },
+  vcmMul:{
+    title:'2D multiplication (complex · Argand)',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      const ranges={Easy:[1,2,3,4,5],Medium:[-4,-3,-2,-1,1,2,3,4],Hard:[-5,-3,-2,-1,1,2,3,5]};
+      const range=ranges[diff]||ranges.Easy;
+      const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
+      const idx=Math.floor(Math.random()*2);
+      const real=a*c - b*d, imag=a*d + b*c;
+      const ans = idx===0 ? real : imag;
+      const ansStr=intStr(ans);
+      const wrongSign = idx===0 ? a*c + b*d : a*d - b*c;
+      const wrongOther = idx===0 ? imag : real;
+      const dist=[intStr(wrongSign), intStr(wrongOther), intStr(-ans), intStr(ans+1)];
+      const sc = pickScenario('vcm');
+      return {promptHTML:vcmPrompt(a,b,c,d,'·',idx),
+              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'×')}</div>`,
+              proseHTML:null,
+              scenarioFact:sc.fact,
+              answer:ansStr, distractors:dist, type:'vcm',
+              exp:{a,b,c,d,op:'×',idx, ans:ansStr, real, imag, tag:sc.tag}};
+    }
   }
 };
 
@@ -772,9 +887,7 @@ const NUMBER_TYPES = [
   {key:'integers',label:'Integers',desc:'… −2, −1, 0, 1, 2 …',symbol:'ℤ',enabled:true},
   {key:'fractions',label:'Fractions',desc:'½, ¾, ⅛ …',symbol:'¾',enabled:true},
   {key:'real',label:'Real numbers',desc:'0.5, 3.14 …',symbol:'ℝ',enabled:true},
-  {key:'complex',label:'Complex numbers',desc:'a + bi',symbol:'ℂ',enabled:false},
-  {key:'vectors',label:'Vectors',desc:'[a, b], dot product',symbol:'v⃗',enabled:true},
-  {key:'matrices',label:'Matrices',desc:'A · B, row × column',symbol:'⊞',enabled:true}
+  {key:'vcm',label:'Vectors · Complex · Matrices',desc:'Three views of the same 2D space',symbol:'⊕',enabled:true}
 ];
 const CATEGORIES_BASE = [
   {key:'arithmetic',label:'Arithmetic',desc:'+, −, ×, ÷',symbol:'+÷'},
@@ -786,9 +899,7 @@ function categoriesFor(nt){
     integers:{arithmetic:true,inequalities:false},
     fractions:{arithmetic:true,inequalities:false},
     real:{arithmetic:true,inequalities:false},
-    complex:{arithmetic:false,inequalities:false},
-    vectors:{arithmetic:true,inequalities:false},
-    matrices:{arithmetic:true,inequalities:false}
+    vcm:{arithmetic:true,inequalities:false}
   }[nt]||{};
   return CATEGORIES_BASE.map(c=>({...c,enabled:!!enabled[c.key]}));
 }
@@ -818,30 +929,26 @@ function operationsFor(nt,cat){
       {key:'mul',label:'Multiplication',desc:'×10, ×100, ×1000',symbol:'×',enabled:true,topic:'realMul'},
       {key:'div',label:'Division',desc:'÷10, ÷100, ÷1000',symbol:'÷',enabled:true,topic:'realDiv'}
     ],
-    vectors:[
-      {key:'add',label:'Addition',desc:'componentwise',symbol:'+',enabled:false},
-      {key:'sub',label:'Subtraction',desc:'componentwise',symbol:'−',enabled:false},
-      {key:'mul',label:'Dot product',desc:'u · v = ac + bd',symbol:'·',enabled:true,topic:'vecDot'},
-      {key:'cross',label:'Cross product',desc:'3D only',symbol:'×',enabled:false}
-    ],
-    matrices:[
-      {key:'add',label:'Addition',desc:'A + B componentwise',symbol:'+',enabled:false},
-      {key:'sub',label:'Subtraction',desc:'A − B componentwise',symbol:'−',enabled:false},
-      {key:'mul',label:'Multiplication',desc:'A · B, one cell at a time',symbol:'×',enabled:true,topic:'matMul'},
-      {key:'inv',label:'Inverse',desc:'M⁻¹',symbol:'÷',enabled:false}
+    vcm:[
+      {key:'add',label:'Addition',desc:'2D add — pick the view',symbol:'+',enabled:true,topic:'vcmAdd'},
+      {key:'sub',label:'Subtraction',desc:'2D sub — pick the view',symbol:'−',enabled:true,topic:'vcmSub'},
+      {key:'mul',label:'Multiplication',desc:'complex / Argand product',symbol:'×',enabled:true,topic:'vcmMul'},
+      {key:'dot',label:'Dot product',desc:'u · v → scalar',symbol:'·',enabled:true,topic:'vecDot'},
+      {key:'matmul',label:'Matrix multiplication',desc:'general A · B',symbol:'⊞',enabled:true,topic:'matMul'}
     ]
   })[nt]||[];
 }
 const NAV = {numberType:null,category:null,operation:null};
 
 /* ===== settings model ===== */
-const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:true, mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol' };
+const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:true, mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector' };
 const COUNTS=[5,10,15,20];
 const MODES=[['pure','Pure math','just numbers'],['real','Real world','physics & alchemy']];
 const EQS=[['show','Show','equation visible'],['hide','Hide','text only'],['prose','Prose','infer the math']];
 const UNITS=[[false,'Plain','just the number'],[true,'With units','km, V, °C…']];
 const NUMFORMS=[['decimal','Decimal','0.5'],['fraction','Fraction','½']];
 const DIVFORMS=[['symbol','÷ symbol','30 ÷ 10'],['fraction','Fraction bar','³⁰⁄₁₀']];
+const VIEWS=[['vector','Vector','[a, b]'],['complex','Complex','a + bi'],['matrix','Matrix','[a / b]']];
 const METHODS=[['choice','Multiple choice','easier'],['type','Type the answer','harder']];
 const FBS=[[true,'On','see why'],[false,'Off','speed run']];
 const DIFF_MULT={Easy:1,Medium:2,Hard:3};
@@ -885,7 +992,7 @@ function renderUserChip(){
   if(!u){ chip.innerHTML=`<span>Sign in →</span>`; chip.onclick=()=>{$('emailIn').value='';show('signin');setTimeout(()=>$('emailIn').focus(),50);}; }
   else { const short=u.email.split('@')[0]; chip.innerHTML=`<span>${short}</span><span class="pts">★ ${u.points}</span>`; chip.onclick=()=>openProfile(); }
 }
-const TOPIC_NT = {intAdd:'integers',intSub:'integers',realMul:'real',realDiv:'real',fracDiv:'fractions',vecDot:'vectors',matMul:'matrices'};
+const TOPIC_NT = {intAdd:'integers',intSub:'integers',realMul:'real',realDiv:'real',fracDiv:'fractions',vecDot:'vcm',matMul:'vcm',vcmAdd:'vcm',vcmSub:'vcm',vcmMul:'vcm'};
 function openProfile(){
   const u=getCurrentUser(); if(!u){show('signin');return;}
   $('profEmail').textContent=u.email;
@@ -898,7 +1005,7 @@ function openProfile(){
   /* group by number type */
   const groups={};
   keys.forEach(k=>{ const nt=TOPIC_NT[k]||'other'; (groups[nt]=groups[nt]||[]).push(k); });
-  const ntOrder=['integers','fractions','real','vectors','matrices','complex','natural','other'];
+  const ntOrder=['integers','fractions','real','vcm','natural','other'];
   ntOrder.filter(nt=>groups[nt]).forEach(nt=>{
     const ntDef = NUMBER_TYPES.find(n=>n.key===nt);
     const ntLabel = ntDef ? ntDef.label : nt;
@@ -989,6 +1096,7 @@ function openSettings(key){
   renderOpts('optUnit', UNITS, 'useUnits');
   renderOpts('optNumForm', NUMFORMS, 'numForm');
   renderOpts('optDivForm', DIVFORMS, 'divForm');
+  renderOpts('optView', VIEWS, 'viewForm');
   renderOpts('optMethod', METHODS, 'method');
   renderOpts('optFb', FBS, 'feedback');
   refreshConditionals();
@@ -999,10 +1107,12 @@ function refreshConditionals(){
   const topicHasUnits = ['intAdd','intSub','realMul','realDiv'].includes(SET.topic);
   const topicHasDecimals = ['realMul','realDiv'].includes(SET.topic);
   const topicHasDiv = ['realDiv'].includes(SET.topic);
+  const topicHasView = ['vcmAdd','vcmSub','vcmMul'].includes(SET.topic);
   $('setEqBlock').style.display = isReal ? 'block' : 'none';
   $('setUnitBlock').style.display = (isReal && topicHasUnits) ? 'block' : 'none';
   $('setNumBlock').style.display = topicHasDecimals ? 'block' : 'none';
   $('setDivBlock').style.display = topicHasDiv ? 'block' : 'none';
+  $('setViewBlock').style.display = topicHasView ? 'block' : 'none';
 }
 function renderOpts(containerId, items, field, onChange){
   const c=$(containerId); c.innerHTML='';
