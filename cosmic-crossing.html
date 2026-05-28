@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.19.0 -->
+<!-- Riemann Surface v1.19.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.19.0 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.19.1 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -261,6 +261,9 @@
     cursor:pointer;color:var(--ink);transition:border-color .12s,background .12s,color .12s;}
   .rate-btn:hover{border-color:var(--ink);}
   .rate-btn.sel{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+  .rate-higher{border-style:dashed;color:var(--muted);}
+  .rate-higher:hover{color:var(--ink);}
+  .rate-higher.sel{background:transparent;color:var(--ink);border-color:var(--ink);border-style:solid;}
 
   .confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
   .conf{position:absolute;width:6px;height:6px;opacity:0;background:var(--ink);}
@@ -583,7 +586,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.19.0</div>
+<div class="version">v1.19.1</div>
 
 <script>
 /* ============================================================================
@@ -2227,7 +2230,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.19.0';
+const APP_VERSION = 'v1.19.1';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
@@ -2659,6 +2662,22 @@ function renderRatingUI(){
     });
     wrap.appendChild(btn);
   });
+  // "Higher than I can grade" — lets a player express that the game felt
+  // harder than what their cap allows them to formally award.
+  const higherValue = `>${cap}`;
+  const higherBtn = document.createElement('button');
+  higherBtn.type = 'button';
+  higherBtn.className = 'rate-btn rate-higher' + (current === higherValue ? ' sel' : '');
+  higherBtn.title = `Feels harder than my best (${cap})`;
+  higherBtn.textContent = `Higher than ${cap} →`;
+  higherBtn.addEventListener('click', ()=>{
+    const user = getCurrentUser(); if(!user) return;
+    if(!user.ratings) user.ratings = {};
+    user.ratings[SET.topic] = higherValue;
+    saveUser(user);
+    renderRatingUI();
+  });
+  wrap.appendChild(higherBtn);
 }
 
 function endGame(){
