@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.7.0 -->
+<!-- Cosmic Crossing v1.7.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.7.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.7.1 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -381,7 +381,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.7.0</div>
+<div class="version">v1.7.1</div>
 
 <script>
 /* ===== math helpers ===== */
@@ -772,7 +772,9 @@ const NUMBER_TYPES = [
   {key:'integers',label:'Integers',desc:'… −2, −1, 0, 1, 2 …',symbol:'ℤ',enabled:true},
   {key:'fractions',label:'Fractions',desc:'½, ¾, ⅛ …',symbol:'¾',enabled:true},
   {key:'real',label:'Real numbers',desc:'0.5, 3.14 …',symbol:'ℝ',enabled:true},
-  {key:'complex',label:'Complex numbers',desc:'a + bi',symbol:'ℂ',enabled:false}
+  {key:'complex',label:'Complex numbers',desc:'a + bi',symbol:'ℂ',enabled:false},
+  {key:'vectors',label:'Vectors',desc:'[a, b], dot product',symbol:'v⃗',enabled:true},
+  {key:'matrices',label:'Matrices',desc:'A · B, row × column',symbol:'⊞',enabled:true}
 ];
 const CATEGORIES_BASE = [
   {key:'arithmetic',label:'Arithmetic',desc:'+, −, ×, ÷',symbol:'+÷'},
@@ -784,7 +786,9 @@ function categoriesFor(nt){
     integers:{arithmetic:true,inequalities:false},
     fractions:{arithmetic:true,inequalities:false},
     real:{arithmetic:true,inequalities:false},
-    complex:{arithmetic:false,inequalities:false}
+    complex:{arithmetic:false,inequalities:false},
+    vectors:{arithmetic:true,inequalities:false},
+    matrices:{arithmetic:true,inequalities:false}
   }[nt]||{};
   return CATEGORIES_BASE.map(c=>({...c,enabled:!!enabled[c.key]}));
 }
@@ -813,6 +817,18 @@ function operationsFor(nt,cat){
       {key:'sub',label:'Subtraction',desc:'decimal subtraction',symbol:'−',enabled:false},
       {key:'mul',label:'Multiplication',desc:'×10, ×100, ×1000',symbol:'×',enabled:true,topic:'realMul'},
       {key:'div',label:'Division',desc:'÷10, ÷100, ÷1000',symbol:'÷',enabled:true,topic:'realDiv'}
+    ],
+    vectors:[
+      {key:'add',label:'Addition',desc:'componentwise',symbol:'+',enabled:false},
+      {key:'sub',label:'Subtraction',desc:'componentwise',symbol:'−',enabled:false},
+      {key:'mul',label:'Dot product',desc:'u · v = ac + bd',symbol:'·',enabled:true,topic:'vecDot'},
+      {key:'cross',label:'Cross product',desc:'3D only',symbol:'×',enabled:false}
+    ],
+    matrices:[
+      {key:'add',label:'Addition',desc:'A + B componentwise',symbol:'+',enabled:false},
+      {key:'sub',label:'Subtraction',desc:'A − B componentwise',symbol:'−',enabled:false},
+      {key:'mul',label:'Multiplication',desc:'A · B, one cell at a time',symbol:'×',enabled:true,topic:'matMul'},
+      {key:'inv',label:'Inverse',desc:'M⁻¹',symbol:'÷',enabled:false}
     ]
   })[nt]||[];
 }
