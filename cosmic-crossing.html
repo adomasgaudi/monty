@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<!-- Cosmic Crossing v1.2.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.2.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -166,6 +167,9 @@
   .confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
   .conf{position:absolute;width:6px;height:6px;opacity:0;background:var(--ink);}
   @keyframes fall{0%{opacity:.7;transform:translateY(-20px) rotate(0);}100%{opacity:0;transform:translateY(500px) rotate(360deg);}}
+
+  .version{position:fixed;bottom:10px;right:14px;font-family:'DM Mono',monospace;
+    font-size:.7rem;color:var(--muted);opacity:.6;letter-spacing:.04em;pointer-events:none;}
 </style>
 </head>
 <body>
@@ -263,6 +267,7 @@
     </div>
   </section>
 </div>
+<div class="version">v1.2.0</div>
 
 <script>
 /* ===== math helpers ===== */
