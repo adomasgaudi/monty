@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.14.1 -->
+<!-- Cosmic Crossing v1.14.2 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.14.1 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.14.2 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -494,7 +494,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.14.1</div>
+<div class="version">v1.14.2</div>
 
 <script>
 /* ============================================================================
@@ -513,7 +513,7 @@
  *  10. Init                  — load persisted state, render home screen
  *
  * CODE STYLE: targeted for LLM readability per evidence in commit notes for
- * v1.14.1 — short functions, descriptive names, multi-line expansion of dense
+ * v1.14.2 — short functions, descriptive names, multi-line expansion of dense
  * helpers, duplication tolerated over premature abstraction. No bundler; one
  * file ships as-is.
  * ========================================================================== */
@@ -1464,9 +1464,15 @@ function currentScreen(){
 function leavingCleanup(){
   clearInterval(timerInt);
   clearFeedbackTimer();
-  // Save partial progress if a game is in flight (toast lets the user undo).
+  // Save partial progress only if a real game is in flight AND the player
+  // has been playing for ≥ 5 s. A blink-and-back exit shouldn't get a toast.
   if(gameActive && currentScreen() === 'play'){
-    saveMidGameProgress();
+    const elapsed = startTime ? (Date.now() - startTime) : 0;
+    if(elapsed >= 5000){
+      saveMidGameProgress();
+    } else {
+      gameActive = false; // discard silently — too short to count
+    }
   }
 }
 
@@ -1936,7 +1942,8 @@ function startGame(){
   pushRecent();
   initVisualState();
   idx=0; score=0; correctCount=0; attempts=0; locked=false;
-  gameActive = true;
+  // gameActive flips to true only when the player presses Start on the
+  // gate (beginPlay). Sitting on the gate isn't a "real" game yet.
   clearInterval(timerInt);
   $('timer').textContent='0.0s';
   $('qcount').textContent=`1 / ${SET.count}`;
@@ -1951,6 +1958,7 @@ function beginPlay(){
   timerInt=setInterval(()=>{$('timer').textContent=((Date.now()-startTime)/1000).toFixed(1)+'s';},100);
   $('startGate').style.display='none';
   $('playBody').style.display='block';
+  gameActive = true; // only after the user actually pressed Start
   renderQuestion();
 }
 
