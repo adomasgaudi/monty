@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.20.0 -->
+<!-- Riemann Surface v1.20.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.20.0 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.20.1 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -606,7 +606,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.20.0</div>
+<div class="version">v1.20.1</div>
 
 <script>
 /* ============================================================================
@@ -1591,8 +1591,11 @@ const TOPIC_GRADE_CEIL = {
  * 7B (Undergrad B): the math just isn't elementary, and we don't want to
  * mint 7A for these until the harder content arrives. */
 const TOPIC_GRADE_BAND = {
-  vcmAdd:  ['6A','7B'],
-  vcmSub:  ['6A','7B'],
+  // Simple componentwise add/sub really is middleschool — re-anchored to a
+  // tight tier-5 band. Multiplication and the wedge keep their wider band
+  // because those are conceptually harder.
+  vcmAdd:  ['5C','5A'],
+  vcmSub:  ['5C','5A'],
   vcmMul:  ['6A','7B'],
   vecDot:  ['6A','7B'],
   vecWedge:['6A','7B'],
@@ -1600,7 +1603,7 @@ const TOPIC_GRADE_BAND = {
 };
 const TIER_NAMES = {
   4:'Layman',
-  5:'Beginner',
+  5:'Middleschool',
   6:'Highschool',
   7:'Undergrad',
   8:'Grad',
@@ -2272,7 +2275,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.20.0';
+const APP_VERSION = 'v1.20.1';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
