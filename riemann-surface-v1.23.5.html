@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.23.4 -->
+<!-- Riemann Surface v1.23.5 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.23.4 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.23.5 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -661,7 +661,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.23.4</div>
+<div class="version">v1.23.5</div>
 
 <script>
 /* ============================================================================
@@ -2520,7 +2520,7 @@ function openProfile(){
       const canPlay = !!TOPICS[k];
       const bestNum = parseInt(String(t.bestGrade||'').match(/^(\d+)/)?.[1]||0, 10);
       const bestGradeBadge = t.bestGrade
-        ? `<span class="gradebadge" data-tier="${bestNum}" title="Best grade: ${TIER_NAMES[bestNum]||''}">${t.bestGrade}·${TIER_NAMES[bestNum]||''}</span>`
+        ? `<span class="gradebadge" data-tier="${bestNum}" title="Best grade: ${TIER_NAMES[bestNum]||''}">${t.bestGrade}</span>`
         : '';
       const comm = communityRatingFor(k);
       const commCount = comm ? comm.count : 0;
@@ -2569,12 +2569,6 @@ function openProfile(){
               </span>
             </div>
             <div class="bar"><div style="width:${accuracy}%;"></div></div>
-            <div class="rategrid">
-              <span class="rg-lbl">Default</span><span class="rg-val mono">${defaultGrade}</span>
-              <span class="rg-lbl">My grade</span><span class="rg-val mono">${myLatest || '—'}</span>
-              <span class="rg-lbl">My avg</span><span class="rg-val mono">${myAvg || '—'}</span>
-              <span class="rg-lbl">Community</span><span class="rg-val mono">${commGrade ? `${commGrade} · ${commCount}` : '—'}</span>
-            </div>
           </div>`;
         });
       }
@@ -3148,7 +3142,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.23.4';
+const APP_VERSION = 'v1.23.5';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
