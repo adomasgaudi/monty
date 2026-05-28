@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.22.2 -->
+<!-- Riemann Surface v1.22.3 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.22.2 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.22.3 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -337,6 +337,12 @@
   .gradebadge[data-tier="11"]{
     background:linear-gradient(135deg,rgba(255,201,60,.2),rgba(255,61,113,.15));
     border-color:rgba(200,80,40,.55);color:#B33B1F;font-weight:600;}
+  .settingsrow{padding:8px 0 4px;border-top:1px dashed rgba(0,0,0,.06);margin-top:6px;}
+  .settingsrow:first-child{border-top:none;margin-top:0;}
+  .rategrid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 10px;
+    margin-top:6px;font-size:.78rem;}
+  .rategrid .rg-lbl{color:var(--muted);letter-spacing:.04em;}
+  .rategrid .rg-val{color:var(--ink);text-align:left;}
 
   /* start gate */
   .startgate{padding:32px 8px 16px;text-align:center;}
@@ -611,7 +617,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.22.2</div>
+<div class="version">v1.22.3</div>
 
 <script>
 /* ============================================================================
@@ -1396,7 +1402,7 @@ const TOPICS = {
     }
   },
   vcmAdd:{
-    title:'2D addition (vector / complex / matrix)',
+    title:'Addition (vector / complex / matrix)',
     diffs:['Easy','Medium','Hard'],
     make(diff){
       // Pools deliberately small (0, 1, ±2, 10) so the student focuses
@@ -1422,7 +1428,7 @@ const TOPICS = {
     }
   },
   vcmSub:{
-    title:'2D subtraction (vector / complex / matrix)',
+    title:'Subtraction (vector / complex / matrix)',
     diffs:['Easy','Medium','Hard'],
     make(diff){
       const ranges={Easy:[0,1,2],Medium:[-1,0,1,2,10],Hard:[-2,-1,0,1,2,10]};
@@ -1445,7 +1451,7 @@ const TOPICS = {
     }
   },
   threeDAdd:{
-    title:'3D addition',
+    title:'Addition',
     diffs:['Easy','Medium','Hard'],
     make(diff){
       const range = ({Easy:[0,1,2], Medium:[-2,-1,0,1,2,5], Hard:[-3,-1,0,1,3,5,10]})[diff] || [0,1,2];
@@ -1465,7 +1471,7 @@ const TOPICS = {
     }
   },
   threeDDot:{
-    title:'3D dot product',
+    title:'Dot product',
     diffs:['Easy','Medium','Hard'],
     make(diff){
       const range = ({Easy:[0,1], Medium:[-1,0,1,2], Hard:[-2,-1,0,1,2]})[diff] || [0,1];
@@ -1484,7 +1490,7 @@ const TOPICS = {
     }
   },
   threeDCross:{
-    title:'3D cross product',
+    title:'Cross product',
     diffs:['Easy','Medium','Hard'],
     make(diff){
       const range = ({Easy:[0,1], Medium:[-1,0,1,2], Hard:[-2,-1,0,1,2]})[diff] || [0,1];
@@ -1534,7 +1540,7 @@ const TOPICS = {
     }
   },
   vcmMul:{
-    title:'2D multiplication (complex · Argand)',
+    title:'Multiplication (complex · Argand)',
     diffs:['Easy','Medium','Hard'],
     make(diff){
       // Mostly 0 and 1 so a·c − b·d and a·d + b·c are obvious — the
@@ -1839,16 +1845,20 @@ function communityRatingFor(topic){
     let u;
     try{ u = JSON.parse(localStorage.getItem(key)); }catch{ continue; }
     if(!u) continue;
-    let raw = u.ratings && u.ratings[topic];
-    if(typeof raw === 'string') raw = [raw];
-    if(Array.isArray(raw) && raw.length){
-      raw.forEach(pushGrade);
-    } else {
-      // No explicit user rating — fall back to the pre-determined grade
-      // (their bestGrade for this topic, if they've played it).
-      const t = u.byTopic && u.byTopic[topic];
-      if(t && t.bestGrade) pushGrade(t.bestGrade);
+    let userHadRating = false;
+    const t = u.byTopic && u.byTopic[topic];
+    // Collect ratings from every settings bucket of this topic.
+    if(t && t.bySettings){
+      for(const bucket of Object.values(t.bySettings)){
+        if(Array.isArray(bucket.ratings)) bucket.ratings.forEach(r => { userHadRating = true; pushGrade(r); });
+      }
     }
+    // Legacy flat ratings (pre-v1.22.3)
+    let legacy = u.ratings && u.ratings[topic];
+    if(typeof legacy === 'string') legacy = [legacy];
+    if(Array.isArray(legacy)){ legacy.forEach(r => { userHadRating = true; pushGrade(r); }); }
+    // Fallback: if a user never rated, count their pre-determined bestGrade.
+    if(!userHadRating && t && t.bestGrade) pushGrade(t.bestGrade);
   }
   if(!indices.length) return null;
   const avgIdx = Math.round(indices.reduce((a,b)=>a+b, 0) / indices.length);
@@ -1950,7 +1960,8 @@ function saveMidGameProgress(){
     correct:  correctCount,
     answered: attempts || 0,
   };
-  recordGame(u, snap.topic, snap.points, snap.correct, snap.answered, snap.diff);
+  const elapsed = startTime ? (Date.now() - startTime)/1000 : 0;
+  recordGame(u, snap.topic, snap.points, snap.correct, snap.answered, snap.diff, elapsed);
   renderUserChip();
   showDiscardToast(snap);
 }
@@ -2093,25 +2104,93 @@ function signInWithEmail(idOrEmail){
   return u;
 }
 function signOut(){localStorage.removeItem(USER_KEY);renderUserChip();}
-function recordGame(u,topicKey,points,correct,count,diff){
+/** Stable, short identifier for a settings combination — used to group
+ *  plays of the same topic at the same difficulty / count / mode / view /
+ *  numerals / division / units / equation / vcmCompMode into a single
+ *  history line. */
+/** One-line summary of the settings combination, for the profile history row. */
+function formatSettings(s){
+  const bits = [s.diff||'?', `${s.count||'?'}q`, s.mode==='real'?'real':'pure'];
+  if(s.method && s.method !== 'choice') bits.push('type');
+  if(s.viewForm && s.viewForm !== 'vector') bits.push(s.viewForm);
+  if(s.numForm === 'fraction') bits.push('frac');
+  if(s.divForm === 'fraction') bits.push('÷/n');
+  if(s.useUnits) bits.push('units');
+  return bits.join(' · ');
+}
+function diffSummary(t){
+  const parts = Object.keys(t.byDiff||{}).map(d => `${d}·${t.byDiff[d].games||0}`);
+  return parts.join(' · ') || '—';
+}
+/** Average a list of grade strings (e.g. ["5A","5B","4C"]) → a single grade. */
+function averageGrade(list){
+  const indices = [];
+  list.forEach(g => {
+    let r = String(g);
+    if(r.startsWith('>')){
+      const base = gradeIndex(r.slice(1));
+      if(base < 0) return;
+      r = ALL_GRADES[Math.min(base+1, ALL_GRADES.length-1)];
+    }
+    const idx = gradeIndex(r);
+    if(idx >= 0) indices.push(idx);
+  });
+  if(!indices.length) return null;
+  const avg = Math.round(indices.reduce((a,b)=>a+b,0)/indices.length);
+  return ALL_GRADES[avg];
+}
+function settingsSig(s){
+  return [s.diff||'?', s.count||'?', s.mode||'?', s.method||'?',
+          s.viewForm||'-', s.numForm||'-', s.divForm||'-',
+          s.useUnits?'u':'p', s.showEq||'-', s.vcmCompMode||'-'].join('/');
+}
+function recordGame(u,topicKey,points,correct,count,diff,elapsedSec){
   u.points+=points; u.games+=1; u.correctTotal+=correct; u.answeredTotal+=count;
-  if(!u.byTopic[topicKey]) u.byTopic[topicKey]={points:0,games:0,correct:0,answered:0,byDiff:{}};
+  if(!u.byTopic[topicKey]) u.byTopic[topicKey]={points:0,games:0,correct:0,answered:0,byDiff:{},bySettings:{}};
   const t=u.byTopic[topicKey];
   t.points+=points; t.games+=1; t.correct+=correct; t.answered+=count;
   if(!t.byDiff) t.byDiff={};
   if(!t.byDiff[diff]) t.byDiff[diff]={points:0,games:0,correct:0,answered:0,bestGrade:''};
   const d=t.byDiff[diff];
   d.points+=points; d.games+=1; d.correct+=correct; d.answered+=count;
-  // Per-game grade ("4A") + best-ever trackers, sorted via gradeCompare.
+  // Per-game grade ("4A") + best-ever trackers.
   const acc = count > 0 ? correct / count : 0;
   const g = gradeFor(acc, diff, topicKey);
   d.lastGrade = g.full;
   if(gradeCompare(g.full, d.bestGrade) > 0) d.bestGrade = g.full;
   t.lastGrade = g.full;
+  t.lastAccuracy = acc;
+  t.lastCount = count;
+  t.lastCorrect = correct;
+  t.lastTimeSec = elapsedSec || 0;
   if(gradeCompare(g.full, t.bestGrade) > 0) t.bestGrade = g.full;
   // Per-grade earn counter — feeds the 3× unlock for game-rating.
   if(!u.gradeCounts) u.gradeCounts = {};
   u.gradeCounts[g.full] = (u.gradeCounts[g.full] || 0) + 1;
+  // Settings-scoped sub-record — each unique settings combination keeps
+  // its own counters, last result, time, and rating list.
+  if(!t.bySettings) t.bySettings = {};
+  const sig = settingsSig(SET);
+  if(!t.bySettings[sig]){
+    t.bySettings[sig] = {
+      sig, settings: {
+        diff: SET.diff, count: SET.count, mode: SET.mode, method: SET.method,
+        viewForm: SET.viewForm, numForm: SET.numForm, divForm: SET.divForm,
+        useUnits: !!SET.useUnits, showEq: SET.showEq, vcmCompMode: SET.vcmCompMode,
+      },
+      games:0, correct:0, answered:0, points:0,
+      lastGrade:'', bestGrade:'',
+      lastAccuracy:0, lastTimeSec:0, lastTs:0,
+      ratings: [],
+    };
+  }
+  const s = t.bySettings[sig];
+  s.games += 1; s.correct += correct; s.answered += count; s.points += points;
+  s.lastGrade = g.full;
+  if(gradeCompare(g.full, s.bestGrade) > 0) s.bestGrade = g.full;
+  s.lastAccuracy = acc;
+  s.lastTimeSec  = elapsedSec || 0;
+  s.lastTs = Date.now();
   saveUser(u);
 }
 /** Compute a {avg, best} grade summary across every number-set category,
@@ -2250,41 +2329,70 @@ function openProfile(){
     let html = `<div class="profgroup">
       <div class="profhead"><span class="profheadl"><span class="profsym">${ntSymbol}</span>${ntLabel}</span><span class="profheadr mono">${ntPoints} ★ · ${ntGames}</span></div>`;
     groups[nt].forEach(k=>{
-      const t=u.byTopic[k]; const title=(TOPICS[k]&&TOPICS[k].title)||k;
-      const acc = t.answered ? t.correct/t.answered : 0;
-      const pct = Math.round(acc*100);
-      let diffBits='';
-      if(t.byDiff){
-        diffBits = Object.keys(t.byDiff).map(d=>{
-          const dd=t.byDiff[d]; const dacc=dd.answered?Math.round(dd.correct/dd.answered*100):0;
-          return `<span class="diffpill" title="${d}: ${dacc}%">${d[0]}·${dd.points}</span>`;
-        }).join('');
-      }
+      const t = u.byTopic[k];
+      const title = (TOPICS[k] && TOPICS[k].title) || k;
       const canPlay = !!TOPICS[k];
       const bestNum = parseInt(String(t.bestGrade||'').match(/^(\d+)/)?.[1]||0, 10);
       const bestGradeBadge = t.bestGrade
         ? `<span class="gradebadge" data-tier="${bestNum}" title="Best grade: ${TIER_NAMES[bestNum]||''}">${t.bestGrade}·${TIER_NAMES[bestNum]||''}</span>`
         : '';
       const comm = communityRatingFor(k);
-      const commLine = comm ? `<div class="commavg" style="margin-top:6px;">Community: <b>${comm.grade}</b> · ${comm.count}</div>` : '';
-      // "Replay exact" button — only enabled if the latest recent for this
-      // topic has a saved queue.
-      const lastRecent = loadRecents().find(r => r.topic === k);
-      const canExactReplay = !!(canPlay && lastRecent && Array.isArray(lastRecent.queue) && lastRecent.queue.length);
+      const commCount = comm ? comm.count : 0;
+      const commGrade = comm ? comm.grade : null;
       html += `<div class="proftopic">
         <div class="profrow">
           <span class="tk">${title} ${bestGradeBadge}</span>
-          <span class="tv">${t.points} ★ · ${pct}%</span>
-          <span class="profactions">
-            ${canPlay ? `<button class="profact playact" data-topic="${k}" title="Play again — fresh random questions">↻</button>` : ''}
-            ${canExactReplay ? `<button class="profact replayact" data-topic="${k}" title="Replay the exact same questions">⟲</button>` : ''}
-            <button class="profact delact" data-topic="${k}" title="Delete entry">×</button>
-          </span>
-        </div>
-        <div class="bar"><div style="width:${pct}%;"></div></div>
-        <div class="diffrow">${diffBits}</div>
-        ${commLine}
-      </div>`;
+        </div>`;
+      // Per-settings sub-rows — each unique settings combination this user
+      // has played gets its own line with: default grade · my grade · my avg
+      // · community avg · accuracy · time.
+      const buckets = (t.bySettings && Object.values(t.bySettings)) || [];
+      buckets.sort((a,b) => (b.lastTs||0) - (a.lastTs||0));
+      if(!buckets.length){
+        // Pre-bySettings legacy entry — show the older aggregate.
+        const aPct = t.answered ? Math.round(t.correct/t.answered*100) : 0;
+        html += `<div class="settingsrow">
+          <div class="profrow"><span class="tk">${diffSummary(t)}</span>
+            <span class="tv">${t.points} ★ · ${aPct}%</span>
+            <span class="profactions">
+              ${canPlay ? `<button class="profact playact" data-topic="${k}" title="Play again — fresh">↻</button>` : ''}
+              <button class="profact delact" data-topic="${k}" title="Delete topic">×</button>
+            </span>
+          </div>
+          <div class="bar"><div style="width:${aPct}%;"></div></div>
+        </div>`;
+      } else {
+        buckets.forEach(b=>{
+          const accuracy = b.answered ? Math.round((b.lastAccuracy != null ? b.lastAccuracy*100 : b.correct/b.answered*100)) : 0;
+          const myRatings = Array.isArray(b.ratings) ? b.ratings : [];
+          const myLatest  = myRatings.length ? myRatings[myRatings.length-1] : null;
+          const myAvg     = myRatings.length ? averageGrade(myRatings) : null;
+          const settingsLabel = formatSettings(b.settings || {});
+          const recentForSig = (loadRecents() || []).find(r => r.topic === k && settingsSig(r) === b.sig && Array.isArray(r.queue) && r.queue.length);
+          const canExactReplay = !!(canPlay && recentForSig);
+          const time = b.lastTimeSec ? `${b.lastTimeSec.toFixed(1)}s` : '—';
+          const defaultGrade = b.lastGrade || '—';
+          html += `<div class="settingsrow">
+            <div class="profrow">
+              <span class="tk">${settingsLabel}</span>
+              <span class="tv">${b.points} ★ · ${accuracy}% · ${time}</span>
+              <span class="profactions">
+                ${canPlay ? `<button class="profact playact" data-topic="${k}" data-sig="${b.sig}" title="Play again — fresh">↻</button>` : ''}
+                ${canExactReplay ? `<button class="profact replayact" data-topic="${k}" data-sig="${b.sig}" title="Replay exact">⟲</button>` : ''}
+                <button class="profact delact" data-topic="${k}" data-sig="${b.sig}" title="Delete this settings line">×</button>
+              </span>
+            </div>
+            <div class="bar"><div style="width:${accuracy}%;"></div></div>
+            <div class="rategrid">
+              <span class="rg-lbl">Default</span><span class="rg-val mono">${defaultGrade}</span>
+              <span class="rg-lbl">My grade</span><span class="rg-val mono">${myLatest || '—'}</span>
+              <span class="rg-lbl">My avg</span><span class="rg-val mono">${myAvg || '—'}</span>
+              <span class="rg-lbl">Community</span><span class="rg-val mono">${commGrade ? `${commGrade} · ${commCount}` : '—'}</span>
+            </div>
+          </div>`;
+        });
+      }
+      html += `</div>`;
     });
     html += `</div>`;
     tlist.innerHTML += html;
@@ -2305,9 +2413,11 @@ function openProfile(){
     btn.addEventListener('click', ev=>{
       ev.stopPropagation();
       const topic = btn.dataset.topic;
-      const rec = loadRecents().find(r => r.topic === topic);
+      const sig   = btn.dataset.sig;
+      const recs  = loadRecents();
+      const rec   = sig ? recs.find(r => r.topic === topic && settingsSig(r) === sig)
+                        : recs.find(r => r.topic === topic);
       if(!rec || !Array.isArray(rec.queue) || !rec.queue.length) return;
-      // Restore settings + queue, then jump straight into the same game.
       Object.assign(SET, {
         topic: rec.topic, diff: rec.diff, count: rec.count, mode: rec.mode,
         method: rec.method, feedback: rec.feedback, showEq: rec.showEq,
@@ -2324,15 +2434,32 @@ function openProfile(){
     btn.addEventListener('click', ev=>{
       ev.stopPropagation();
       const topic = btn.dataset.topic;
+      const sig   = btn.dataset.sig;
       const title = (TOPICS[topic] && TOPICS[topic].title) || topic;
-      if(!confirm(`Delete stats for ${title}?`)) return;
       const user = getCurrentUser(); if(!user || !user.byTopic[topic]) return;
       const t = user.byTopic[topic];
-      user.points        -= t.points;
-      user.games         -= t.games;
-      user.correctTotal  -= t.correct;
-      user.answeredTotal -= t.answered;
-      delete user.byTopic[topic];
+      if(sig && t.bySettings && t.bySettings[sig]){
+        if(!confirm(`Delete this settings line of ${title}?`)) return;
+        const b = t.bySettings[sig];
+        user.points        -= b.points  || 0;
+        user.correctTotal  -= b.correct || 0;
+        user.answeredTotal -= b.answered|| 0;
+        user.games         -= b.games   || 0;
+        t.points           -= b.points  || 0;
+        t.correct          -= b.correct || 0;
+        t.answered         -= b.answered|| 0;
+        t.games            -= b.games   || 0;
+        delete t.bySettings[sig];
+        // If that was the only bucket, nuke the topic entry too.
+        if(!Object.keys(t.bySettings).length) delete user.byTopic[topic];
+      } else {
+        if(!confirm(`Delete all stats for ${title}?`)) return;
+        user.points        -= t.points  || 0;
+        user.games         -= t.games   || 0;
+        user.correctTotal  -= t.correct || 0;
+        user.answeredTotal -= t.answered|| 0;
+        delete user.byTopic[topic];
+      }
       saveUser(user);
       renderUserChip();
       openProfile();
@@ -2538,7 +2665,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.22.2';
+const APP_VERSION = 'v1.22.3';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
@@ -3027,24 +3154,28 @@ function renderRatingUI(){
   const wrap = $('rateOpts');
   wrap.innerHTML = '';
   const grades  = unlockedGrades(cap);
-  // Resolve "what's the rating for THIS game"? Each endGame resets
-  // _currentRatingIdx to -1; the first click pushes a new slot and subsequent
-  // clicks during the same end-screen view replace it. Past games' ratings
-  // stay in the array untouched.
-  const arr = (u.ratings && Array.isArray(u.ratings[SET.topic])) ? u.ratings[SET.topic] : [];
+  // Ratings live inside u.byTopic[topic].bySettings[sig].ratings now, so each
+  // settings combination keeps its own list. Fresh slot is appended on first
+  // click of a new endGame; subsequent clicks during the same end-screen view
+  // replace that one slot.
+  const sig = settingsSig(SET);
+  const settingsBucket = (u.byTopic && u.byTopic[SET.topic] && u.byTopic[SET.topic].bySettings && u.byTopic[SET.topic].bySettings[sig]) || null;
+  const arr = (settingsBucket && Array.isArray(settingsBucket.ratings)) ? settingsBucket.ratings : [];
   const current = (_currentRatingIdx >= 0 && _currentRatingIdx < arr.length) ? arr[_currentRatingIdx] : null;
   const writeRating = (grade) => {
     const user = getCurrentUser(); if(!user) return;
-    if(!user.ratings) user.ratings = {};
-    let list = user.ratings[SET.topic];
-    if(typeof list === 'string') list = [list]; // legacy single-string
-    if(!Array.isArray(list)) list = [];
-    user.ratings[SET.topic] = list;
-    if(_currentRatingIdx >= 0 && _currentRatingIdx < list.length){
-      list[_currentRatingIdx] = grade;
+    if(!user.byTopic) user.byTopic = {};
+    if(!user.byTopic[SET.topic]) user.byTopic[SET.topic] = {points:0,games:0,correct:0,answered:0,byDiff:{},bySettings:{}};
+    const tt = user.byTopic[SET.topic];
+    if(!tt.bySettings) tt.bySettings = {};
+    if(!tt.bySettings[sig]) tt.bySettings[sig] = { sig, settings:{}, games:0, correct:0, answered:0, points:0, ratings:[] };
+    const bucket = tt.bySettings[sig];
+    if(!Array.isArray(bucket.ratings)) bucket.ratings = [];
+    if(_currentRatingIdx >= 0 && _currentRatingIdx < bucket.ratings.length){
+      bucket.ratings[_currentRatingIdx] = grade;
     } else {
-      list.push(grade);
-      _currentRatingIdx = list.length - 1;
+      bucket.ratings.push(grade);
+      _currentRatingIdx = bucket.ratings.length - 1;
     }
     saveUser(user);
     renderRatingUI();
@@ -3085,7 +3216,8 @@ function endGame(earlyFinish){
   const maxScore  = effective * (DIFF_MULT[SET.diff]||1);
   const u=getCurrentUser();
   if(u && gameActive && answered > 0){
-    recordGame(u, SET.topic, score, correctCount, effective, SET.diff);
+    const elapsedSec = parseFloat(total);
+    recordGame(u, SET.topic, score, correctCount, effective, SET.diff, elapsedSec);
     renderUserChip();
   }
   gameActive = false;
