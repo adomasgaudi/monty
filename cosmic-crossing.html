@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.14.4 -->
+<!-- Cosmic Crossing v1.15.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.14.4 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.15.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -143,7 +143,7 @@
   .toastmsg{font-size:.98rem;font-weight:500;}
   .toasthint{font-size:.78rem;opacity:.75;letter-spacing:.04em;}
   .toastbar{position:absolute;bottom:0;left:0;height:2px;width:100%;background:rgba(255,255,255,.2);border-radius:0 0 12px 12px;overflow:hidden;}
-  .toastbar > div{height:100%;background:rgba(255,255,255,.85);width:100%;transition:width 5s linear;}
+  .toastbar > div{height:100%;background:rgba(255,255,255,.85);width:100%;transition:width 8s linear;}
   .gabreak{margin-top:14px;font-family:'DM Mono',monospace;font-size:.85rem;text-align:left;
     background:rgba(0,0,0,.03);border-left:2px solid var(--ink);padding:10px 14px;border-radius:0 6px 6px 0;}
   .gabreak .ghdr{font-family:'Fredoka',sans-serif;font-weight:500;font-size:.95rem;margin-bottom:6px;}
@@ -213,6 +213,30 @@
 
   /* ---------- end ---------- */
   .endcard{text-align:center;padding-top:8px;}
+  /* end-screen grade card — tier color shifts with the level */
+  .gradebox{display:inline-flex;flex-direction:column;align-items:center;
+    margin:18px auto 12px;padding:14px 26px;border-radius:14px;border:1px solid var(--line);
+    background:rgba(0,0,0,.025);}
+  .gradelvl{font-family:'DM Mono',monospace;font-weight:500;font-size:1.9rem;line-height:1;color:var(--ink);}
+  .gradetier{font-family:'Fredoka',sans-serif;font-weight:500;font-size:1rem;color:var(--muted);
+    margin-top:4px;letter-spacing:.04em;text-transform:uppercase;}
+  .gradebox[data-tier="1"], .gradebox[data-tier="2"], .gradebox[data-tier="3"]{
+    background:rgba(120,120,120,.06);border-color:rgba(120,120,120,.3);}
+  .gradebox[data-tier="4"]{background:rgba(31,143,95,.07);border-color:rgba(31,143,95,.35);}
+  .gradebox[data-tier="4"] .gradetier{color:#2F8F5F;}
+  .gradebox[data-tier="5"]{background:rgba(58,110,165,.07);border-color:rgba(58,110,165,.35);}
+  .gradebox[data-tier="5"] .gradetier{color:#3A6EA5;}
+  .gradebox[data-tier="6"]{background:rgba(82,160,255,.08);border-color:rgba(82,160,255,.4);}
+  .gradebox[data-tier="6"] .gradetier{color:#3A6EA5;}
+  .gradebox[data-tier="7"]{background:rgba(155,92,255,.08);border-color:rgba(155,92,255,.4);}
+  .gradebox[data-tier="7"] .gradetier{color:#7A3FE6;}
+  .gradebox[data-tier="8"]{background:rgba(255,201,60,.12);border-color:rgba(200,140,30,.45);}
+  .gradebox[data-tier="8"] .gradetier{color:#B07A1E;}
+  .gradebox[data-tier="9"], .gradebox[data-tier="10"]{
+    background:linear-gradient(135deg,rgba(255,201,60,.18),rgba(255,61,113,.12));
+    border-color:rgba(200,80,40,.5);}
+  .gradebox[data-tier="9"] .gradetier, .gradebox[data-tier="10"] .gradetier{color:#B33B1F;font-weight:600;}
+
   .bigscore{font-family:'DM Mono',monospace;font-weight:400;font-size:3.4rem;line-height:1;margin:16px 0;color:var(--ink);}
   .bigscore .of{color:var(--muted);font-size:1.8rem;}
   .stats{display:flex;justify-content:center;gap:24px;margin:20px 0 8px;flex-wrap:wrap;}
@@ -259,6 +283,17 @@
     transition:border-color .12s,color .12s,background .12s;}
   .profact:hover{border-color:var(--ink);color:var(--ink);background:rgba(0,0,0,.03);}
   .profact.delact:hover{border-color:var(--no);color:var(--no);background:rgba(192,70,58,.06);}
+  .gradebadge{display:inline-block;font-family:'DM Mono',monospace;font-size:.7rem;
+    padding:1px 7px;border-radius:8px;border:1px solid var(--line);color:var(--muted);
+    margin-left:6px;letter-spacing:.02em;vertical-align:middle;}
+  .gradebadge[data-tier="4"]{background:rgba(31,143,95,.08);border-color:rgba(31,143,95,.35);color:#2F8F5F;}
+  .gradebadge[data-tier="5"]{background:rgba(58,110,165,.08);border-color:rgba(58,110,165,.4);color:#3A6EA5;}
+  .gradebadge[data-tier="6"]{background:rgba(82,160,255,.1);border-color:rgba(82,160,255,.45);color:#3A6EA5;}
+  .gradebadge[data-tier="7"]{background:rgba(155,92,255,.1);border-color:rgba(155,92,255,.45);color:#7A3FE6;}
+  .gradebadge[data-tier="8"]{background:rgba(255,201,60,.15);border-color:rgba(200,140,30,.5);color:#B07A1E;}
+  .gradebadge[data-tier="9"], .gradebadge[data-tier="10"]{
+    background:linear-gradient(135deg,rgba(255,201,60,.2),rgba(255,61,113,.15));
+    border-color:rgba(200,80,40,.55);color:#B33B1F;font-weight:600;}
 
   /* start gate */
   .startgate{padding:32px 8px 16px;text-align:center;}
@@ -434,6 +469,10 @@
         <div class="setlabel">View as</div>
         <div class="opts" id="optView"></div>
       </div>
+      <div class="setblock" id="setVcmCompBlock" style="display:none;">
+        <div class="setlabel">Which component to ask</div>
+        <div class="opts" id="optVcmComp"></div>
+      </div>
       <div class="setblock" id="setUnitBlock" style="display:none;">
         <div class="setlabel">Units in answer</div>
         <div class="opts" id="optUnit"></div>
@@ -501,6 +540,10 @@
     <div class="topbar"><button class="back" data-go="numbers">← Numbers</button></div>
     <div class="endcard">
       <h1 id="endTitle">Done!</h1>
+      <div class="gradebox" id="finalGradeBox" data-tier="1">
+        <div class="gradelvl" id="finalGrade">Lvl 1</div>
+        <div class="gradetier" id="finalTier">Layman</div>
+      </div>
       <div class="bigscore"><span id="finalScore">0</span><span class="of" id="finalOf"> / 10</span></div>
       <div class="stats">
         <div class="stat"><div class="v" id="finalTime">0s</div><div class="k">total time</div></div>
@@ -514,7 +557,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.14.4</div>
+<div class="version">v1.15.0</div>
 
 <script>
 /* ============================================================================
@@ -533,7 +576,7 @@
  *  10. Init                  — load persisted state, render home screen
  *
  * CODE STYLE: targeted for LLM readability per evidence in commit notes for
- * v1.14.4 — short functions, descriptive names, multi-line expansion of dense
+ * v1.15.0 — short functions, descriptive names, multi-line expansion of dense
  * helpers, duplication tolerated over premature abstraction. No bundler; one
  * file ships as-is.
  * ========================================================================== */
@@ -1275,7 +1318,7 @@ const TOPICS = {
       const ranges={Easy:[0,1,2],Medium:[-1,0,1,2,10],Hard:[-2,-1,0,1,2,10]};
       const range=ranges[diff]||ranges.Easy;
       const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
-      const idx=Math.floor(Math.random()*2);
+      const idx = (_vcmIdxOverride != null) ? _vcmIdxOverride : Math.floor(Math.random()*2);
       const ans = idx===0 ? a+c : b+d;
       const ansStr=intStr(ans);
       const dist=[intStr(idx===0?a-c:b-d), intStr(-ans), intStr(ans+1), intStr(idx===0?b+d:a+c)];
@@ -1299,7 +1342,7 @@ const TOPICS = {
       const ranges={Easy:[0,1,2],Medium:[-1,0,1,2,10],Hard:[-2,-1,0,1,2,10]};
       const range=ranges[diff]||ranges.Easy;
       const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
-      const idx=Math.floor(Math.random()*2);
+      const idx = (_vcmIdxOverride != null) ? _vcmIdxOverride : Math.floor(Math.random()*2);
       const ans = idx===0 ? a-c : b-d;
       const ansStr=intStr(ans);
       const dist=[intStr(idx===0?a+c:b+d), intStr(-ans), intStr(ans+1), intStr(idx===0?b-d:a-c)];
@@ -1324,7 +1367,7 @@ const TOPICS = {
       const ranges={Easy:[0,1],Medium:[-1,0,1,2],Hard:[-2,-1,0,1,2]};
       const range=ranges[diff]||ranges.Easy;
       const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
-      const idx=Math.floor(Math.random()*2);
+      const idx = (_vcmIdxOverride != null) ? _vcmIdxOverride : Math.floor(Math.random()*2);
       const real=a*c - b*d, imag=a*d + b*c;
       const ans = idx===0 ? real : imag;
       const ansStr=intStr(ans);
@@ -1438,7 +1481,7 @@ function operationsFor(nt,cat){
 const NAV = {numberType:null,category:null,operation:null};
 
 /* ─── 6. Settings model ─────────────────────────────────────────────────── */
-const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:'long', mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector' };
+const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:'long', mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector', vcmCompMode:'random' };
 const COUNTS=[5,10,15,20];
 const MODES=[['pure','Pure math','just numbers'],['real','Real world','physics & alchemy']];
 const EQS=[['show','Show','equation visible'],['hide','Hide','text only'],['prose','Prose','infer the math']];
@@ -1446,6 +1489,12 @@ const UNITS=[[false,'Plain','just the number'],[true,'With units','km, V, °C…
 const NUMFORMS=[['decimal','Decimal','0.5'],['fraction','Fraction','½']];
 const DIVFORMS=[['symbol','÷ symbol','30 ÷ 10'],['fraction','Fraction bar','³⁰⁄₁₀']];
 const VIEWS=[['vector','Vector','[a, b]'],['complex','Complex','a + bi'],['matrix','Matrix','[a / b]']];
+const VCM_COMPS=[
+  ['random','Random','either each time'],
+  ['half','Half-half','1st half, then 2nd'],
+  ['first','1st only','only ask 1st component'],
+  ['second','2nd only','only ask 2nd component']
+];
 const METHODS=[['choice','Multiple choice','easier'],['type','Type the answer','harder']];
 const FBS=[
   ['off',  'Off',   'no feedback · 0.6s'],
@@ -1455,11 +1504,40 @@ const FBS=[
 const DIFF_MULT={Easy:1,Medium:2,Hard:3};
 const FB_TIMING={off:300, short:300, long:6000};
 
+/* Grade tiers — each finished exam earns a 1–10 grade with a name.
+ *   Easy   caps at 6 (Gradschool) — kid stuff.
+ *   Medium caps at 8 (Frontier).
+ *   Hard   caps at 10 (Nobel) — only if accuracy is near-perfect.
+ * Floors are 1 / 3 / 5 so a 0% Hard run still earns Highschool. */
+const TIER_CEILING = {Easy:6, Medium:8, Hard:10};
+const TIER_FLOOR   = {Easy:1, Medium:3, Hard:5};
+const TIER_NAMES = {
+  1:'Layman',   2:'Layman',   3:'Layman',
+  4:'Beginner',
+  5:'Highschool',
+  6:'Gradschool',
+  7:'PhD',
+  8:'Frontier',
+  9:'Nobel',    10:'Nobel'
+};
+
+/** Convert (accuracy 0..1, difficulty) into a 1–10 grade. */
+function gradeFor(accuracy, diff){
+  const ceil  = TIER_CEILING[diff] || 6;
+  const floor = TIER_FLOOR[diff]   || 1;
+  const span  = ceil - floor;
+  // Slight curve so near-perfect is rewarded; 0% still yields the floor.
+  const g = floor + Math.round(span * Math.pow(Math.max(0, accuracy), 0.9));
+  return Math.max(1, Math.min(10, g));
+}
+function tierLabel(grade){ return `${grade} · ${TIER_NAMES[grade] || '—'}`; }
+
 /* ─── 7. Runtime state + screen switcher ────────────────────────────────── */
 let queue, idx, score, correctCount, attempts, startTime, timerInt, locked;
 let fbInterval = null, fbTimeout = null;
 let visualShown = true; // toggled per-game; init in startGame()
 let gameActive = false; // true between startGame() and endGame()/mid-exit
+let _vcmIdxOverride = null; // set by startGame() to force "ask 1st / 2nd / half" mode
 
 function initVisualState(){
   // Always start hidden — the diagram is a hint the user opts into.
@@ -1558,7 +1636,7 @@ function showDiscardToast(snap){
   requestAnimationFrame(() => { bar.style.width = '0%'; });
 
   let undone = false;
-  const dismiss = setTimeout(() => { if(!undone) toast.style.display = 'none'; }, 5000);
+  const dismiss = setTimeout(() => { if(!undone) toast.style.display = 'none'; }, 8000);
 
   toast.onclick = () => {
     undone = true;
@@ -1649,9 +1727,16 @@ function recordGame(u,topicKey,points,correct,count,diff){
   const t=u.byTopic[topicKey];
   t.points+=points; t.games+=1; t.correct+=correct; t.answered+=count;
   if(!t.byDiff) t.byDiff={};
-  if(!t.byDiff[diff]) t.byDiff[diff]={points:0,games:0,correct:0,answered:0};
+  if(!t.byDiff[diff]) t.byDiff[diff]={points:0,games:0,correct:0,answered:0,bestGrade:0};
   const d=t.byDiff[diff];
   d.points+=points; d.games+=1; d.correct+=correct; d.answered+=count;
+  // Per-game grade + best-grade trackers.
+  const acc = count > 0 ? correct / count : 0;
+  const g = gradeFor(acc, diff);
+  d.lastGrade = g;
+  d.bestGrade = Math.max(d.bestGrade || 0, g);
+  t.lastGrade = g;
+  t.bestGrade = Math.max(t.bestGrade || 0, g);
   saveUser(u);
 }
 function renderUserChip(){
@@ -1714,9 +1799,12 @@ function openProfile(){
         }).join('');
       }
       const canPlay = !!TOPICS[k];
+      const bestGradeBadge = t.bestGrade
+        ? `<span class="gradebadge" data-tier="${t.bestGrade}" title="Best grade: ${TIER_NAMES[t.bestGrade]}">${t.bestGrade}·${TIER_NAMES[t.bestGrade]}</span>`
+        : '';
       html += `<div class="proftopic">
         <div class="profrow">
-          <span class="tk">${title}</span>
+          <span class="tk">${title} ${bestGradeBadge}</span>
           <span class="tv">${t.points} ★ · ${pct}%</span>
           <span class="profactions">
             ${canPlay ? `<button class="profact playact" data-topic="${k}" title="Play again">↻</button>` : ''}
@@ -1854,6 +1942,7 @@ function openSettings(key){
   renderOpts('optNumForm', NUMFORMS, 'numForm');
   renderOpts('optDivForm', DIVFORMS, 'divForm');
   renderOpts('optView', VIEWS, 'viewForm');
+  renderOpts('optVcmComp', VCM_COMPS, 'vcmCompMode');
   renderOpts('optMethod', METHODS, 'method');
   renderOpts('optFb', FBS, 'feedback');
   refreshConditionals();
@@ -1873,6 +1962,8 @@ function refreshConditionals(){
   $('setNumBlock').style.display = topicHasDecimals ? 'block' : 'none';
   $('setDivBlock').style.display = topicHasDiv ? 'block' : 'none';
   $('setViewBlock').style.display = topicHasView ? 'block' : 'none';
+  // Same vcm topics also pick which component (1st / 2nd / mixed) to ask.
+  $('setVcmCompBlock').style.display = topicHasView ? 'block' : 'none';
 }
 function renderOpts(containerId, items, field, onChange){
   const c=$(containerId); c.innerHTML='';
@@ -1980,7 +2071,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.14.4';
+const APP_VERSION = 'v1.15.0';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
@@ -2054,7 +2145,14 @@ $('typein').addEventListener('keydown', e=>{ if(e.key==='Enter') submitTyped(); 
 function startGame(){
   const t=TOPICS[SET.topic];
   queue=[];
+  const halfMark = Math.floor(SET.count / 2);
   for(let i=0;i<SET.count;i++){
+    // For vcm topics, pre-decide which component this question asks for.
+    // make() consults the global _vcmIdxOverride before falling back to random.
+    if(SET.vcmCompMode === 'first')        _vcmIdxOverride = 0;
+    else if(SET.vcmCompMode === 'second')  _vcmIdxOverride = 1;
+    else if(SET.vcmCompMode === 'half')    _vcmIdxOverride = (i < halfMark) ? 0 : 1;
+    else                                   _vcmIdxOverride = null; // random
     let q=t.make(SET.diff);
     if(SET.mode==='real' && SET.showEq==='prose' && q.type==='shift'){
       let tries=0;
@@ -2062,6 +2160,7 @@ function startGame(){
     }
     queue.push(q);
   }
+  _vcmIdxOverride = null;
   pushRecent();
   initVisualState();
   idx=0; score=0; correctCount=0; attempts=0; locked=false;
@@ -2378,10 +2477,15 @@ function endGame(){
   if(u && gameActive){ recordGame(u, SET.topic, score, correctCount, SET.count, SET.diff); renderUserChip(); }
   gameActive = false;
   show('end');
+  const accuracy = correctCount / SET.count;
+  const earnedGrade = gradeFor(accuracy, SET.diff);
   $('finalScore').textContent=score;
   $('finalOf').textContent=' / '+maxScore+'  ('+SET.diff+' ×'+(DIFF_MULT[SET.diff]||1)+')';
   $('finalTime').textContent=total+'s';
-  $('finalAcc').textContent=Math.round(correctCount/SET.count*100)+'%';
+  $('finalAcc').textContent=Math.round(accuracy*100)+'%';
+  $('finalGrade').textContent='Lvl '+earnedGrade;
+  $('finalTier').textContent=TIER_NAMES[earnedGrade] || '';
+  $('finalGradeBox').setAttribute('data-tier', earnedGrade);
   $('bar').style.width='100%';
   const pct=score/SET.count;
   let title,msg;
