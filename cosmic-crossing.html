@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.13.0 -->
+<!-- Cosmic Crossing v1.14.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.13.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.14.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -115,6 +115,29 @@
   .q .vec, .q .mat{font-size:.55em;}
   .q .matlabel{font-size:.4em;color:var(--muted);display:block;margin-top:14px;letter-spacing:.04em;}
   .vdiag{display:block;margin:16px auto 4px;max-width:280px;width:100%;height:auto;}
+  .visualtoggle{display:inline-flex;align-items:center;gap:6px;
+    background:none;border:1px solid var(--line);border-radius:8px;
+    padding:5px 11px;cursor:pointer;font-family:inherit;font-size:.82rem;
+    color:var(--muted);margin:0 auto 8px;
+    transition:border-color .12s,color .12s;}
+  .visualtoggle:hover{border-color:var(--ink);color:var(--ink);}
+  .qvisual{margin:0 auto 16px;}
+  .qvisual:empty{display:none !important;}
+
+  /* mid-game save toast with discard undo */
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:var(--bg);padding:12px 16px 14px;
+    border-radius:12px;display:flex;align-items:center;gap:14px;
+    box-shadow:0 10px 28px rgba(0,0,0,.22);z-index:200;
+    font-family:'Fredoka',sans-serif;animation:toastpop .25s ease;}
+  @keyframes toastpop{from{opacity:0;transform:translateX(-50%) translateY(8px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+  .toastmsg{font-size:.92rem;}
+  .toastbtn{background:none;border:1px solid rgba(255,255,255,.45);color:var(--bg);
+    border-radius:8px;padding:4px 11px;cursor:pointer;font-family:inherit;font-size:.85rem;
+    transition:background .12s,border-color .12s;}
+  .toastbtn:hover{background:rgba(255,255,255,.12);border-color:#fff;}
+  .toastbar{position:absolute;bottom:0;left:0;height:2px;width:100%;background:rgba(255,255,255,.2);border-radius:0 0 12px 12px;overflow:hidden;}
+  .toastbar > div{height:100%;background:rgba(255,255,255,.85);width:100%;transition:width 5s linear;}
   .gabreak{margin-top:14px;font-family:'DM Mono',monospace;font-size:.85rem;text-align:left;
     background:rgba(0,0,0,.03);border-left:2px solid var(--ink);padding:10px 14px;border-radius:0 6px 6px 0;}
   .gabreak .ghdr{font-family:'Fredoka',sans-serif;font-weight:500;font-size:.95rem;margin-bottom:6px;}
@@ -272,6 +295,12 @@
 <div class="stage">
   <div class="confetti" id="confetti"></div>
 
+  <div class="toast" id="discardToast" style="display:none;">
+    <span class="toastmsg" id="toastMsg"></span>
+    <button class="toastbtn" id="toastDiscard" type="button">Discard</button>
+    <div class="toastbar"><div id="toastBar"></div></div>
+  </div>
+
   <nav class="navbar" id="navbar">
     <button class="navbtn" id="navBack" type="button" title="Back">←</button>
     <button class="navbtn" id="navHome" type="button" title="Home">🏠</button>
@@ -399,7 +428,7 @@
       </div>
     </div>
 
-    <button class="startbtn" id="startBtn">Ignite →</button>
+    <button class="startbtn" id="startBtn">Play →</button>
   </section>
 
   <!-- PLAY -->
@@ -421,6 +450,9 @@
     <div id="playBody" style="display:none;">
       <div class="scenario" id="scenario"></div>
       <div class="q mono" id="question"></div>
+
+      <button class="visualtoggle" id="visualToggle" type="button" style="display:none;"></button>
+      <div class="qvisual" id="qVisual" style="display:none;"></div>
 
       <div class="answers" id="answers"></div>
 
@@ -458,7 +490,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.13.0</div>
+<div class="version">v1.14.0</div>
 
 <script>
 /* ============================================================================
@@ -477,7 +509,7 @@
  *  10. Init                  — load persisted state, render home screen
  *
  * CODE STYLE: targeted for LLM readability per evidence in commit notes for
- * v1.13.0 — short functions, descriptive names, multi-line expansion of dense
+ * v1.14.0 — short functions, descriptive names, multi-line expansion of dense
  * helpers, duplication tolerated over premature abstraction. No bundler; one
  * file ships as-is.
  * ========================================================================== */
@@ -1144,7 +1176,8 @@ const TOPICS = {
       const dist = [ intStr(wrongAdd), intStr(wrongSwap), intStr(ans+1), intStr(-ans) ];
       const sc = pickScenario('vec');
       const diagram = (u.length===2) ? vecDiag([{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}], {projection:true}) : '';
-      return {promptHTML:`${vecHTML(u)} <span class="op">·</span> ${vecHTML(v)} = <span class="qmark">?</span>${diagram}`,
+      return {promptHTML:`${vecHTML(u)} <span class="op">·</span> ${vecHTML(v)} = <span class="qmark">?</span>`,
+              diagramHTML:diagram,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(u,v)}</div>`,
               proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(u,v)}</div>`:null,
               scenarioFact:sc.fact,
@@ -1191,7 +1224,8 @@ const TOPICS = {
       const dist=[intStr(idx===0?a-c:b-d), intStr(-ans), intStr(ans+1), intStr(idx===0?b+d:a+c)];
       const sc = pickScenario('vcm');
       const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {resultant:[a+c,b+d], resultantLabel:'u+v'});
-      return {promptHTML:vcmPrompt(a,b,c,d,'+',idx)+diagram,
+      return {promptHTML:vcmPrompt(a,b,c,d,'+',idx),
+              diagramHTML:diagram,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'+')}</div>`,
               proseHTML:null,
               scenarioFact:sc.fact,
@@ -1212,7 +1246,8 @@ const TOPICS = {
       const dist=[intStr(idx===0?a+c:b+d), intStr(-ans), intStr(ans+1), intStr(idx===0?b-d:a-c)];
       const sc = pickScenario('vcm');
       const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {resultant:[a-c,b-d], resultantLabel:'u−v'});
-      return {promptHTML:vcmPrompt(a,b,c,d,'−',idx)+diagram,
+      return {promptHTML:vcmPrompt(a,b,c,d,'−',idx),
+              diagramHTML:diagram,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'−')}</div>`,
               proseHTML:null,
               scenarioFact:sc.fact,
@@ -1236,7 +1271,8 @@ const TOPICS = {
       const dist=[intStr(wrongSign), intStr(wrongOther), intStr(-ans), intStr(ans+1)];
       const sc = pickScenario('vcm');
       const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {parallelogram:true, projection:true});
-      return {promptHTML:vcmPrompt(a,b,c,d,'·',idx)+diagram,
+      return {promptHTML:vcmPrompt(a,b,c,d,'·',idx),
+              diagramHTML:diagram,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'×')}</div>`,
               proseHTML:null,
               scenarioFact:sc.fact,
@@ -1257,7 +1293,8 @@ const TOPICS = {
       const dist=[intStr(dot), intStr(-ans), intStr(a*d+b*c), intStr(ans+1)];
       const u=[a,b], v=[c,d];
       const diagram = vecDiag([{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}], {parallelogram:true});
-      return {promptHTML:`${vecHTML(u)} <span class="op">∧</span> ${vecHTML(v)} = <span class="qmark">?</span>${diagram}`,
+      return {promptHTML:`${vecHTML(u)} <span class="op">∧</span> ${vecHTML(v)} = <span class="qmark">?</span>`,
+              diagramHTML:diagram,
               scenarioHTML:`<span class="topictag">Signed area</span><div>The wedge of two 2-vectors is the signed area of the parallelogram they span. In 3D this becomes the cross-product vector.</div>`,
               proseHTML:null,
               scenarioFact:'In geometric algebra, the full vector product is u v = u·v + u∧v — the dot is the cosine (a²+b² style), the wedge is the sine (2ab style).',
@@ -1357,6 +1394,37 @@ const FB_TIMING={off:600, short:1000, long:6000};
 /* ─── 7. Runtime state + screen switcher ────────────────────────────────── */
 let queue, idx, score, correctCount, attempts, startTime, timerInt, locked;
 let fbInterval = null, fbTimeout = null;
+let visualShown = true; // toggled per-game; init in startGame()
+let gameActive = false; // true between startGame() and endGame()/mid-exit
+
+function initVisualState(){
+  // vcmAdd/Sub/Mul hide diagram by default in complex/matrix views (it's a hint).
+  // vecDot and vecWedge always show by default (vectors are the natural view).
+  if(['vcmAdd','vcmSub','vcmMul'].includes(SET.topic)){
+    visualShown = (SET.viewForm === 'vector');
+  } else {
+    visualShown = true;
+  }
+}
+
+function applyVisualState(){
+  const toggle = $('visualToggle');
+  const div    = $('qVisual');
+  const has    = div.innerHTML.trim().length > 0;
+  if(!has){
+    toggle.style.display = 'none';
+    div.style.display = 'none';
+    return;
+  }
+  toggle.style.display = 'inline-flex';
+  if(visualShown){
+    div.style.display = 'block';
+    toggle.textContent = '👁 Hide diagram';
+  } else {
+    div.style.display = 'none';
+    toggle.textContent = '💡 Show visual hint';
+  }
+}
 
 function clearFeedbackTimer(){
   if(fbInterval){ clearInterval(fbInterval); fbInterval = null; }
@@ -1389,6 +1457,73 @@ function currentScreen(){
 function leavingCleanup(){
   clearInterval(timerInt);
   clearFeedbackTimer();
+  // Save partial progress if a game is in flight (toast lets the user undo).
+  if(gameActive && currentScreen() === 'play'){
+    saveMidGameProgress();
+  }
+}
+
+/** Persist whatever the user has scored so far and show the 5 s undo toast.
+ *  The save happens immediately; clicking "Discard" reverses it. */
+function saveMidGameProgress(){
+  if(!gameActive) return;
+  gameActive = false;
+  const u = getCurrentUser();
+  if(!u) return;
+  const snap = {
+    topic: SET.topic,
+    diff:  SET.diff,
+    points:   score,
+    correct:  correctCount,
+    answered: attempts || 0,
+  };
+  recordGame(u, snap.topic, snap.points, snap.correct, snap.answered, snap.diff);
+  renderUserChip();
+  showDiscardToast(snap);
+}
+
+function showDiscardToast(snap){
+  const toast    = $('discardToast');
+  const msg      = $('toastMsg');
+  const bar      = $('toastBar');
+  const discard  = $('toastDiscard');
+
+  msg.textContent = `Saved ${snap.points} ★ from this run.`;
+  toast.style.display = 'flex';
+  bar.style.width = '100%';
+  requestAnimationFrame(() => { bar.style.width = '0%'; });
+
+  let undone = false;
+  const dismiss = setTimeout(() => { if(!undone) toast.style.display = 'none'; }, 5000);
+
+  discard.onclick = () => {
+    undone = true;
+    clearTimeout(dismiss);
+    const u = getCurrentUser();
+    if(u){
+      u.points         -= snap.points;
+      u.games          -= 1;
+      u.correctTotal   -= snap.correct;
+      u.answeredTotal  -= snap.answered;
+      const t = u.byTopic && u.byTopic[snap.topic];
+      if(t){
+        t.points  -= snap.points;
+        t.games   -= 1;
+        t.correct -= snap.correct;
+        t.answered -= snap.answered;
+        const d = t.byDiff && t.byDiff[snap.diff];
+        if(d){
+          d.points  -= snap.points;
+          d.games   -= 1;
+          d.correct -= snap.correct;
+          d.answered -= snap.answered;
+        }
+      }
+      saveUser(u);
+      renderUserChip();
+    }
+    toast.style.display = 'none';
+  };
 }
 
 function navBack(){
@@ -1467,6 +1602,21 @@ const TOPIC_NT = {
   fracDiv:'fractions',
   vecDot:'vcm', vecWedge:'vcm', matMul:'vcm', vcmAdd:'vcm', vcmSub:'vcm', vcmMul:'vcm'
 };
+const TOPIC_OP = {
+  natAdd:'add',   natSub:'sub',   natMul:'mul',   natDiv:'div',   natExp:'exp',
+  intAdd:'add',   intSub:'sub',                                    intExp:'exp',
+                                  realMul:'mul', realDiv:'div',    realExp:'exp',
+                                  fracDiv:'div',
+  vcmAdd:'add',   vcmSub:'sub',   vcmMul:'mul',
+  vecDot:'dot',   vecWedge:'wedge',
+  matMul:'matmul'
+};
+const OP_LABEL = {
+  add:'Addition (+)', sub:'Subtraction (−)', mul:'Multiplication (×)',
+  div:'Division (÷)', exp:'Exponentiation (^)',
+  dot:'Dot product (·)', wedge:'Wedge / Cross (∧)', matmul:'Matrix product (A·B)'
+};
+const OP_ORDER = ['add','sub','mul','div','exp','dot','wedge','matmul'];
 function openProfile(){
   const u=getCurrentUser(); if(!u){show('signin');return;}
   $('profEmail').textContent=u.email;
@@ -1508,6 +1658,36 @@ function openProfile(){
     html += `</div>`;
     tlist.innerHTML += html;
   });
+
+  /* ── By operation: cross-cuts topics so you can see e.g. how addition
+   *    fares across natural, integer, and 2D forms in one row. */
+  const byOp = {};
+  keys.forEach(k=>{
+    const op = TOPIC_OP[k]; if(!op) return;
+    if(!byOp[op]) byOp[op] = {points:0,correct:0,answered:0,games:0,topics:[]};
+    const acc = byOp[op], t = u.byTopic[k];
+    acc.points   += t.points;
+    acc.correct  += t.correct;
+    acc.answered += t.answered;
+    acc.games    += t.games;
+    acc.topics.push(k);
+  });
+  const opKeys = OP_ORDER.filter(op => byOp[op]);
+  if(opKeys.length){
+    let opHtml = `<div class="profgroup">
+      <div class="profhead"><span class="profheadl"><span class="profsym">·</span>By operation</span></div>`;
+    opKeys.forEach(op=>{
+      const t = byOp[op];
+      const pct = t.answered ? Math.round(t.correct/t.answered*100) : 0;
+      opHtml += `<div class="proftopic">
+        <div class="profrow"><span class="tk">${OP_LABEL[op]}</span><span class="tv">${t.points} ★ · ${pct}%</span></div>
+        <div class="bar"><div style="width:${pct}%;"></div></div>
+        <div class="diffrow"><span class="diffpill">${t.games} game${t.games===1?'':'s'} · ${t.topics.length} topic${t.topics.length===1?'':'s'}</span></div>
+      </div>`;
+    });
+    opHtml += `</div>`;
+    tlist.innerHTML += opHtml;
+  }
   show('profile');
 }
 
@@ -1574,9 +1754,9 @@ function openSettings(key){
   renderOpts('optMethod', METHODS, 'method');
   renderOpts('optFb', FBS, 'feedback');
   refreshConditionals();
-  const advOpen = !!SET.advOpen;
-  $('advToggle').setAttribute('aria-expanded', advOpen ? 'true' : 'false');
-  $('advancedBlock').style.display = advOpen ? 'block' : 'none';
+  // "More options" always starts collapsed on every visit (per user request).
+  $('advToggle').setAttribute('aria-expanded', 'false');
+  $('advancedBlock').style.display = 'none';
   show('settings');
 }
 function refreshConditionals(){
@@ -1711,6 +1891,7 @@ $('exitBtn').addEventListener('click', ()=>{ leavingCleanup(); show('settings');
 $('navBack').addEventListener('click', navBack);
 $('navHome').addEventListener('click', navHome);
 $('navProfile').addEventListener('click', navProfile);
+$('visualToggle').addEventListener('click', ()=>{ visualShown = !visualShown; applyVisualState(); });
 $('nextBtn').addEventListener('click', nextQuestion);
 $('submitBtn').addEventListener('click', submitTyped);
 $('againBtn').addEventListener('click', startGame);
@@ -1731,8 +1912,6 @@ $('advToggle').addEventListener('click', ()=>{
   const open  = btn.getAttribute('aria-expanded') === 'true';
   btn.setAttribute('aria-expanded', open ? 'false' : 'true');
   block.style.display = open ? 'none' : 'block';
-  SET.advOpen = !open;
-  saveSettings();
 });
 $('typein').addEventListener('keydown', e=>{ if(e.key==='Enter') submitTyped(); });
 
@@ -1748,7 +1927,9 @@ function startGame(){
     queue.push(q);
   }
   pushRecent();
+  initVisualState();
   idx=0; score=0; correctCount=0; attempts=0; locked=false;
+  gameActive = true;
   clearInterval(timerInt);
   $('timer').textContent='0.0s';
   $('qcount').textContent=`1 / ${SET.count}`;
@@ -1780,6 +1961,10 @@ function renderQuestion(){
   $('score').textContent=`★ ${score}`;
   $('bar').style.width=(idx/SET.count*100)+'%';
   $('explain').classList.remove('on');
+
+  /* Visualisation panel — separate from the math expression so we can toggle. */
+  $('qVisual').innerHTML = q.diagramHTML || '';
+  applyVisualState();
 
   const scn=$('scenario');
   if(isReal){
@@ -2052,7 +2237,8 @@ function endGame(){
   const total=((Date.now()-startTime)/1000).toFixed(1);
   const maxScore = SET.count * (DIFF_MULT[SET.diff]||1);
   const u=getCurrentUser();
-  if(u){ recordGame(u, SET.topic, score, correctCount, SET.count, SET.diff); renderUserChip(); }
+  if(u && gameActive){ recordGame(u, SET.topic, score, correctCount, SET.count, SET.diff); renderUserChip(); }
+  gameActive = false;
   show('end');
   $('finalScore').textContent=score;
   $('finalOf').textContent=' / '+maxScore+'  ('+SET.diff+' ×'+(DIFF_MULT[SET.diff]||1)+')';
