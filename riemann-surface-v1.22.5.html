@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.22.4 -->
+<!-- Riemann Surface v1.22.5 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.22.4 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.22.5 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -153,6 +153,8 @@
   .toasthint{font-size:.78rem;opacity:.75;letter-spacing:.04em;}
   .toastbar{position:absolute;bottom:0;left:0;height:2px;width:100%;background:rgba(255,255,255,.2);border-radius:0 0 12px 12px;overflow:hidden;}
   .toastbar > div{height:100%;background:rgba(255,255,255,.85);width:100%;transition:width 8s linear;}
+  .toast.toast-undo{background:#2F8F5F;}
+  .toast.toast-undo:hover{background:#267A4F;}
   .gabreak{margin-top:14px;font-family:'DM Mono',monospace;font-size:.85rem;text-align:left;
     background:rgba(0,0,0,.03);border-left:2px solid var(--ink);padding:10px 14px;border-radius:0 6px 6px 0;}
   .gabreak .ghdr{font-family:'Fredoka',sans-serif;font-weight:500;font-size:.95rem;margin-bottom:6px;}
@@ -289,6 +291,7 @@
   .rate-higher{border-style:dashed;color:var(--muted);}
   .rate-higher:hover{color:var(--ink);}
   .rate-higher.sel{background:transparent;color:var(--ink);border-color:var(--ink);border-style:solid;}
+  .rate-coarse{background:rgba(0,0,0,.03);font-weight:500;}
   .commavg{margin-top:10px;font-size:.8rem;color:var(--muted);letter-spacing:.02em;}
   .commavg b{color:var(--ink);}
 
@@ -629,7 +632,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.22.4</div>
+<div class="version">v1.22.5</div>
 
 <script>
 /* ============================================================================
@@ -1415,7 +1418,7 @@ const TOPICS = {
     }
   },
   vcmAdd:{
-    title:'Addition (vector / complex / matrix)',
+    title:'Addition',
     diffs:['Easy','Medium','Hard'],
     make(diff){
       // Pool size honours SET.numScale: 'simple' keeps it 0/1/2 so the lesson
@@ -1438,7 +1441,7 @@ const TOPICS = {
     }
   },
   vcmSub:{
-    title:'Subtraction (vector / complex / matrix)',
+    title:'Subtraction',
     diffs:['Easy','Medium','Hard'],
     make(diff){
       const range = vcmPool(diff);
@@ -1548,7 +1551,7 @@ const TOPICS = {
     }
   },
   vcmMul:{
-    title:'Multiplication (complex · Argand)',
+    title:'Multiplication',
     diffs:['Easy','Medium','Hard'],
     make(diff){
       const range = vcmMulPool(diff);
@@ -1814,7 +1817,37 @@ const ALL_GRADES = (() => {
   for(let n=TIER_MIN; n<=TIER_MAX; n++) for(const l of ['A','B','C']) out.push(`${n}${l}`);
   return out;
 })();
-function gradeIndex(g){ return ALL_GRADES.indexOf(String(g)); }
+/** Index in ALL_GRADES (0..(TIER_MAX-TIER_MIN+1)*3-1) for a grade string.
+ *  Accepts both letter form ("5B") and whole-tier form ("5") — the latter
+ *  resolves to the middle letter (B) of the tier so averaging works. */
+function gradeIndex(g){
+  const s = String(g||'');
+  const m = s.match(/^(\d+)([A-C])?$/);
+  if(!m) return -1;
+  const n = parseInt(m[1], 10);
+  if(n < TIER_MIN || n > TIER_MAX) return -1;
+  const letterPos = ({A:0, B:1, C:2})[m[2] || 'B']; // whole-tier → middle
+  return (n - TIER_MIN) * 3 + letterPos;
+}
+
+/** Split the unlockable grades into:
+ *    specific — the cap and the 6 letter-grades immediately below
+ *    collapsed — tiers entirely below that 6-grade window, as numbers only
+ *  Rationale: high-tier players can't realistically tell apart 4A / 4B / 4C
+ *  on a problem set, so the rating panel only exposes whole-tier picks
+ *  below the cap-minus-6 line. */
+function gradeChoicesFor(cap){
+  if(!cap) return { specific:[], collapsed:[] };
+  const capIdx = gradeIndex(cap); if(capIdx < 0) return { specific:[], collapsed:[] };
+  const lowerIdx = Math.max(0, capIdx - 6);
+  const specific = ALL_GRADES.slice(lowerIdx, capIdx + 1);
+  const collapsed = [];
+  for(let n = TIER_MIN; n <= TIER_MAX; n++){
+    const cIdxOfTier = (n - TIER_MIN) * 3 + 2; // 'C' index for tier n
+    if(cIdxOfTier < lowerIdx) collapsed.push(String(n));
+  }
+  return { specific, collapsed };
+}
 
 /** How high a player may grade a game, given how many times they've EARNED a
  *  particular grade. Each 3× of the same grade unlocks one step higher.
@@ -1853,43 +1886,45 @@ function unlockedGrades(cap){
  *  for `topic`. A ">5B" style rating is resolved to the next concrete grade
  *  above the cap; anything unparseable is skipped. Returns { grade, count }
  *  or null if nobody has rated this topic. */
+/** Walk every cc_user_* account and Elo-average their ratings for `topic`.
+ *  Returns { grade, count, higher } where `higher` is the tally of ">X"
+ *  directional ratings — those don't peg to a number, they just nudge
+ *  the running Elo upward by half a step at half weight. */
 function communityRatingFor(topic){
   if(!topic) return null;
-  const indices = [];
-  const pushGrade = (raw) => {
-    let r = String(raw);
-    if(r.startsWith('>')){
-      const base = gradeIndex(r.slice(1));
-      if(base < 0) return;
-      r = ALL_GRADES[Math.min(base + 1, ALL_GRADES.length - 1)];
-    }
-    const idx = gradeIndex(r);
-    if(idx >= 0) indices.push(idx);
+  let elo = null;
+  let count = 0, higher = 0;
+  const apply = (raw, weight) => {
+    if(raw == null) return;
+    const s = String(raw);
+    if(s.startsWith('>')){ higher += 1; elo = eloApply(elo, s, weight); return; }
+    const idx = gradeIndex(s);
+    if(idx < 0) return;
+    count += 1; elo = eloApply(elo, s, weight);
+  };
+  const consumeRating = (r) => {
+    if(r && typeof r === 'object' && 'grade' in r) apply(r.grade, r.weight);
+    else apply(r, DEFAULT_RATING_WEIGHT);
   };
   for(let i = 0; i < localStorage.length; i++){
     const key = localStorage.key(i);
     if(!key || !key.startsWith('cc_user_')) continue;
-    let u;
-    try{ u = JSON.parse(localStorage.getItem(key)); }catch{ continue; }
+    let u; try{ u = JSON.parse(localStorage.getItem(key)); }catch{ continue; }
     if(!u) continue;
     let userHadRating = false;
     const t = u.byTopic && u.byTopic[topic];
-    // Collect ratings from every settings bucket of this topic.
     if(t && t.bySettings){
       for(const bucket of Object.values(t.bySettings)){
-        if(Array.isArray(bucket.ratings)) bucket.ratings.forEach(r => { userHadRating = true; pushGrade(r); });
+        if(Array.isArray(bucket.ratings)) bucket.ratings.forEach(r => { userHadRating = true; consumeRating(r); });
       }
     }
-    // Legacy flat ratings (pre-v1.22.4)
     let legacy = u.ratings && u.ratings[topic];
     if(typeof legacy === 'string') legacy = [legacy];
-    if(Array.isArray(legacy)){ legacy.forEach(r => { userHadRating = true; pushGrade(r); }); }
-    // Fallback: if a user never rated, count their pre-determined bestGrade.
-    if(!userHadRating && t && t.bestGrade) pushGrade(t.bestGrade);
+    if(Array.isArray(legacy)) legacy.forEach(r => { userHadRating = true; consumeRating(r); });
+    if(!userHadRating && t && t.bestGrade) apply(t.bestGrade, DEFAULT_RATING_WEIGHT);
   }
-  if(!indices.length) return null;
-  const avgIdx = Math.round(indices.reduce((a,b)=>a+b, 0) / indices.length);
-  return { grade: ALL_GRADES[avgIdx], count: indices.length };
+  if(elo == null) return null;
+  return { grade: eloToGrade(elo), count, higher };
 }
 function tierName(gradeStr){
   const num = parseInt(String(gradeStr||'').match(/^(\d+)/)?.[1]||0, 10);
@@ -2044,6 +2079,31 @@ function saveMidGameProgress(){
   recordGame(u, snap.topic, snap.points, snap.correct, snap.answered, snap.diff, elapsed);
   renderUserChip();
   showDiscardToast(snap);
+}
+
+/** Generic optimistic-undo toast. Performs an action immediately, surfaces a
+ *  bottom-of-screen green toast saying "X. Tap to cancel." with an 8 s bar;
+ *  if the user taps the toast, `undoFn` is called to reverse the action. */
+function showUndoToast(message, undoFn){
+  const toast = $('discardToast');
+  const msg   = $('toastMsg');
+  const bar   = $('toastBar');
+  msg.textContent = message;
+  toast.classList.add('toast-undo');
+  toast.style.display = 'flex';
+  bar.style.width = '100%';
+  requestAnimationFrame(() => { bar.style.width = '0%'; });
+  let cancelled = false;
+  const dismiss = setTimeout(() => {
+    if(!cancelled){ toast.style.display = 'none'; toast.classList.remove('toast-undo'); }
+  }, 8000);
+  toast.onclick = () => {
+    cancelled = true;
+    clearTimeout(dismiss);
+    try{ if(undoFn) undoFn(); }catch{}
+    toast.style.display = 'none';
+    toast.classList.remove('toast-undo');
+  };
 }
 
 function showDiscardToast(snap){
@@ -2517,9 +2577,13 @@ function openProfile(){
       const sig   = btn.dataset.sig;
       const title = (TOPICS[topic] && TOPICS[topic].title) || topic;
       const user = getCurrentUser(); if(!user || !user.byTopic[topic]) return;
+      // Snapshot what we're about to remove, then optimistically delete and
+      // show a tap-to-cancel green toast.
+      const snapshot = JSON.parse(JSON.stringify(user.byTopic[topic]));
+      const totals = { points:user.points, games:user.games, correctTotal:user.correctTotal, answeredTotal:user.answeredTotal };
       const t = user.byTopic[topic];
+      let removedLabel;
       if(sig && t.bySettings && t.bySettings[sig]){
-        if(!confirm(`Delete this settings line of ${title}?`)) return;
         const b = t.bySettings[sig];
         user.points        -= b.points  || 0;
         user.correctTotal  -= b.correct || 0;
@@ -2530,19 +2594,24 @@ function openProfile(){
         t.answered         -= b.answered|| 0;
         t.games            -= b.games   || 0;
         delete t.bySettings[sig];
-        // If that was the only bucket, nuke the topic entry too.
         if(!Object.keys(t.bySettings).length) delete user.byTopic[topic];
+        removedLabel = `Removed one settings line of ${title}. Tap to cancel.`;
       } else {
-        if(!confirm(`Delete all stats for ${title}?`)) return;
         user.points        -= t.points  || 0;
         user.games         -= t.games   || 0;
         user.correctTotal  -= t.correct || 0;
         user.answeredTotal -= t.answered|| 0;
         delete user.byTopic[topic];
+        removedLabel = `Removed ${title} stats. Tap to cancel.`;
       }
-      saveUser(user);
-      renderUserChip();
-      openProfile();
+      saveUser(user); renderUserChip(); openProfile();
+      showUndoToast(removedLabel, ()=>{
+        const u2 = getCurrentUser(); if(!u2) return;
+        u2.points = totals.points; u2.games = totals.games;
+        u2.correctTotal = totals.correctTotal; u2.answeredTotal = totals.answeredTotal;
+        u2.byTopic[topic] = snapshot;
+        saveUser(u2); renderUserChip(); openProfile();
+      });
     });
   });
 
@@ -2749,7 +2818,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.22.4';
+const APP_VERSION = 'v1.22.5';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
@@ -2763,7 +2832,52 @@ const APP_VERSION = 'v1.22.4';
  *   nav      1 : { numberType, category, operation }
  *   recents  1 : array of snapshots with { topic, diff, ts, … }
  */
-const SCHEMA = { user:2, settings:2, nav:1, recents:2 };
+const SCHEMA = { user:3, settings:2, nav:1, recents:2 };
+
+/* Internal grade-to-decimal mapping. Each grade gets an Elo-style number
+ * that buckets update toward as users submit ratings. Linear for now; the
+ * intent is "logarithmic in problem difficulty" via the tier system itself
+ * (each tier = roughly an order-of-magnitude jump). Per-rating weights
+ * scale how much one rating moves the bucket's Elo — for now every weight
+ * is 1.0, but the field is in place so future content can weight ratings
+ * differently (e.g. ratings from highly-ranked players count more). */
+const GRADE_ELO_BASE = 1000;
+const GRADE_ELO_STEP = 100;
+const ELO_K = 0.20;
+const DEFAULT_RATING_WEIGHT = 1.0;
+/** Concrete grade ("5B" or "5") → its Elo value. Returns null for unknown
+ *  inputs (including ">X" directional grades — those are handled separately). */
+function gradeToElo(grade){
+  if(grade == null) return null;
+  const s = String(grade);
+  if(s.startsWith('>')) return null; // directional, no fixed Elo
+  const idx = gradeIndex(s);
+  if(idx < 0) return null;
+  return GRADE_ELO_BASE + idx * GRADE_ELO_STEP;
+}
+function eloToGrade(elo){
+  if(elo == null || !isFinite(elo)) return null;
+  const idx = Math.round((elo - GRADE_ELO_BASE) / GRADE_ELO_STEP);
+  return ALL_GRADES[Math.max(0, Math.min(ALL_GRADES.length - 1, idx))];
+}
+/** Apply one rating to an Elo running value. A concrete grade pulls Elo
+ *  toward its target with weight w. A "higher" directional rating (e.g.
+ *  ">5B") instead nudges Elo upward by half a grade with half weight — it
+ *  says "more than what I can rate" without committing to a specific tier. */
+function eloApply(current, grade, weight){
+  weight = weight || DEFAULT_RATING_WEIGHT;
+  if(grade == null) return current;
+  const s = String(grade);
+  if(s.startsWith('>')){
+    const base = (current == null ? GRADE_ELO_BASE : current);
+    const target = base + GRADE_ELO_STEP * 0.5;
+    return base + ELO_K * 0.5 * weight * (target - base);
+  }
+  const target = gradeToElo(s);
+  if(target == null) return current;
+  if(current == null) return target;
+  return current + ELO_K * weight * (target - current);
+}
 
 /** Save a versioned object — stamps __schema so future builds can recognise it. */
 function stampSave(key, obj, schemaKey){
@@ -2812,9 +2926,14 @@ $('countCustom').addEventListener('input', ()=>{
   }
 });
 $('clearRecentsBtn').addEventListener('click', ()=>{
-  if(!confirm('Clear all recent games from this list?')) return;
+  const backup = loadRecents();
+  if(!backup.length) return;
   saveRecents([]);
   renderRecents();
+  showUndoToast(`Cleared ${backup.length} recent ${backup.length===1?'game':'games'}. Tap to cancel.`, ()=>{
+    saveRecents(backup);
+    renderRecents();
+  });
 });
 $('nextBtn').addEventListener('click', nextQuestion);
 $('submitBtn').addEventListener('click', submitTyped);
@@ -2828,11 +2947,22 @@ $('emailIn').addEventListener('input', ()=>{ $('emailIn').style.borderColor=''; 
 $('logoutBtn').addEventListener('click', ()=>{ signOut(); show('numbers'); });
 $('resetStatsBtn').addEventListener('click', ()=>{
   const u = getCurrentUser(); if(!u) return;
-  if(!confirm(`Reset all stats and points for ${u.email}? This can't be undone.`)) return;
-  u.points = 0; u.games = 0; u.correctTotal = 0; u.answeredTotal = 0; u.byTopic = {};
+  const backup = {
+    points: u.points, games: u.games,
+    correctTotal: u.correctTotal, answeredTotal: u.answeredTotal,
+    byTopic: JSON.parse(JSON.stringify(u.byTopic || {})),
+    gradeCounts: JSON.parse(JSON.stringify(u.gradeCounts || {})),
+  };
+  u.points = 0; u.games = 0; u.correctTotal = 0; u.answeredTotal = 0;
+  u.byTopic = {}; u.gradeCounts = {};
   saveUser(u);
-  renderUserChip();
-  openProfile();
+  renderUserChip(); openProfile();
+  showUndoToast('Stats reset. Tap to cancel.', ()=>{
+    const user = getCurrentUser(); if(!user) return;
+    Object.assign(user, backup);
+    saveUser(user);
+    renderUserChip(); openProfile();
+  });
 });
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{
   clearInterval(timerInt);
@@ -3237,7 +3367,7 @@ function renderRatingUI(){
   $('rateCap').innerHTML = `You can grade up to <b>${cap}</b>. Each 3× of a grade unlocks one step higher.`;
   const wrap = $('rateOpts');
   wrap.innerHTML = '';
-  const grades  = unlockedGrades(cap);
+  const { specific, collapsed } = gradeChoicesFor(cap);
   // Ratings live inside u.byTopic[topic].bySettings[sig].ratings now, so each
   // settings combination keeps its own list. Fresh slot is appended on first
   // click of a new endGame; subsequent clicks during the same end-screen view
@@ -3264,7 +3394,18 @@ function renderRatingUI(){
     saveUser(user);
     renderRatingUI();
   };
-  grades.forEach(g=>{
+  // Collapsed whole-tier buttons first (lowest tiers — too far below the
+  // user's own grade to letter-distinguish), then specific letter grades.
+  collapsed.forEach(num => {
+    const btn = document.createElement('button');
+    btn.className = 'rate-btn rate-coarse' + (num === current ? ' sel' : '');
+    btn.textContent = num;
+    btn.type = 'button';
+    btn.title = `Whole tier ${num} — letter sub-grades disabled for grades 6+ below your cap`;
+    btn.addEventListener('click', () => writeRating(num));
+    wrap.appendChild(btn);
+  });
+  specific.forEach(g => {
     const btn = document.createElement('button');
     btn.className = 'rate-btn' + (g === current ? ' sel' : '');
     btn.textContent = g;
@@ -3283,11 +3424,14 @@ function renderRatingUI(){
   higherBtn.addEventListener('click', () => writeRating(higherValue));
   wrap.appendChild(higherBtn);
 
-  // Community average — aggregated across every account on this browser.
+  // Community average — Elo-aggregated across every account on this browser.
   const community = communityRatingFor(SET.topic);
-  $('rateCommunity').innerHTML = community
-    ? `Community average: <b>${community.grade}</b> · ${community.count} rating${community.count===1?'':'s'}`
-    : 'No community ratings yet — yours starts the average.';
+  if(!community){
+    $('rateCommunity').textContent = 'No community ratings yet — yours starts the average.';
+  } else {
+    const higherNote = community.higher > 0 ? ` &nbsp;·&nbsp; <b>${community.higher}</b> say higher` : '';
+    $('rateCommunity').innerHTML = `Community: <b>${community.grade}</b> · ${community.count} rating${community.count===1?'':'s'}${higherNote}`;
+  }
 }
 
 function endGame(earlyFinish){
