@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.18.2 -->
+<!-- Riemann Surface v1.19.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.18.2 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.19.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -362,7 +362,7 @@
 
   .version{position:fixed;bottom:10px;right:14px;font-family:'DM Mono',monospace;
     font-size:.7rem;color:var(--muted);opacity:.6;letter-spacing:.04em;pointer-events:none;}
-  .settingsversion{margin-top:14px;text-align:center;color:var(--muted);font-size:.72rem;letter-spacing:.06em;}
+  .versionline{margin-top:6px;color:var(--muted);font-size:.72rem;letter-spacing:.06em;}
 </style>
 </head>
 <body>
@@ -386,7 +386,8 @@
   <section class="screen on" id="numbers">
     <div class="topbar">
       <div style="flex:1;">
-        <h1>Cosmic <span class="accent">Crossing</span></h1>
+        <h1>Riemann <span class="accent">Surface</span></h1>
+        <div class="versionline mono" id="homeVersion"></div>
         <p class="tag">Pick a number set.</p>
       </div>
       <button class="userchip" id="userChip"></button>
@@ -436,6 +437,7 @@
   <section class="screen" id="profile">
     <div class="topbar"><button class="back" data-go="numbers">← Numbers</button><span class="crumb">Profile</span></div>
     <div class="endcard" style="text-align:left;">
+      <div class="versionline mono" id="profileVersion"></div>
       <div class="setlabel" style="margin-top:18px;">Signed in as</div>
       <div class="mono" id="profEmail" style="font-size:1.1rem;margin-top:4px;word-break:break-all;"></div>
       <div class="setlabel" style="margin-top:24px;">Discipline overview</div>
@@ -511,7 +513,6 @@
     </div>
 
     <button class="startbtn" id="startBtn">Play →</button>
-    <div class="settingsversion mono" id="settingsVersion"></div>
   </section>
 
   <!-- PLAY -->
@@ -582,11 +583,11 @@
     </div>
   </section>
 </div>
-<div class="version">v1.18.2</div>
+<div class="version">v1.19.0</div>
 
 <script>
 /* ============================================================================
- * Cosmic Crossing — single-file math drill app
+ * Riemann Surface — single-file math drill app
  * ----------------------------------------------------------------------------
  * ARCHITECTURE (top → bottom, in the order things execute on load):
  *   1. Math helpers          — pure number / string utilities (no DOM)
@@ -1951,6 +1952,7 @@ const OP_ORDER = ['add','sub','mul','div','exp','dot','wedge','matmul'];
 function openProfile(){
   const u=getCurrentUser(); if(!u){show('signin');return;}
   $('profEmail').textContent=u.email;
+  $('profileVersion').textContent = `Riemann Surface ${APP_VERSION}`;
   $('profSpider').innerHTML = radarChartSVG(u);
   const tlist=$('profTopics'); tlist.innerHTML='';
   const keys=Object.keys(u.byTopic);
@@ -2225,7 +2227,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.18.2';
+const APP_VERSION = 'v1.19.0';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
@@ -2699,7 +2701,7 @@ function burst(){
 }
 
 loadSettings();
-$('settingsVersion').textContent = `Cosmic Crossing ${APP_VERSION}`;
+$('homeVersion').textContent = `Riemann Surface ${APP_VERSION}`;
 renderNumberList();
 renderRecents();
 renderUserChip();
