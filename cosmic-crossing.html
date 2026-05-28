@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.17.0 -->
+<!-- Cosmic Crossing v1.17.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.17.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.17.1 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -422,8 +422,8 @@
     <div class="topbar"><button class="back" data-go="numbers">← Numbers</button><span class="crumb">Sign in</span></div>
     <p class="tag" style="margin-top:16px;">Track your points across sessions. Stored locally — no server.</p>
     <div class="setblock">
-      <div class="setlabel">Email</div>
-      <input class="emailin mono" id="emailIn" type="email" placeholder="you@example.com" autocomplete="email">
+      <div class="setlabel">Username or email</div>
+      <input class="emailin mono" id="emailIn" type="text" placeholder="yourname or you@example.com" autocomplete="username" autocapitalize="none" spellcheck="false">
     </div>
     <button class="startbtn" id="signinBtn">Continue →</button>
   </section>
@@ -433,7 +433,7 @@
     <div class="topbar"><button class="back" data-go="numbers">← Numbers</button><span class="crumb">Profile</span></div>
     <div class="endcard" style="text-align:left;">
       <div class="setlabel" style="margin-top:18px;">Signed in as</div>
-      <div class="mono" id="profEmail" style="font-size:1.1rem;margin-top:4px;"></div>
+      <div class="mono" id="profEmail" style="font-size:1.1rem;margin-top:4px;word-break:break-all;"></div>
       <div class="setlabel" style="margin-top:24px;">Discipline overview</div>
       <div id="profSpider" class="profspider"></div>
       <div class="setlabel" style="margin-top:24px;">History</div>
@@ -577,7 +577,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.17.0</div>
+<div class="version">v1.17.1</div>
 
 <script>
 /* ============================================================================
@@ -1805,11 +1805,15 @@ function getCurrentUser(){
   try{return JSON.parse(raw);}catch{return null;}
 }
 function saveUser(u){localStorage.setItem(userKey(u.email),JSON.stringify(u));localStorage.setItem(USER_KEY,u.email);}
-function signInWithEmail(email){
-  email=email.trim().toLowerCase();
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
-  const existing=localStorage.getItem(userKey(email));
-  const u = existing ? JSON.parse(existing) : {email,points:0,games:0,correctTotal:0,answeredTotal:0,byTopic:{}};
+function signInWithEmail(idOrEmail){
+  // Accepts either a full email or a plain username. Stored case-insensitively.
+  const id = String(idOrEmail || '').trim().toLowerCase();
+  if(!id || id.length < 1 || id.length > 64) return null;
+  if(!/^[a-z0-9._@+-]+$/.test(id)) return null;
+  const existing = localStorage.getItem(userKey(id));
+  // Keep the property name `email` so older saves still work; it just holds
+  // whatever identifier the user typed in.
+  const u = existing ? JSON.parse(existing) : {email:id, points:0, games:0, correctTotal:0, answeredTotal:0, byTopic:{}};
   saveUser(u);
   return u;
 }
@@ -2226,7 +2230,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.17.0';
+const APP_VERSION = 'v1.17.1';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
