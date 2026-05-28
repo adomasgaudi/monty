@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.18.1 -->
+<!-- Cosmic Crossing v1.18.2 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.18.1 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.18.2 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -582,7 +582,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.18.1</div>
+<div class="version">v1.18.2</div>
 
 <script>
 /* ============================================================================
@@ -910,11 +910,14 @@ function matHTML(M, hlRow, hlCol){
   return html + `</span>`;
 }
 /* ─── 3. SVG diagram helpers ────────────────────────────────────────────── */
-function drawArrow(x1,y1,x2,y2,color,lw,dashed){
+function drawArrow(x1,y1,x2,y2,color,lw,dashed,headSize){
   const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy);
   if(len<.001) return '';
   const ux=dx/len, uy=dy/len;
-  const head=Math.min(0.45, Math.max(0.18, len*0.18));
+  // Head size now passed in so every arrow on a given diagram matches.
+  // Cap to 0.85 of the line length so tiny arrows don't get an overshoot.
+  let head = (headSize > 0 ? headSize : 0.3);
+  if(head > len * 0.85) head = len * 0.85;
   const lx=x2-ux*head*0.55, ly=y2-uy*head*0.55;
   const dash=dashed?`stroke-dasharray="0.3,0.18"`:'';
   let s=`<line x1="${x1}" y1="${y1}" x2="${lx}" y2="${ly}" stroke="${color}" stroke-width="${lw}" ${dash} stroke-linecap="round"/>`;
@@ -936,6 +939,8 @@ function vecDiag(arrows, opts){
   const minY=Math.min(...ys)-pad, maxY=Math.max(...ys)+pad;
   const W=maxX-minX, H=maxY-minY;
   const scale=Math.max(W,H), lw=scale*0.013;
+  // One head size per diagram — every arrow on this chart matches in size.
+  const arrowHead = scale * 0.05;
   const parts=[];
   parts.push(`<svg class="vdiag" viewBox="${minX} ${-maxY} ${W} ${H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">`);
   const pid='g'+Math.floor(Math.random()*1e9);
@@ -975,7 +980,7 @@ function vecDiag(arrows, opts){
     }
   }
   if(opts.resultant){
-    parts.push(drawArrow(0,0,opts.resultant[0],-opts.resultant[1],opts.resultantColor||'#2F8F5F',lw*1.15,true));
+    parts.push(drawArrow(0,0,opts.resultant[0],-opts.resultant[1],opts.resultantColor||'#2F8F5F',lw*1.15,true,arrowHead));
     if(opts.resultantLabel){
       parts.push(`<text x="${opts.resultant[0]+0.25}" y="${-opts.resultant[1]-0.3}" fill="${opts.resultantColor||'#2F8F5F'}" font-size="${scale*0.055}" font-family="DM Mono">${opts.resultantLabel}</text>`);
     }
@@ -986,7 +991,7 @@ function vecDiag(arrows, opts){
   const labelTaken = [];
   const labelFont = scale * 0.06;
   arrows.forEach(a=>{
-    parts.push(drawArrow(0,0,a.v[0],-a.v[1],a.color||'#15151B',lw*1.25,false));
+    parts.push(drawArrow(0,0,a.v[0],-a.v[1],a.color||'#15151B',lw*1.25,false,arrowHead));
     if(!a.label) return;
     let lx = a.v[0] + (a.v[0]>=0 ? 0.3 : -0.6);
     let ly = -a.v[1] - 0.3;
@@ -2220,7 +2225,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.18.1';
+const APP_VERSION = 'v1.18.2';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
