@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<!-- Riemann Surface · grade-Elo explainer (paired with v1.23.6) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>How grades & Elo work in Riemann Surface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAFAF7; --ink:#15151B; --muted:#8A8A95; --line:#E6E6E0;
+    --ok:#2F8F5F; --no:#C0463A;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{font-family:'Fredoka',sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100dvh;padding:36px 22px 80px;-webkit-font-smoothing:antialiased;line-height:1.55;}
+  .page{max-width:680px;margin:0 auto;}
+  h1{font-size:2.1rem;font-weight:600;letter-spacing:-.5px;margin-bottom:6px;}
+  h1 .ver{font-family:'DM Mono',monospace;font-size:.55em;color:var(--muted);font-weight:400;margin-left:6px;}
+  .lede{color:var(--muted);font-size:1.05rem;margin-bottom:30px;}
+  h2{font-size:1.25rem;font-weight:600;margin:36px 0 8px;letter-spacing:-.3px;}
+  h3{font-size:1.05rem;font-weight:500;margin:22px 0 6px;}
+  p{margin:8px 0;}
+  ul,ol{padding-left:22px;margin:8px 0;}
+  li{margin:4px 0;}
+  code,.mono{font-family:'DM Mono',monospace;font-size:.92em;background:rgba(0,0,0,.04);
+    padding:1px 5px;border-radius:4px;}
+  pre{font-family:'DM Mono',monospace;font-size:.88rem;line-height:1.45;
+    background:rgba(0,0,0,.04);border-left:3px solid var(--ink);
+    padding:12px 14px;border-radius:0 8px 8px 0;overflow-x:auto;margin:10px 0;}
+  pre code{background:none;padding:0;}
+  table{border-collapse:collapse;margin:12px 0;width:100%;font-size:.92rem;}
+  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);}
+  th{font-weight:500;color:var(--muted);font-size:.82rem;text-transform:uppercase;letter-spacing:.06em;}
+  td.mono{font-family:'DM Mono',monospace;}
+  .callout{border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:14px 0;
+    background:rgba(0,0,0,.02);}
+  .callout.warn{border-color:rgba(192,70,58,.5);background:rgba(192,70,58,.04);}
+  .callout.ok{border-color:rgba(47,143,95,.5);background:rgba(47,143,95,.04);}
+  .callout h3{margin-top:0;}
+  .formula{font-family:'DM Mono',monospace;font-size:1.05rem;padding:10px 14px;
+    background:rgba(0,0,0,.03);border-radius:8px;text-align:center;margin:12px 0;}
+  .dotop{color:var(--no);font-weight:600;}
+  .pill{display:inline-block;font-family:'DM Mono',monospace;font-size:.78rem;
+    background:rgba(0,0,0,.06);padding:2px 8px;border-radius:8px;margin-right:4px;}
+  .tier-table td:first-child{font-family:'DM Mono',monospace;width:60px;}
+
+  /* Live calculator */
+  .calc{border:1px solid var(--line);border-radius:12px;padding:16px;margin:18px 0;
+    background:rgba(0,0,0,.015);}
+  .calc-row{display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap;}
+  .calc-row label{font-size:.92rem;width:160px;color:var(--muted);}
+  .calc-row input, .calc-row select{font-family:'DM Mono',monospace;font-size:.95rem;
+    padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);}
+  .calc-row input[type=number]{width:90px;}
+  .calc-out{margin-top:10px;font-family:'DM Mono',monospace;font-size:.92rem;
+    background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px 12px;line-height:1.7;}
+  .calc-out b{color:var(--ink);}
+  button.recalc{font-family:inherit;font-weight:500;font-size:.92rem;cursor:pointer;
+    background:var(--ink);color:var(--bg);border:none;border-radius:8px;padding:7px 14px;}
+  button.recalc:hover{opacity:.85;}
+  .step{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--line);}
+  .step:last-child{border-bottom:none;font-weight:500;}
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>How grades &amp; Elo work <span class="ver">paired with v1.23.6</span></h1>
+<p class="lede">An honest write-up of what's actually behind the grade you see on the end screen, the badge on the profile, and the community-average number. With formulas, examples, and the bits I haven't implemented yet.</p>
+
+<h2>TL;DR</h2>
+<ul>
+  <li><b>Grades</b> are a ladder of 24 steps from <code>4A</code> (Layman) to <code>11C</code> (Nobel). The <i>tier numbers</i> are roughly logarithmic in real-world difficulty: each tier ≈ "one academic step harder".</li>
+  <li>Internally each grade is mapped to a decimal <b>Elo number</b> on a <i>linear</i> scale: <code>Elo = 1000 + index × 100</code>.</li>
+  <li>When players rate a game, the topic's running Elo is moved a fraction of the way toward the rating's Elo (<b>exponential moving average</b>, not classic pairwise Elo).</li>
+  <li>The "log-ness" lives in the <i>grade ladder</i>, not in the Elo update.</li>
+  <li>A <code>&gt;cap</code> "higher than I can grade" vote nudges the running Elo up by half a step at half weight — directional only.</li>
+  <li>Per-rating <b>weights</b> are wired through but currently always <code>1.0</code>.</li>
+</ul>
+
+<h2>The grade ladder</h2>
+<p>Each grade is a (tier number, letter) pair. Tier numbers run <code>4..11</code> and have human-readable names; the letters <code>A</code>, <code>B</code>, <code>C</code> are sub-positions inside one tier (A = top, C = bottom — A &gt; B &gt; C).</p>
+
+<table class="tier-table">
+  <tr><th>Tier</th><th>Name</th><th>Examples (Hard cap)</th></tr>
+  <tr><td>4</td><td>Layman</td><td>—</td></tr>
+  <tr><td>5</td><td>Middleschool</td><td>natural / integer add, vcm add (Hard)</td></tr>
+  <tr><td>6</td><td>Highschool</td><td>real ×/÷, vec dot, vec wedge, matmul</td></tr>
+  <tr><td>7</td><td>Undergrad</td><td>(reserved for future content)</td></tr>
+  <tr><td>8</td><td>Grad</td><td>(reserved)</td></tr>
+  <tr><td>9</td><td>PhD</td><td>(reserved)</td></tr>
+  <tr><td>10</td><td>Frontier</td><td>(reserved)</td></tr>
+  <tr><td>11</td><td>Nobel</td><td>(reserved)</td></tr>
+</table>
+
+<p>The ladder of 24 grade strings, in order:</p>
+<pre><code>4A 4B 4C  5A 5B 5C  6A 6B 6C  7A 7B 7C  8A 8B 8C  9A 9B 9C  10A 10B 10C  11A 11B 11C</code></pre>
+
+<p>Helpers in code:</p>
+<pre><code>const TIER_MIN = 4, TIER_MAX = 11;
+const ALL_GRADES = (() =&gt; {
+  const out = [];
+  for(let n = TIER_MIN; n &lt;= TIER_MAX; n++)
+    for(const l of ['A','B','C']) out.push(`${n}${l}`);
+  return out;
+})();
+
+function gradeIndex(g){
+  // accepts "5B" (index 4) or whole-tier "5" (index 4 — middle of tier)
+  const m = String(g||'').match(/^(\d+)([A-C])?$/); if(!m) return -1;
+  const n = parseInt(m[1], 10); if(n &lt; TIER_MIN || n &gt; TIER_MAX) return -1;
+  const pos = ({A:0, B:1, C:2})[m[2] || 'B'];
+  return (n - TIER_MIN) * 3 + pos;
+}
+</code></pre>
+
+<h2>Three layers of "log-ness"</h2>
+<ol>
+  <li><b>Curriculum is log-flavoured</b>: <code>Layman → Middleschool → Highschool → Undergrad → Grad → PhD → Frontier → Nobel</code>. Each step is many years of training, so the human difficulty is roughly geometric.</li>
+  <li><b>Grades inside a tier are linear</b>: A → B → C are equally spaced sub-positions, separated by accuracy thresholds (≥85% → A, ≥55% → B, else C).</li>
+  <li><b>The Elo mapping is linear in grade index</b>:
+    <div class="formula">Elo = 1000 + gradeIndex × 100</div>
+    So <code>4A = 1000</code>, <code>5A = 1300</code>, <code>6A = 1600</code>, <code>11C = 3300</code>.
+  </li>
+</ol>
+
+<div class="callout warn">
+  <h3>Caveat — log scale, not log update</h3>
+  <p>The TIER axis is approximately logarithmic in "difficulty years". The ELO axis is linear in tiers. The UPDATE rule (next section) is an exponential moving average, not the classic Elo win-probability formula. So strictly:</p>
+  <ul>
+    <li>"Log Elo": <b>no</b>, the Elo math itself is linear.</li>
+    <li>"Logarithmic difficulty scale through tier names": <b>yes</b>.</li>
+    <li>"Classic chess-style Elo with K-factor and expected scores": <b>no</b>, it's EMA toward the rating.</li>
+  </ul>
+</div>
+
+<h2>The Elo update — what actually happens</h2>
+
+<p>Each topic + settings bucket carries a running Elo number. When a user submits a rating, that rating is mapped to its Elo target and the running value is pulled toward it by a fixed fraction.</p>
+
+<div class="formula">
+  Eloₙₑw &nbsp;=&nbsp; Eloₒₗ𝒹 &nbsp;+&nbsp; K · weight · (Eloₜₐᵣ𝓰ₑₜ − Eloₒₗ𝒹)
+</div>
+
+<p>With current constants:</p>
+<table>
+  <tr><th>Constant</th><th>Value</th><th>Meaning</th></tr>
+  <tr><td class="mono">GRADE_ELO_BASE</td><td class="mono">1000</td><td>Elo at the bottom of the ladder (4A)</td></tr>
+  <tr><td class="mono">GRADE_ELO_STEP</td><td class="mono">100</td><td>Elo per single grade step</td></tr>
+  <tr><td class="mono">ELO_K</td><td class="mono">0.20</td><td>Learning rate per rating (20% pull toward target)</td></tr>
+  <tr><td class="mono">DEFAULT_RATING_WEIGHT</td><td class="mono">1.0</td><td>Default per-rating weight; pluggable per future content</td></tr>
+</table>
+
+<p>The two helper functions in source:</p>
+<pre><code>function gradeToElo(grade){
+  if(grade == null) return null;
+  const s = String(grade);
+  if(s.startsWith('&gt;')) return null;   // directional, handled separately
+  const idx = gradeIndex(s); if(idx &lt; 0) return null;
+  return GRADE_ELO_BASE + idx * GRADE_ELO_STEP;
+}
+
+function eloToGrade(elo){
+  if(elo == null || !isFinite(elo)) return null;
+  const idx = Math.round((elo - GRADE_ELO_BASE) / GRADE_ELO_STEP);
+  return ALL_GRADES[Math.max(0, Math.min(ALL_GRADES.length - 1, idx))];
+}
+</code></pre>
+
+<p>And the update step itself:</p>
+<pre><code>function eloApply(current, grade, weight){
+  weight = weight || DEFAULT_RATING_WEIGHT;
+  if(grade == null) return current;
+  const s = String(grade);
+  if(s.startsWith('&gt;')){
+    // "Higher than I can grade" — directional bump at half step / half weight.
+    const base = (current == null ? GRADE_ELO_BASE : current);
+    const target = base + GRADE_ELO_STEP * 0.5;
+    return base + ELO_K * 0.5 * weight * (target - base);
+  }
+  const target = gradeToElo(s);
+  if(target == null) return current;
+  if(current == null) return target;     // seed on first rating
+  return current + ELO_K * weight * (target - current);
+}
+</code></pre>
+
+<p>That formula is <b>exponential moving average</b>: each new rating brings the running value 20% (×weight) closer to its target. Many ratings of the same grade converge to it; mixed ratings settle toward a weighted geometric mean of them.</p>
+
+<h2>The "Higher than cap" vote</h2>
+<p>Some users feel a game deserves a higher grade than they personally can give (their own cap is set by the 3× unlock rule). Letting that vote map straight to "one tier higher" would be wrong — they aren't actually claiming a specific tier. So it's treated as a <i>direction</i>:</p>
+
+<div class="formula">
+  Eloₙₑw &nbsp;=&nbsp; Eloₒₗ𝒹 &nbsp;+&nbsp; 0.5 · K · weight · (½ · STEP)
+</div>
+
+<p>That is — half the K, half a grade step. Many "higher" votes pile up and eventually move the Elo by one full grade; one vote barely registers. The community line reports them separately as "<i>N say higher</i>" so they don't pollute the concrete-rating count.</p>
+
+<h2>Per-rating weights</h2>
+<p>Every rating carries a <code>weight</code>, default <code>1.0</code>. Today every rating uses the default, so the system is effectively unweighted. The plumbing is in place for two future ideas:</p>
+<ul>
+  <li><b>Tier-weighted</b>: a rating from a 9C player on a Highschool problem could be discounted (they probably can't tell 6A from 6B for the local audience), while a 6B player rating a 6 problem counts at full weight.</li>
+  <li><b>Confidence weight</b>: a rating cast right after a perfect run counts more than one after a 0% run.</li>
+</ul>
+
+<h2>Worked examples</h2>
+
+<div class="calc" id="calc">
+  <h3>Live calculator</h3>
+  <p>Try a sequence of ratings on a topic and watch the Elo drift.</p>
+  <div class="calc-row">
+    <label>Starting Elo</label>
+    <input type="number" id="calcStart" value="1500" step="50">
+    <span class="mono" id="calcStartGrade">(grade: 6C)</span>
+  </div>
+  <div class="calc-row">
+    <label>Submit rating</label>
+    <select id="calcGrade"></select>
+    <label style="width:auto;">weight</label>
+    <input type="number" id="calcWeight" value="1.0" step="0.1" min="0" max="5">
+    <button class="recalc" id="calcAdd">Apply</button>
+    <button class="recalc" id="calcReset" style="background:none;color:var(--ink);border:1px solid var(--line);">Reset</button>
+  </div>
+  <div class="calc-out" id="calcOut">No ratings yet.</div>
+</div>
+
+<h3>Example 1 — Settling onto 6A</h3>
+<p>Bucket starts at Elo <code>1500</code> (= 6C). Eight users in a row submit <code>6A</code> (Elo <code>1800</code>):</p>
+<pre><code>step 0:  Elo = 1500
+step 1:  Elo = 1500 + 0.20 × (1800 - 1500) =  1560
+step 2:  Elo = 1560 + 0.20 × (1800 - 1560) =  1608
+step 3:  Elo = 1608 + 0.20 × (1800 - 1608) =  1646.4
+…
+step 8:  Elo ≈ 1749   (grade reading ≈ 7B, but they all said 6A — so this floors to 6A)
+</code></pre>
+<p>Two takeaways: (a) one rating doesn't pin the grade — it gets the average a fraction of the way there. (b) consensus pushes the Elo steadily toward the consensus grade. Several Hundred votes are needed to lock anything in.</p>
+
+<h3>Example 2 — Mixed votes</h3>
+<p>Two users say <code>6A</code>, two say <code>5C</code>, one says <code>&gt;6A</code>. Starting Elo <code>1500</code>:</p>
+<pre><code>vote 6A   target 1800 :  Elo = 1500 + 0.20×(1800-1500)   = 1560
+vote 5C   target 1500 :  Elo = 1560 + 0.20×(1500-1560)   = 1548
+vote 6A   target 1800 :  Elo = 1548 + 0.20×(1800-1548)   = 1598.4
+vote 5C   target 1500 :  Elo = 1598.4 + 0.20×(1500-1598.4) = 1578.7
+vote >6A  half-step bump:  Elo = 1578.7 + 0.5×0.20×0.5×100  = 1583.7
+</code></pre>
+<p>Lands between 6C and 6B with a "1 higher" tally on the side.</p>
+
+<h2>Where it's used</h2>
+<ul>
+  <li><b>Community line</b> on the end screen ("Community: 6A · 4 ratings · 2 say higher") is the result of <code>communityRatingFor(topic)</code> — it walks every local user account, replays their bucket ratings through <code>eloApply</code>, and converts the final Elo back to a grade via <code>eloToGrade</code>.</li>
+  <li><b>Best grade pill</b> on profile rows is unrelated — that's the player's own highest <i>earned</i> grade (system's pre-determined grade from <code>gradeFor(accuracy, diff, topic)</code>), not the Elo of community ratings.</li>
+  <li><b>Average grade per user</b> in the username chip uses each discipline's highest-earned grade and averages by ladder index. No Elo here either — it's plain index averaging.</li>
+</ul>
+
+<h2>Honest list of what's NOT yet implemented</h2>
+<div class="callout warn">
+<ul>
+  <li><b>Classic Elo with expected scores</b>. Real Elo asks "what's the probability that A beats B?" via <code>1 / (1 + 10^((Rb-Ra)/400))</code>, then updates both ratings by <code>K × (actual − expected)</code>. We don't have pairwise games yet, so the formula collapses into the EMA above.</li>
+  <li><b>Two-sided updates</b>. The player's own rating doesn't move from rating a topic. Only the topic's Elo moves.</li>
+  <li><b>Confidence intervals / posterior</b>. A topic with one rating is treated like a topic with a hundred — there's no notion of how settled the Elo is.</li>
+  <li><b>Time decay</b>. Old ratings have the same weight as new ones.</li>
+  <li><b>Logarithmic Elo</b>. The Elo axis is linear in grade index, not log. If you'd want each tier to be a 2× difficulty jump in Elo terms, the mapping would become <code>Elo = BASE × 2^tier</code> instead of <code>BASE + idx × STEP</code>.</li>
+</ul>
+</div>
+
+<h2>Migration / storage</h2>
+<p>Ratings live inside each user's profile, scoped to a <i>settings bucket</i>:</p>
+<pre><code>user.byTopic[topic].bySettings[sig].ratings = [
+  { grade: '6A', weight: 1.0, ts: 17... },   // future shape
+  '6A',                                       // current shape — string only
+  '&gt;6A',
+  …
+]</code></pre>
+<p>The reader accepts both shapes. Schema for the user object is at version <code>SCHEMA.user = 3</code>; the next breaking change to the rating shape will bump it again and the per-object schema gate will refuse stale data without nuking the whole account.</p>
+
+<h2>Summary in one paragraph</h2>
+<p>Grades are a 24-step ladder mapped to a linear Elo scale (1000 + idx×100). When a player rates a game, the topic's running Elo is pulled 20% toward the rating's Elo (weighted EMA, not classic chess-style Elo). "Higher than my cap" votes nudge the Elo up by a half-step at half weight. Per-rating weights are wired in at <code>1.0</code> for now. The community-average shown to other players is just <code>eloToGrade</code> of this running Elo, plus a separate tally of "higher" votes.</p>
+
+<script>
+const TIER_MIN = 4, TIER_MAX = 11;
+const ALL_GRADES = (() => {
+  const out = [];
+  for(let n = TIER_MIN; n <= TIER_MAX; n++) for(const l of ['A','B','C']) out.push(`${n}${l}`);
+  return out;
+})();
+const GRADE_ELO_BASE = 1000, GRADE_ELO_STEP = 100, ELO_K = 0.20;
+function gradeIndex(g){
+  const m = String(g||'').match(/^(\d+)([A-C])?$/); if(!m) return -1;
+  const n = parseInt(m[1],10); if(n<TIER_MIN||n>TIER_MAX) return -1;
+  return (n-TIER_MIN)*3 + ({A:0,B:1,C:2})[m[2]||'B'];
+}
+function gradeToElo(g){
+  const s = String(g); if(s.startsWith('>')) return null;
+  const i = gradeIndex(s); if(i<0) return null;
+  return GRADE_ELO_BASE + i*GRADE_ELO_STEP;
+}
+function eloToGrade(e){
+  const i = Math.round((e - GRADE_ELO_BASE)/GRADE_ELO_STEP);
+  return ALL_GRADES[Math.max(0, Math.min(ALL_GRADES.length-1, i))];
+}
+function eloApply(cur, g, w){
+  w = w || 1;
+  if(g == null) return cur;
+  const s = String(g);
+  if(s.startsWith('>')){
+    const base = cur == null ? GRADE_ELO_BASE : cur;
+    return base + ELO_K * 0.5 * w * (GRADE_ELO_STEP * 0.5);
+  }
+  const tgt = gradeToElo(s); if(tgt == null) return cur;
+  if(cur == null) return tgt;
+  return cur + ELO_K * w * (tgt - cur);
+}
+
+const sel = document.getElementById('calcGrade');
+ALL_GRADES.forEach(g => {
+  const o = document.createElement('option'); o.value = g; o.textContent = g; sel.appendChild(o);
+});
+const higherO = document.createElement('option'); higherO.value = '>'; higherO.textContent = '> (higher)'; sel.appendChild(higherO);
+sel.value = '6A';
+
+const startInp = document.getElementById('calcStart');
+const startGradeOut = document.getElementById('calcStartGrade');
+function refreshStartGrade(){ startGradeOut.textContent = `(grade: ${eloToGrade(parseFloat(startInp.value)||0) || '?'})`; }
+startInp.addEventListener('input', () => { refreshStartGrade(); });
+refreshStartGrade();
+
+const out = document.getElementById('calcOut');
+let current = null;
+let history = [];
+
+function render(){
+  if(history.length === 0){
+    out.innerHTML = `Starting Elo: <b>${startInp.value}</b> &nbsp;→&nbsp; ${eloToGrade(parseFloat(startInp.value)||0)}<br><span style="color:var(--muted);">Apply a rating to start.</span>`;
+    return;
+  }
+  let lines = `<div class="step"><span>Starting Elo</span><span><b>${parseFloat(startInp.value).toFixed(1)}</b> → ${eloToGrade(parseFloat(startInp.value))}</span></div>`;
+  history.forEach((h, i) => {
+    const isDir = String(h.grade).startsWith('>');
+    const tgt = isDir ? '(directional +50)' : `target ${gradeToElo(h.grade)}`;
+    lines += `<div class="step"><span>+ rating <b>${h.grade}</b> (w ${h.weight.toFixed(2)})</span><span>${tgt} → <b>${h.elo.toFixed(1)}</b> = ${eloToGrade(h.elo)}</span></div>`;
+  });
+  out.innerHTML = lines;
+}
+
+function applyRating(){
+  if(current == null) current = parseFloat(startInp.value) || GRADE_ELO_BASE;
+  const v = sel.value;
+  const w = parseFloat(document.getElementById('calcWeight').value) || 1;
+  const grade = v === '>' ? '>' + eloToGrade(current) : v;
+  const before = current;
+  current = eloApply(current, grade, w);
+  history.push({ grade, weight: w, before, elo: current });
+  render();
+}
+function reset(){ current = null; history = []; render(); }
+
+document.getElementById('calcAdd').addEventListener('click', applyRating);
+document.getElementById('calcReset').addEventListener('click', reset);
+render();
+</script>
+
+</div>
+</body>
+</html>
