@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.23.5 -->
+<!-- Riemann Surface v1.23.6 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.23.5 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.23.6 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -368,6 +368,10 @@
     background:linear-gradient(135deg,rgba(255,201,60,.2),rgba(255,61,113,.15));
     border-color:rgba(200,80,40,.55);color:#B33B1F;font-weight:600;}
   .settingsrow{padding:8px 0 4px;border-top:1px dashed rgba(0,0,0,.06);margin-top:6px;}
+  .qdots{display:inline-flex;gap:2px;flex-wrap:wrap;margin-left:8px;vertical-align:middle;max-width:160px;}
+  .qdot{width:8px;height:8px;border-radius:2px;display:inline-block;}
+  .qdot.ok{background:var(--ok);}
+  .qdot.no{background:var(--no);}
   .settingsrow:first-child{border-top:none;margin-top:0;}
   .rategrid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 10px;
     margin-top:6px;font-size:.78rem;}
@@ -661,7 +665,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.23.5</div>
+<div class="version">v1.23.6</div>
 
 <script>
 /* ============================================================================
@@ -2304,6 +2308,24 @@ function formatSettings(s){
   if(s.useUnits) bits.push('units');
   return bits.join(' · ');
 }
+/** Tiny green/red squares — one per question, green first. Caps at 60 dots
+ *  so a stat-grinding user doesn't paint a giant strip. */
+function dotsFor(correct, total){
+  const c = Math.max(0, Math.min(total, correct));
+  const limit = 60;
+  let s = '';
+  if(total <= limit){
+    for(let i = 0; i < c; i++) s += '<span class="qdot ok"></span>';
+    for(let i = c; i < total; i++) s += '<span class="qdot no"></span>';
+  } else {
+    // Down-sample: proportional dots scaled to fit `limit`.
+    const okN = Math.round(c / total * limit);
+    const noN = limit - okN;
+    for(let i = 0; i < okN; i++) s += '<span class="qdot ok"></span>';
+    for(let i = 0; i < noN; i++) s += '<span class="qdot no"></span>';
+  }
+  return s;
+}
 function diffSummary(t){
   const parts = Object.keys(t.byDiff||{}).map(d => `${d}·${t.byDiff[d].games||0}`);
   return parts.join(' · ') || '—';
@@ -2535,40 +2557,36 @@ function openProfile(){
       const buckets = (t.bySettings && Object.values(t.bySettings)) || [];
       buckets.sort((a,b) => (b.lastTs||0) - (a.lastTs||0));
       if(!buckets.length){
-        // Pre-bySettings legacy entry — show the older aggregate.
-        const aPct = t.answered ? Math.round(t.correct/t.answered*100) : 0;
+        // Pre-bySettings legacy entry — show the older aggregate as dots.
+        const dotsHtml = dotsFor(t.correct||0, t.answered||0);
         html += `<div class="settingsrow">
-          <div class="profrow"><span class="tk">${diffSummary(t)}</span>
-            <span class="tv">${t.points} ★ · ${aPct}%</span>
+          <div class="profrow"><span class="tk">${diffSummary(t)} <span class="qdots">${dotsHtml}</span></span>
+            <span class="tv">${t.points} ★</span>
             <span class="profactions">
               ${canPlay ? `<button class="profact playact" data-topic="${k}" title="Play again — fresh">↻</button>` : ''}
               <button class="profact delact" data-topic="${k}" title="Delete topic">×</button>
             </span>
           </div>
-          <div class="bar"><div style="width:${aPct}%;"></div></div>
         </div>`;
       } else {
         buckets.forEach(b=>{
-          const accuracy = b.answered ? Math.round((b.lastAccuracy != null ? b.lastAccuracy*100 : b.correct/b.answered*100)) : 0;
-          const myRatings = Array.isArray(b.ratings) ? b.ratings : [];
-          const myLatest  = myRatings.length ? myRatings[myRatings.length-1] : null;
-          const myAvg     = myRatings.length ? averageGrade(myRatings) : null;
           const settingsLabel = formatSettings(b.settings || {});
           const recentForSig = (loadRecents() || []).find(r => r.topic === k && settingsSig(r) === b.sig && Array.isArray(r.queue) && r.queue.length);
           const canExactReplay = !!(canPlay && recentForSig);
           const time = b.lastTimeSec ? `${b.lastTimeSec.toFixed(1)}s` : '—';
-          const defaultGrade = b.lastGrade || '—';
+          // One small square per question answered — green for correct,
+          // red for not. Replaces the % + progress bar.
+          const dotsHtml = dotsFor(b.correct||0, b.answered||0);
           html += `<div class="settingsrow">
             <div class="profrow">
-              <span class="tk">${settingsLabel}</span>
-              <span class="tv">${b.points} ★ · ${accuracy}% · ${time}</span>
+              <span class="tk">${settingsLabel} <span class="qdots">${dotsHtml}</span></span>
+              <span class="tv">${b.points} ★ · ${time}</span>
               <span class="profactions">
                 ${canPlay ? `<button class="profact playact" data-topic="${k}" data-sig="${b.sig}" title="Play again — fresh">↻</button>` : ''}
                 ${canExactReplay ? `<button class="profact replayact" data-topic="${k}" data-sig="${b.sig}" title="Replay exact">⟲</button>` : ''}
                 <button class="profact delact" data-topic="${k}" data-sig="${b.sig}" title="Delete this settings line">×</button>
               </span>
             </div>
-            <div class="bar"><div style="width:${accuracy}%;"></div></div>
           </div>`;
         });
       }
@@ -3142,7 +3160,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.23.5';
+const APP_VERSION = 'v1.23.6';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
