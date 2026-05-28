@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.4.0 -->
+<!-- Cosmic Crossing v1.5.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.4.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.5.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -17,11 +17,10 @@
   html,body{height:100%;}
   body{
     font-family:'Fredoka',sans-serif;background:var(--bg);color:var(--ink);
-    min-height:100dvh;display:flex;align-items:center;justify-content:center;
-    padding:24px;-webkit-font-smoothing:antialiased;
+    min-height:100dvh;padding:24px 24px 60px;-webkit-font-smoothing:antialiased;
   }
   .stage{
-    width:100%;max-width:520px;background:var(--bg);
+    width:100%;max-width:520px;margin:0 auto;background:var(--bg);
     padding:8px 4px;position:relative;
   }
   .mono{font-family:'DM Mono',monospace;}
@@ -52,10 +51,14 @@
     display:flex;align-items:center;gap:16px;width:100%;
   }
   .topic:hover{background:rgba(0,0,0,.025);}
-  .topic .ic{width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;font-size:1.3rem;opacity:.85;}
+  .topic.disabled{opacity:.35;cursor:not-allowed;}
+  .topic.disabled:hover{background:none;}
+  .topic .ic{width:38px;height:38px;flex:none;display:flex;align-items:center;justify-content:center;
+    font-family:'DM Mono',monospace;font-size:1.4rem;font-weight:400;opacity:.95;color:var(--ink);}
   .topic .tt{font-weight:500;font-size:1.05rem;}
   .topic .td{font-size:.85rem;color:var(--muted);font-weight:400;margin-top:2px;}
   .topic .arr{margin-left:auto;color:var(--muted);font-size:1.1rem;}
+  .topic.disabled .arr{font-family:'DM Mono',monospace;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;}
 
   /* ---------- settings ---------- */
   .setblock{margin-top:22px;}
@@ -196,21 +199,39 @@
 <div class="stage">
   <div class="confetti" id="confetti"></div>
 
-  <!-- TOPICS -->
-  <section class="screen on" id="topics">
+  <!-- NUMBERS (home) -->
+  <section class="screen on" id="numbers">
     <div class="topbar">
       <div style="flex:1;">
         <h1>Cosmic <span class="accent">Crossing</span></h1>
-        <p class="tag">Math at the edge of physics, chemistry & alchemy.</p>
+        <p class="tag">Pick a number set.</p>
       </div>
       <button class="userchip" id="userChip"></button>
     </div>
-    <div class="topics" id="topicList"></div>
+    <div class="topics" id="numberList"></div>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section class="screen" id="categories">
+    <div class="topbar">
+      <button class="back" data-go="numbers">← Numbers</button>
+      <span class="crumb" id="catCrumb"></span>
+    </div>
+    <div class="topics" id="categoryList"></div>
+  </section>
+
+  <!-- OPERATIONS -->
+  <section class="screen" id="operations">
+    <div class="topbar">
+      <button class="back" data-go="categories">← Back</button>
+      <span class="crumb" id="opCrumb"></span>
+    </div>
+    <div class="topics" id="operationList"></div>
   </section>
 
   <!-- SIGN-IN -->
   <section class="screen" id="signin">
-    <div class="topbar"><button class="back" data-go="topics">← Topics</button><span class="crumb">Sign in</span></div>
+    <div class="topbar"><button class="back" data-go="numbers">← Numbers</button><span class="crumb">Sign in</span></div>
     <p class="tag" style="margin-top:16px;">Track your points across sessions. Stored locally — no server.</p>
     <div class="setblock">
       <div class="setlabel">Email</div>
@@ -221,7 +242,7 @@
 
   <!-- PROFILE -->
   <section class="screen" id="profile">
-    <div class="topbar"><button class="back" data-go="topics">← Topics</button><span class="crumb">Profile</span></div>
+    <div class="topbar"><button class="back" data-go="numbers">← Numbers</button><span class="crumb">Profile</span></div>
     <div class="endcard" style="text-align:left;">
       <div class="setlabel" style="margin-top:18px;">Signed in as</div>
       <div class="mono" id="profEmail" style="font-size:1.1rem;margin-top:4px;"></div>
@@ -239,7 +260,7 @@
   <!-- SETTINGS -->
   <section class="screen" id="settings">
     <div class="topbar">
-      <button class="back" data-go="topics">← Topics</button>
+      <button class="back" data-go="operations">← Back</button>
       <span class="crumb" id="setCrumb"></span>
     </div>
 
@@ -312,7 +333,7 @@
 
   <!-- END -->
   <section class="screen" id="end">
-    <div class="topbar"><button class="back" data-go="topics">← Topics</button></div>
+    <div class="topbar"><button class="back" data-go="numbers">← Numbers</button></div>
     <div class="endcard">
       <h1 id="endTitle">Done!</h1>
       <div class="bigscore"><span id="finalScore">0</span><span class="of" id="finalOf"> / 10</span></div>
@@ -328,7 +349,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.4.0</div>
+<div class="version">v1.5.0</div>
 
 <script>
 /* ===== math helpers ===== */
@@ -486,82 +507,94 @@ function pickScenario(category){
   return list[Math.floor(Math.random()*list.length)];
 }
 
-/* ===== topics ===== */
+/* ===== topics — keyed by (numberType, category, operation) ===== */
 const TOPICS = {
-  cosmic:{
-    title:'Cosmic Scaling — ×10, ÷10',
-    desc:'Slide the decimal across the universe',
-    icon:'🌌', accent:'var(--violet)',
+  intAdd:{
+    title:'Integer addition',
     diffs:['Easy','Medium','Hard'],
     make(diff){
-      let a, op;
-      if(diff==='Easy'){ a=rnd(['3','7','4','8','6','9','5','12','15','11','20']); op='×10'; }
-      else if(diff==='Medium'){ a=rnd(['0.5','0.3','0.7','2.4','1.6','0.9','3.5','0.08','4.2','0.06','0.25']); op='×10'; }
-      else { const pool=[['0.5','÷10'],['50','÷10'],['-0.5','×10'],['3.2','÷10'],['-12','÷10'],['0.07','×10'],['-4','×10'],['250','÷10'],['1.5','÷10'],['-0.6','×10']]; const p=rnd(pool); a=p[0]; op=p[1]; }
-      const places = op==='×10'?1:-1;
-      const ans = shiftPoint(a, places);
-      const dist = [shiftPoint(a,-places), shiftPoint(a,2*places), a, shiftPoint(a,-2*places)];
-      const sc = pickScenario('scale');
-      return {promptHTML:`${a} <span class="${op==='×10'?'op':'opd'}">${op}</span> = <span class="qmark">?</span>`,
-              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,op)}</div>`,
-              proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(a,op)}</div>`:null,
-              scenarioFact:sc.fact,
-              answer:ans, distractors:dist, type:'shift',
-              exp:{a, op, places, ans, unit:sc.unit||'', tag:sc.tag}};
-    }
-  },
-  powers:{
-    title:'Powers of 10',
-    desc:'Multiply & divide by 10, 100, 1000 — the language of scale',
-    icon:'⚛️', accent:'var(--teal)',
-    diffs:['Easy','Medium','Hard'],
-    make(diff){
-      let a, opnum, sign;
-      if(diff==='Easy'){ a=rnd(['3','5','7','12','9','4']); opnum=rnd([10,100]); sign=1; }
-      else if(diff==='Medium'){ a=rnd(['2.5','0.4','1.2','0.75','3.6','0.9']); opnum=rnd([10,100]); sign=rnd([1,-1]); }
-      else { a=rnd(['2.5','0.04','-1.5','340','0.8','-25','1.25']); opnum=rnd([100,1000]); sign=rnd([1,-1]); }
-      const op = (sign>0?'×':'÷') + opnum;
-      const k = String(opnum).length-1;
-      const places = sign>0 ? k : -k;
-      const ans = shiftPoint(a, places);
-      const dist=[shiftPoint(a,-places), shiftPoint(a,places+(sign>0?-1:1)), shiftPoint(a,places+(sign>0?1:-1)), a];
-      const sc = pickScenario('scale');
-      return {promptHTML:`${a} <span class="${sign>0?'op':'opd'}">${op}</span> = <span class="qmark">?</span>`,
-              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,op)}</div>`,
-              proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(a,op)}</div>`:null,
-              scenarioFact:sc.fact,
-              answer:ans, distractors:dist, type:'shift',
-              exp:{a, op, places, ans, unit:sc.unit||'', tag:sc.tag}};
-    }
-  },
-  negatives:{
-    title:'Crossing Absolute Zero',
-    desc:'Add & subtract across the zero line — voltages, temperatures, charges',
-    icon:'❄️', accent:'var(--blue)',
-    diffs:['Easy','Medium','Hard'],
-    make(diff){
-      let x,y,sub=false;
-      if(diff==='Easy'){ x=rnd([-3,-2,-4,-1,2,3]); y=rnd([2,3,4,5]); sub=Math.random()<0.4; }
-      else if(diff==='Medium'){ x=rnd([-8,-6,-7,-5,4,6,7]); y=rnd([3,5,8,9,11,12]); sub=Math.random()<0.5; }
-      else { x=rnd([-9,-7,5,6,-4,8]); y=rnd([-6,-9,-3,7,12,-5]); sub=Math.random()<0.5; }
-      const res = sub ? x - y : x + y;
-      const opShown = sub ? '−' : '+';
+      let x,y;
+      if(diff==='Easy'){ x=rnd([-3,-2,-4,-1,2,3]); y=rnd([2,3,4,5]); }
+      else if(diff==='Medium'){ x=rnd([-8,-6,-7,-5,4,6,7]); y=rnd([3,5,8,9,11,12]); }
+      else { x=rnd([-9,-7,5,6,-4,8]); y=rnd([-6,-9,-3,7,12,-5]); }
+      const opShown='+', res=x+y;
       const ystr = y<0 ? `(${y})` : `${y}`;
       const ans = intStr(res);
-      const dist=[ intStr(sub? x+y : x-y), intStr(-res), intStr(res+ (res>=0?-1:1)), intStr(res + (Math.random()<.5?2:-2)) ];
+      const dist=[ intStr(x-y), intStr(-res), intStr(res+(res>=0?-1:1)), intStr(res+(Math.random()<.5?2:-2)) ];
       const sc = pickScenario('cross');
       return {promptHTML:`${x} <span class="op">${opShown}</span> ${ystr} = <span class="qmark">?</span>`,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(x,opShown,y)}</div>`,
               proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(x,opShown,y)}</div>`:null,
               scenarioFact:sc.fact,
               answer:ans, distractors:dist, type:'neg',
-              exp:{start:x, delta: sub? -y : y, end:res, unit:sc.unit||'', tag:sc.tag}};
+              exp:{start:x, delta:y, end:res, unit:sc.unit||'', tag:sc.tag}};
     }
   },
-  fractions:{
-    title:'Alchemy Ratios → Decimals',
-    desc:'Mole fractions, abundances, karats — turn ratios into decimals',
-    icon:'🧪', accent:'var(--gold)',
+  intSub:{
+    title:'Integer subtraction',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      let x,y;
+      if(diff==='Easy'){ x=rnd([-3,-2,-4,-1,2,3]); y=rnd([2,3,4,5]); }
+      else if(diff==='Medium'){ x=rnd([-8,-6,-7,-5,4,6,7]); y=rnd([3,5,8,9,11,12]); }
+      else { x=rnd([-9,-7,5,6,-4,8]); y=rnd([-6,-9,-3,7,12,-5]); }
+      const opShown='−', res=x-y;
+      const ystr = y<0 ? `(${y})` : `${y}`;
+      const ans = intStr(res);
+      const dist=[ intStr(x+y), intStr(-res), intStr(res+(res>=0?-1:1)), intStr(res+(Math.random()<.5?2:-2)) ];
+      const sc = pickScenario('cross');
+      return {promptHTML:`${x} <span class="op">${opShown}</span> ${ystr} = <span class="qmark">?</span>`,
+              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(x,opShown,y)}</div>`,
+              proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(x,opShown,y)}</div>`:null,
+              scenarioFact:sc.fact,
+              answer:ans, distractors:dist, type:'neg',
+              exp:{start:x, delta:-y, end:res, unit:sc.unit||'', tag:sc.tag}};
+    }
+  },
+  realMul:{
+    title:'Real ×10, ×100, ×1000',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      let a, opnum;
+      if(diff==='Easy'){ a=rnd(['3','7','4','8','6','9','5','12','15','11','20']); opnum=10; }
+      else if(diff==='Medium'){ a=rnd(['0.5','0.3','0.7','2.4','1.6','0.9','3.5','0.08','4.2']); opnum=rnd([10,100]); }
+      else { a=rnd(['2.5','0.04','-1.5','340','0.8','-25','1.25','0.5']); opnum=rnd([10,100,1000]); }
+      const op = '×'+opnum;
+      const k = String(opnum).length-1, places = k;
+      const ans = shiftPoint(a, places);
+      const dist=[shiftPoint(a,-places), shiftPoint(a,places-1), shiftPoint(a,places+1), a];
+      const sc = pickScenario('scale');
+      return {promptHTML:`${a} <span class="op">${op}</span> = <span class="qmark">?</span>`,
+              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,op)}</div>`,
+              proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(a,op)}</div>`:null,
+              scenarioFact:sc.fact,
+              answer:ans, distractors:dist, type:'shift',
+              exp:{a, op, places, ans, unit:sc.unit||'', tag:sc.tag}};
+    }
+  },
+  realDiv:{
+    title:'Real ÷10, ÷100, ÷1000',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      let a, opnum;
+      if(diff==='Easy'){ a=rnd(['30','70','40','80','60','90','50','120','150','110','200']); opnum=10; }
+      else if(diff==='Medium'){ a=rnd(['5','3','7','24','16','9','35','42','120','85']); opnum=rnd([10,100]); }
+      else { a=rnd(['2500','0.04','-1.5','340','-25','1250','-60','875']); opnum=rnd([10,100,1000]); }
+      const op = '÷'+opnum;
+      const k = String(opnum).length-1, places = -k;
+      const ans = shiftPoint(a, places);
+      const dist=[shiftPoint(a,-places), shiftPoint(a,places+1), shiftPoint(a,places-1), a];
+      const sc = pickScenario('scale');
+      return {promptHTML:`${a} <span class="opd">${op}</span> = <span class="qmark">?</span>`,
+              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,op)}</div>`,
+              proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(a,op)}</div>`:null,
+              scenarioFact:sc.fact,
+              answer:ans, distractors:dist, type:'shift',
+              exp:{a, op, places, ans, unit:sc.unit||'', tag:sc.tag}};
+    }
+  },
+  fracDiv:{
+    title:'Fraction → Decimal',
     diffs:['Easy','Medium','Hard'],
     make(diff){
       let n,d;
@@ -580,6 +613,58 @@ const TOPICS = {
     }
   }
 };
+
+/* ===== hierarchy metadata ===== */
+const NUMBER_TYPES = [
+  {key:'natural',label:'Natural numbers',desc:'1, 2, 3 …',symbol:'ℕ',enabled:false},
+  {key:'integers',label:'Integers',desc:'… −2, −1, 0, 1, 2 …',symbol:'ℤ',enabled:true},
+  {key:'fractions',label:'Fractions',desc:'½, ¾, ⅛ …',symbol:'¾',enabled:true},
+  {key:'real',label:'Real numbers',desc:'0.5, 3.14 …',symbol:'ℝ',enabled:true},
+  {key:'complex',label:'Complex numbers',desc:'a + bi',symbol:'ℂ',enabled:false}
+];
+const CATEGORIES_BASE = [
+  {key:'arithmetic',label:'Arithmetic',desc:'+, −, ×, ÷',symbol:'+÷'},
+  {key:'inequalities',label:'Inequalities',desc:'>, <, ≥, ≤',symbol:'≥'}
+];
+function categoriesFor(nt){
+  const enabled = {
+    natural:{arithmetic:false,inequalities:false},
+    integers:{arithmetic:true,inequalities:false},
+    fractions:{arithmetic:true,inequalities:false},
+    real:{arithmetic:true,inequalities:false},
+    complex:{arithmetic:false,inequalities:false}
+  }[nt]||{};
+  return CATEGORIES_BASE.map(c=>({...c,enabled:!!enabled[c.key]}));
+}
+function operationsFor(nt,cat){
+  if(cat==='inequalities'){
+    return [
+      {key:'gt',label:'Greater / Less than',desc:'>, <',symbol:'>',enabled:false},
+      {key:'gte',label:'Greater or equal',desc:'≥, ≤',symbol:'≥',enabled:false}
+    ];
+  }
+  return ({
+    integers:[
+      {key:'add',label:'Addition',desc:'cross zero with +',symbol:'+',enabled:true,topic:'intAdd'},
+      {key:'sub',label:'Subtraction',desc:'cross zero with −',symbol:'−',enabled:true,topic:'intSub'},
+      {key:'mul',label:'Multiplication',desc:'a × b',symbol:'×',enabled:false},
+      {key:'div',label:'Division',desc:'a ÷ b',symbol:'÷',enabled:false}
+    ],
+    fractions:[
+      {key:'add',label:'Addition',desc:'common denominators',symbol:'+',enabled:false},
+      {key:'sub',label:'Subtraction',desc:'common denominators',symbol:'−',enabled:false},
+      {key:'mul',label:'Multiplication',desc:'numerator × numerator',symbol:'×',enabled:false},
+      {key:'div',label:'Division → Decimal',desc:'n ÷ d',symbol:'÷',enabled:true,topic:'fracDiv'}
+    ],
+    real:[
+      {key:'add',label:'Addition',desc:'decimal addition',symbol:'+',enabled:false},
+      {key:'sub',label:'Subtraction',desc:'decimal subtraction',symbol:'−',enabled:false},
+      {key:'mul',label:'Multiplication',desc:'×10, ×100, ×1000',symbol:'×',enabled:true,topic:'realMul'},
+      {key:'div',label:'Division',desc:'÷10, ÷100, ÷1000',symbol:'÷',enabled:true,topic:'realDiv'}
+    ]
+  })[nt]||[];
+}
+const NAV = {numberType:null,category:null,operation:null};
 
 /* ===== settings model ===== */
 const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:true, mode:'pure', showEq:'show', useUnits:false };
@@ -641,20 +726,55 @@ function openProfile(){
   show('profile');
 }
 
-function buildTopics(){
-  const list=$('topicList'); list.innerHTML='';
-  Object.entries(TOPICS).forEach(([key,t])=>{
-    const b=document.createElement('button'); b.className='topic';
-    b.innerHTML=`<span class="ic">${t.icon}</span>
-      <span><span class="tt">${t.title}</span><div class="td">${t.desc}</div></span>
-      <span class="arr">→</span>`;
-    b.addEventListener('click',()=>openSettings(key));
+function renderNumberList(){
+  const list=$('numberList'); list.innerHTML='';
+  NUMBER_TYPES.forEach(n=>{
+    const b=document.createElement('button');
+    b.className='topic'+(n.enabled?'':' disabled');
+    b.innerHTML=`<span class="ic">${n.symbol}</span>
+      <span><span class="tt">${n.label}</span><div class="td">${n.desc}</div></span>
+      <span class="arr">${n.enabled?'→':'soon'}</span>`;
+    if(n.enabled) b.addEventListener('click',()=>openCategories(n.key));
     list.appendChild(b);
   });
 }
+function openCategories(nt){
+  NAV.numberType=nt; saveNav();
+  const def=NUMBER_TYPES.find(x=>x.key===nt);
+  $('catCrumb').textContent=def.label;
+  const list=$('categoryList'); list.innerHTML='';
+  categoriesFor(nt).forEach(c=>{
+    const b=document.createElement('button');
+    b.className='topic'+(c.enabled?'':' disabled');
+    b.innerHTML=`<span class="ic">${c.symbol}</span>
+      <span><span class="tt">${c.label}</span><div class="td">${c.desc}</div></span>
+      <span class="arr">${c.enabled?'→':'soon'}</span>`;
+    if(c.enabled) b.addEventListener('click',()=>openOperations(c.key));
+    list.appendChild(b);
+  });
+  show('categories');
+}
+function openOperations(cat){
+  NAV.category=cat; saveNav();
+  const nt=NAV.numberType;
+  const ntDef=NUMBER_TYPES.find(x=>x.key===nt);
+  const catDef=CATEGORIES_BASE.find(x=>x.key===cat);
+  $('opCrumb').textContent=`${ntDef.label} · ${catDef.label}`;
+  const list=$('operationList'); list.innerHTML='';
+  operationsFor(nt,cat).forEach(o=>{
+    const b=document.createElement('button');
+    b.className='topic'+(o.enabled?'':' disabled');
+    b.innerHTML=`<span class="ic">${o.symbol}</span>
+      <span><span class="tt">${o.label}</span><div class="td">${o.desc}</div></span>
+      <span class="arr">${o.enabled?'→':'soon'}</span>`;
+    if(o.enabled) b.addEventListener('click',()=>{ NAV.operation=o.key; saveNav(); openSettings(o.topic); });
+    list.appendChild(b);
+  });
+  show('operations');
+}
 
 function openSettings(key){
-  SET.topic=key;
+  SET.topic=key; saveSettings();
   const t=TOPICS[key];
   $('setCrumb').textContent=t.title;
   if(!t.diffs.includes(SET.diff)) SET.diff=t.diffs[0];
@@ -670,7 +790,7 @@ function openSettings(key){
 }
 function refreshConditionals(){
   const isReal = SET.mode==='real';
-  const topicHasUnits = ['cosmic','powers','negatives'].includes(SET.topic);
+  const topicHasUnits = ['intAdd','intSub','realMul','realDiv'].includes(SET.topic);
   $('setEqBlock').style.display = isReal ? 'block' : 'none';
   $('setUnitBlock').style.display = (isReal && topicHasUnits) ? 'block' : 'none';
 }
@@ -680,10 +800,19 @@ function renderOpts(containerId, items, field, onChange){
     const [val,label,sub]=it;
     const b=document.createElement('button'); b.className='opt'+(SET[field]===val?' sel':'');
     b.innerHTML = sub ? `${label}<span class="sub">${sub}</span>` : label;
-    b.addEventListener('click',()=>{ SET[field]=val; renderOpts(containerId, items, field, onChange); if(onChange) onChange(); });
+    b.addEventListener('click',()=>{ SET[field]=val; saveSettings(); renderOpts(containerId, items, field, onChange); if(onChange) onChange(); });
     c.appendChild(b);
   });
 }
+
+/* ===== persisted settings + nav ===== */
+const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
+function loadSettings(){
+  try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'null'); if(s&&typeof s==='object') Object.assign(SET, s); }catch{}
+  try{ const n=JSON.parse(localStorage.getItem(NAV_KEY)||'null'); if(n&&typeof n==='object') Object.assign(NAV, n); }catch{}
+}
+function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(SET)); }catch{} }
+function saveNav(){ try{ localStorage.setItem(NAV_KEY, JSON.stringify(NAV)); }catch{} }
 
 $('startBtn').addEventListener('click', startGame);
 $('exitBtn').addEventListener('click', ()=>{ clearInterval(timerInt); show('settings'); });
@@ -692,10 +821,10 @@ $('submitBtn').addEventListener('click', submitTyped);
 $('againBtn').addEventListener('click', startGame);
 $('changeBtn').addEventListener('click', ()=> show('settings'));
 $('gateBtn').addEventListener('click', beginPlay);
-$('signinBtn').addEventListener('click', ()=>{ const u=signInWithEmail($('emailIn').value); if(!u){$('emailIn').style.borderColor='var(--no)';return;} renderUserChip(); show('topics'); });
+$('signinBtn').addEventListener('click', ()=>{ const u=signInWithEmail($('emailIn').value); if(!u){$('emailIn').style.borderColor='var(--no)';return;} renderUserChip(); show('numbers'); });
 $('emailIn').addEventListener('keydown', e=>{ if(e.key==='Enter') $('signinBtn').click(); });
 $('emailIn').addEventListener('input', ()=>{ $('emailIn').style.borderColor=''; });
-$('logoutBtn').addEventListener('click', ()=>{ signOut(); show('topics'); });
+$('logoutBtn').addEventListener('click', ()=>{ signOut(); show('numbers'); });
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{clearInterval(timerInt);show(b.dataset.go);}));
 $('typein').addEventListener('keydown', e=>{ if(e.key==='Enter') submitTyped(); });
 
@@ -891,8 +1020,36 @@ function burst(){
   }
 }
 
-buildTopics();
+loadSettings();
+renderNumberList();
 renderUserChip();
+/* Pre-render any sub-screens we have nav state for, so back buttons land on a populated screen */
+if(NAV.numberType && NUMBER_TYPES.find(n=>n.key===NAV.numberType && n.enabled)){
+  const ntDef=NUMBER_TYPES.find(x=>x.key===NAV.numberType);
+  $('catCrumb').textContent=ntDef.label;
+  const list=$('categoryList'); list.innerHTML='';
+  categoriesFor(NAV.numberType).forEach(c=>{
+    const b=document.createElement('button');
+    b.className='topic'+(c.enabled?'':' disabled');
+    b.innerHTML=`<span class="ic">${c.symbol}</span><span><span class="tt">${c.label}</span><div class="td">${c.desc}</div></span><span class="arr">${c.enabled?'→':'soon'}</span>`;
+    if(c.enabled) b.addEventListener('click',()=>openOperations(c.key));
+    list.appendChild(b);
+  });
+  if(NAV.category){
+    const catDef=CATEGORIES_BASE.find(x=>x.key===NAV.category);
+    if(catDef){
+      $('opCrumb').textContent=`${ntDef.label} · ${catDef.label}`;
+      const olist=$('operationList'); olist.innerHTML='';
+      operationsFor(NAV.numberType,NAV.category).forEach(o=>{
+        const b=document.createElement('button');
+        b.className='topic'+(o.enabled?'':' disabled');
+        b.innerHTML=`<span class="ic">${o.symbol}</span><span><span class="tt">${o.label}</span><div class="td">${o.desc}</div></span><span class="arr">${o.enabled?'→':'soon'}</span>`;
+        if(o.enabled) b.addEventListener('click',()=>{ NAV.operation=o.key; saveNav(); openSettings(o.topic); });
+        olist.appendChild(b);
+      });
+    }
+  }
+}
 </script>
 </body>
 </html>
