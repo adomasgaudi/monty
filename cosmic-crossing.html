@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.19.2 -->
+<!-- Riemann Surface v1.20.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.19.2 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.20.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -261,6 +261,22 @@
     cursor:pointer;color:var(--ink);transition:border-color .12s,background .12s,color .12s;}
   .rate-btn:hover{border-color:var(--ink);}
   .rate-btn.sel{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+  /* End-screen per-question summary */
+  .qsumsection{margin-top:24px;padding-top:18px;border-top:1px solid var(--line);text-align:left;}
+  .qsumlist{display:grid;gap:6px;margin-top:10px;}
+  .qsumrow{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;
+    padding:8px 10px;border:1px solid var(--line);border-radius:8px;}
+  .qsumrow.ok{background:rgba(31,143,95,.06);border-color:rgba(31,143,95,.3);}
+  .qsumrow.no{background:rgba(192,70,58,.06);border-color:rgba(192,70,58,.3);}
+  .qsumrow .qidx{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted);text-align:right;}
+  .qsumrow .qprompt{font-family:'DM Mono',monospace;font-size:.92rem;color:var(--ink);overflow:hidden;}
+  .qsumrow .qprompt .frac,.qsumrow .qprompt .vec,.qsumrow .qprompt .mat{font-size:.8em;}
+  .qsumrow .qprompt .qmark,.qsumrow .qprompt .op,.qsumrow .qprompt .opd{color:var(--muted);}
+  .qsumrow .qprompt sup{font-size:.7em;}
+  .qsumrow .qres{font-family:'DM Mono',monospace;font-size:.82rem;text-align:right;white-space:nowrap;}
+  .qsumrow .qres .your{color:var(--ink);}
+  .qsumrow.no .qres .your{color:var(--no);text-decoration:line-through;}
+  .qsumrow .qres .ans{color:var(--ok);}
   .rate-higher{border-style:dashed;color:var(--muted);}
   .rate-higher:hover{color:var(--ink);}
   .rate-higher.sel{background:transparent;color:var(--ink);border-color:var(--ink);border-style:solid;}
@@ -521,7 +537,7 @@
   <!-- PLAY -->
   <section class="screen" id="play">
     <div class="hud">
-      <button class="back" id="exitBtn">← Exit</button>
+      <button class="back" id="finishBtn" type="button" title="Finish early and see the summary">⏹ Finish</button>
       <span class="chip" id="qcount">1 / 10</span>
       <span class="chip time" id="timer">0.0s</span>
       <span class="chip score" id="score">★ 0</span>
@@ -579,6 +595,10 @@
         <div class="ratecap" id="rateCap"></div>
         <div class="rateopts" id="rateOpts"></div>
       </div>
+      <div class="qsumsection" id="qSumSection" style="display:none;">
+        <div class="setlabel">Question summary</div>
+        <div class="qsumlist" id="qSumList"></div>
+      </div>
       <div class="endbtns">
         <button class="next" id="againBtn">Play again</button>
         <button class="next" id="changeBtn" style="background:none;color:var(--ink);border:1px solid var(--line);">Change settings</button>
@@ -586,7 +606,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.19.2</div>
+<div class="version">v1.20.0</div>
 
 <script>
 /* ============================================================================
@@ -1674,6 +1694,7 @@ function tierName(gradeStr){
 
 /* ─── 7. Runtime state + screen switcher ────────────────────────────────── */
 let queue, idx, score, correctCount, attempts, startTime, timerInt, locked;
+let qHistory = []; // per-question records for the end-screen summary
 let fbInterval = null, fbTimeout = null;
 let visualShown = true; // toggled per-game; init in startGame()
 let gameActive = false; // true between startGame() and endGame()/mid-exit
@@ -2251,7 +2272,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.19.2';
+const APP_VERSION = 'v1.20.0';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
@@ -2281,7 +2302,7 @@ function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(
 function saveNav(){ try{ localStorage.setItem(NAV_KEY, JSON.stringify(NAV)); }catch{} }
 
 $('startBtn').addEventListener('click', startGame);
-$('exitBtn').addEventListener('click', ()=>{ leavingCleanup(); show('settings'); });
+$('finishBtn').addEventListener('click', ()=>{ finishEarly(); });
 $('navBack').addEventListener('click', navBack);
 $('navHome').addEventListener('click', navHome);
 $('navProfile').addEventListener('click', navProfile);
@@ -2351,6 +2372,7 @@ function startGame(){
   pushRecent();
   initVisualState();
   idx=0; score=0; correctCount=0; attempts=0; locked=false;
+  qHistory = [];
   // gameActive flips to true only when the player presses Start on the
   // gate (beginPlay). Sitting on the gate isn't a "real" game yet.
   clearInterval(timerInt);
@@ -2436,10 +2458,20 @@ function submitTyped(){
 
 function resolve(right, btn, q){
   if(locked) return; locked=true; attempts++;
+  let userAnswer = '';
   if(SET.method==='choice'){
     document.querySelectorAll('.ans').forEach(b=>{ b.disabled=true; if(b.dataset.val===q.answer) b.classList.add('correct'); });
-    if(btn && !right) btn.classList.add('wrong');
+    if(btn){ userAnswer = btn.dataset.val || btn.textContent; if(!right) btn.classList.add('wrong'); }
+  } else {
+    userAnswer = $('typein').value;
   }
+  qHistory.push({
+    promptHTML: q.promptHTML,
+    diagramHTML: q.diagramHTML || '',
+    userAnswer,
+    correctAnswer: q.answer,
+    correct: !!right,
+  });
   if(right){ score += (DIFF_MULT[SET.diff]||1); correctCount++; $('score').textContent=`★ ${score}`; burst(); }
 
   const fb = SET.feedback;
@@ -2656,6 +2688,39 @@ function nextQuestion(){
   renderQuestion();
 }
 
+/** Player pressed "Finish" mid-game. Bail straight to the summary screen
+ *  using whatever they've already answered. */
+function finishEarly(){
+  if(!gameActive){ show('settings'); return; }
+  clearFeedbackTimer();
+  endGame(true);
+}
+
+/** Render the per-question recap at the bottom of the end screen. */
+function renderQuestionSummary(){
+  const section = $('qSumSection');
+  const list = $('qSumList');
+  if(!qHistory.length){ section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = '';
+  qHistory.forEach((rec, i)=>{
+    const row = document.createElement('div');
+    row.className = 'qsumrow ' + (rec.correct ? 'ok' : 'no');
+    // Strip the "= ?" tail so the prompt reads cleanly inline.
+    const prompt = String(rec.promptHTML).replace(/\s*=\s*<span class="qmark">\?<\/span>\s*$/, '');
+    const user   = rec.userAnswer == null || rec.userAnswer === '' ? '—' : String(rec.userAnswer);
+    const correct = rec.correctAnswer;
+    const result = rec.correct
+      ? `<span class="ans">${user}</span>`
+      : `<span class="your">${user}</span> → <span class="ans">${correct}</span>`;
+    row.innerHTML = `
+      <span class="qidx">${i+1}</span>
+      <span class="qprompt">${prompt}</span>
+      <span class="qres">${result}</span>`;
+    list.appendChild(row);
+  });
+}
+
 /** Render the end-screen "rate this game" block. Only the unlocked grades
  *  are shown — each 3× of a grade unlocks the next step. */
 function renderRatingUI(){
@@ -2701,18 +2766,25 @@ function renderRatingUI(){
   wrap.appendChild(higherBtn);
 }
 
-function endGame(){
+function endGame(earlyFinish){
   clearInterval(timerInt);
   const total=((Date.now()-startTime)/1000).toFixed(1);
-  const maxScore = SET.count * (DIFF_MULT[SET.diff]||1);
+  // When the player finishes early, denominators reflect what they actually
+  // answered. The natural-finish path keeps SET.count for the max-score line.
+  const answered  = earlyFinish ? attempts : SET.count;
+  const effective = Math.max(1, answered);
+  const maxScore  = effective * (DIFF_MULT[SET.diff]||1);
   const u=getCurrentUser();
-  if(u && gameActive){ recordGame(u, SET.topic, score, correctCount, SET.count, SET.diff); renderUserChip(); }
+  if(u && gameActive && answered > 0){
+    recordGame(u, SET.topic, score, correctCount, effective, SET.diff);
+    renderUserChip();
+  }
   gameActive = false;
   show('end');
-  const accuracy = correctCount / SET.count;
+  const accuracy = correctCount / effective;
   const earned = gradeFor(accuracy, SET.diff, SET.topic);
   $('finalScore').textContent=score;
-  $('finalOf').textContent=' / '+maxScore+'  ('+SET.diff+' ×'+(DIFF_MULT[SET.diff]||1)+')';
+  $('finalOf').textContent=' / '+maxScore+'  ('+SET.diff+' ×'+(DIFF_MULT[SET.diff]||1)+(earlyFinish?` · answered ${answered}`:'')+')';
   $('finalTime').textContent=total+'s';
   $('finalAcc').textContent=Math.round(accuracy*100)+'%';
   $('finalGrade').textContent='Lvl '+earned.full;
@@ -2720,6 +2792,7 @@ function endGame(){
   $('finalGradeBox').setAttribute('data-tier', earned.number);
   $('bar').style.width='100%';
   renderRatingUI();
+  renderQuestionSummary();
   const pct=score/SET.count;
   let title,msg;
   if(pct===1){title='Flawless';msg='Every one. The pattern is yours.';}
