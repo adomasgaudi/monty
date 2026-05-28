@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.16.1 -->
+<!-- Cosmic Crossing v1.16.2 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.16.1 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.16.2 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -561,7 +561,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.16.1</div>
+<div class="version">v1.16.2</div>
 
 <script>
 /* ============================================================================
@@ -1515,13 +1515,17 @@ const FB_TIMING={off:300, short:300, long:6000};
  * Tier ceilings per topic — intentionally cap "easier" math low. The user's
  * rule: all integer algebra stays below Highschool (max grade < 5). */
 const TOPIC_GRADE_CEIL = {
+  // Nothing in this app gets past undergraduate. Matrix multiplication is the
+  // hardest piece and caps at 6 (Gradschool / undergrad). Integer algebra
+  // stays below Highschool (max 4). PhD+ tiers are reserved for content
+  // we haven't built yet.
   natAdd:4, natSub:4, natMul:4, natDiv:4, natExp:4,
   intAdd:4, intSub:4, intExp:4,
-  fracDiv:5,
-  realMul:7, realDiv:7, realExp:7,
-  vcmAdd:8, vcmSub:8, vcmMul:8,
-  vecDot:9, vecWedge:9,
-  matMul:10,
+  fracDiv:4,
+  realMul:5, realDiv:5, realExp:5,
+  vcmAdd:5, vcmSub:5, vcmMul:6,
+  vecDot:6, vecWedge:6,
+  matMul:6,
 };
 const TIER_NAMES = {
   1:'Layman',   2:'Layman',   3:'Layman',
@@ -2161,7 +2165,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.16.1';
+const APP_VERSION = 'v1.16.2';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
