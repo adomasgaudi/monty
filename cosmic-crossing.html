@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.8.0 -->
+<!-- Cosmic Crossing v1.9.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.8.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.9.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -114,6 +114,13 @@
   .mat .el.hl{background:rgba(0,0,0,.08);border-radius:3px;font-weight:600;}
   .q .vec, .q .mat{font-size:.55em;}
   .q .matlabel{font-size:.4em;color:var(--muted);display:block;margin-top:14px;letter-spacing:.04em;}
+  .vdiag{display:block;margin:16px auto 4px;max-width:280px;width:100%;height:auto;}
+  .gabreak{margin-top:14px;font-family:'DM Mono',monospace;font-size:.85rem;text-align:left;
+    background:rgba(0,0,0,.03);border-left:2px solid var(--ink);padding:10px 14px;border-radius:0 6px 6px 0;}
+  .gabreak .ghdr{font-family:'Fredoka',sans-serif;font-weight:500;font-size:.95rem;margin-bottom:6px;}
+  .gabreak .grow{display:flex;justify-content:space-between;gap:8px;padding:3px 0;}
+  .gabreak .gtag{color:var(--muted);}
+  .gabreak .pyth{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);color:var(--muted);font-family:'Fredoka',sans-serif;font-size:.85rem;}
 
   .answers{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .ans{font-family:'DM Mono',monospace;font-weight:400;font-size:1.25rem;cursor:pointer;
@@ -385,7 +392,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.8.0</div>
+<div class="version">v1.9.0</div>
 
 <script>
 /* ===== math helpers ===== */
@@ -621,6 +628,79 @@ function matHTML(M, hlRow, hlCol){
   }
   return html + `</span>`;
 }
+/* ===== SVG vector diagrams ===== */
+function drawArrow(x1,y1,x2,y2,color,lw,dashed){
+  const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy);
+  if(len<.001) return '';
+  const ux=dx/len, uy=dy/len;
+  const head=Math.min(0.45, Math.max(0.18, len*0.18));
+  const lx=x2-ux*head*0.55, ly=y2-uy*head*0.55;
+  const dash=dashed?`stroke-dasharray="0.3,0.18"`:'';
+  let s=`<line x1="${x1}" y1="${y1}" x2="${lx}" y2="${ly}" stroke="${color}" stroke-width="${lw}" ${dash} stroke-linecap="round"/>`;
+  const a=Math.atan2(uy,ux);
+  const p1x=x2-head*Math.cos(a-Math.PI/6), p1y=y2-head*Math.sin(a-Math.PI/6);
+  const p2x=x2-head*Math.cos(a+Math.PI/6), p2y=y2-head*Math.sin(a+Math.PI/6);
+  s+=`<path d="M${x2},${y2} L${p1x},${p1y} L${p2x},${p2y} Z" fill="${color}"/>`;
+  return s;
+}
+function vecDiag(arrows, opts){
+  opts=opts||{};
+  const pts=[[0,0]];
+  arrows.forEach(a=>pts.push(a.v));
+  if(opts.resultant) pts.push(opts.resultant);
+  if(opts.parallelogram && arrows.length>=2){ const u=arrows[0].v,w=arrows[1].v; pts.push([u[0]+w[0],u[1]+w[1]]); }
+  const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+  const pad=1.2;
+  const minX=Math.min(...xs)-pad, maxX=Math.max(...xs)+pad;
+  const minY=Math.min(...ys)-pad, maxY=Math.max(...ys)+pad;
+  const W=maxX-minX, H=maxY-minY;
+  const scale=Math.max(W,H), lw=scale*0.013;
+  const parts=[];
+  parts.push(`<svg class="vdiag" viewBox="${minX} ${-maxY} ${W} ${H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">`);
+  const pid='g'+Math.floor(Math.random()*1e9);
+  parts.push(`<defs><pattern id="${pid}" width="1" height="1" patternUnits="userSpaceOnUse"><path d="M1,0 L0,0 0,1" fill="none" stroke="rgba(0,0,0,.07)" stroke-width="${lw*0.4}"/></pattern></defs>`);
+  parts.push(`<rect x="${minX}" y="${-maxY}" width="${W}" height="${H}" fill="url(#${pid})"/>`);
+  parts.push(`<line x1="${minX}" y1="0" x2="${maxX}" y2="0" stroke="rgba(0,0,0,.25)" stroke-width="${lw*0.65}"/>`);
+  parts.push(`<line x1="0" y1="${-maxY}" x2="0" y2="${-minY}" stroke="rgba(0,0,0,.25)" stroke-width="${lw*0.65}"/>`);
+  if(opts.parallelogram && arrows.length>=2){
+    const u=arrows[0].v, w=arrows[1].v;
+    parts.push(`<path d="M0,0 L${u[0]},${-u[1]} L${u[0]+w[0]},${-(u[1]+w[1])} L${w[0]},${-w[1]} Z" fill="rgba(155,92,255,.13)" stroke="rgba(155,92,255,.5)" stroke-width="${lw*0.55}" stroke-dasharray="0.2,0.12"/>`);
+  }
+  if(opts.projection && arrows.length>=2){
+    const u=arrows[0].v, w=arrows[1].v, m=u[0]*u[0]+u[1]*u[1];
+    if(m>0){
+      const t=(u[0]*w[0]+u[1]*w[1])/m, px=u[0]*t, py=u[1]*t;
+      parts.push(`<line x1="${w[0]}" y1="${-w[1]}" x2="${px}" y2="${-py}" stroke="rgba(31,143,95,.55)" stroke-width="${lw*0.85}" stroke-dasharray="0.16,0.1"/>`);
+      parts.push(`<line x1="0" y1="0" x2="${px}" y2="${-py}" stroke="rgba(31,143,95,.85)" stroke-width="${lw*1.4}" stroke-linecap="round"/>`);
+    }
+  }
+  if(opts.resultant){
+    parts.push(drawArrow(0,0,opts.resultant[0],-opts.resultant[1],opts.resultantColor||'#2F8F5F',lw*1.15,true));
+    if(opts.resultantLabel){
+      parts.push(`<text x="${opts.resultant[0]+0.25}" y="${-opts.resultant[1]-0.3}" fill="${opts.resultantColor||'#2F8F5F'}" font-size="${scale*0.055}" font-family="DM Mono">${opts.resultantLabel}</text>`);
+    }
+  }
+  arrows.forEach(a=>{
+    parts.push(drawArrow(0,0,a.v[0],-a.v[1],a.color||'#15151B',lw*1.25,false));
+    if(a.label){
+      const off = a.v[0]>=0 ? 0.3 : -0.6;
+      parts.push(`<text x="${a.v[0]+off}" y="${-a.v[1]-0.3}" fill="${a.color||'#15151B'}" font-size="${scale*0.06}" font-family="DM Mono" font-weight="600">${a.label}</text>`);
+    }
+  });
+  parts.push('</svg>');
+  return parts.join('');
+}
+function gaBreakdown(a,b,c,d){
+  const dot = a*c + b*d;
+  const wedge = a*d - b*c;
+  return `<div class="gabreak">
+    <div class="ghdr">Geometric product &nbsp; <span class="mono">u v = u·v + u∧v</span></div>
+    <div class="grow"><span class="gtag">Dot (xx + yy):</span> <span>${a}·${c} + ${b}·${d} = <b>${dot}</b></span></div>
+    <div class="grow"><span class="gtag">Wedge (xy − yx):</span> <span>${a}·${d} − ${b}·${c} = <b>${wedge}</b></span></div>
+    <div class="pyth">Pythagoras view: |u+v|² = a²+b²+c²+d² + 2(u·v) &nbsp;—&nbsp; the dot is the cosine part, the wedge is the sine part (signed area of the parallelogram).</div>
+  </div>`;
+}
+
 function fmt2D(a, b, view){
   if(view==='complex'){
     const sign = b>=0 ? ' + ' : ' − ';
@@ -782,7 +862,8 @@ const TOPICS = {
       const wrongSwap = u[0]*v[1] + u[1]*v[0] + (u[2]?u[2]*v[2]:0);
       const dist = [ intStr(wrongAdd), intStr(wrongSwap), intStr(ans+1), intStr(-ans) ];
       const sc = pickScenario('vec');
-      return {promptHTML:`${vecHTML(u)} <span class="op">·</span> ${vecHTML(v)} = <span class="qmark">?</span>`,
+      const diagram = (u.length===2) ? vecDiag([{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}], {projection:true}) : '';
+      return {promptHTML:`${vecHTML(u)} <span class="op">·</span> ${vecHTML(v)} = <span class="qmark">?</span>${diagram}`,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(u,v)}</div>`,
               proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(u,v)}</div>`:null,
               scenarioFact:sc.fact,
@@ -828,7 +909,8 @@ const TOPICS = {
       const ansStr=intStr(ans);
       const dist=[intStr(idx===0?a-c:b-d), intStr(-ans), intStr(ans+1), intStr(idx===0?b+d:a+c)];
       const sc = pickScenario('vcm');
-      return {promptHTML:vcmPrompt(a,b,c,d,'+',idx),
+      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {resultant:[a+c,b+d], resultantLabel:'u+v'});
+      return {promptHTML:vcmPrompt(a,b,c,d,'+',idx)+diagram,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'+')}</div>`,
               proseHTML:null,
               scenarioFact:sc.fact,
@@ -848,7 +930,8 @@ const TOPICS = {
       const ansStr=intStr(ans);
       const dist=[intStr(idx===0?a+c:b+d), intStr(-ans), intStr(ans+1), intStr(idx===0?b-d:a-c)];
       const sc = pickScenario('vcm');
-      return {promptHTML:vcmPrompt(a,b,c,d,'−',idx),
+      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {resultant:[a-c,b-d], resultantLabel:'u−v'});
+      return {promptHTML:vcmPrompt(a,b,c,d,'−',idx)+diagram,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'−')}</div>`,
               proseHTML:null,
               scenarioFact:sc.fact,
@@ -871,12 +954,34 @@ const TOPICS = {
       const wrongOther = idx===0 ? imag : real;
       const dist=[intStr(wrongSign), intStr(wrongOther), intStr(-ans), intStr(ans+1)];
       const sc = pickScenario('vcm');
-      return {promptHTML:vcmPrompt(a,b,c,d,'·',idx),
+      const diagram = vecDiag([{v:[a,b],label:'u',color:'#FF3D71'},{v:[c,d],label:'v',color:'#3A6EA5'}], {parallelogram:true, projection:true});
+      return {promptHTML:vcmPrompt(a,b,c,d,'·',idx)+diagram,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,b,c,d,'×')}</div>`,
               proseHTML:null,
               scenarioFact:sc.fact,
               answer:ansStr, distractors:dist, type:'vcm',
               exp:{a,b,c,d,op:'×',idx, ans:ansStr, real, imag, tag:sc.tag}};
+    }
+  },
+  vecWedge:{
+    title:'Wedge / cross product',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      const ranges={Easy:[1,2,3,4,5],Medium:[-4,-3,-2,-1,1,2,3,4],Hard:[-5,-3,-2,-1,1,2,3,5]};
+      const range=ranges[diff]||ranges.Easy;
+      const a=rnd(range),b=rnd(range),c=rnd(range),d=rnd(range);
+      const ans = a*d - b*c;
+      const ansStr=intStr(ans);
+      const dot = a*c + b*d;
+      const dist=[intStr(dot), intStr(-ans), intStr(a*d+b*c), intStr(ans+1)];
+      const u=[a,b], v=[c,d];
+      const diagram = vecDiag([{v:u,label:'u',color:'#FF3D71'},{v:v,label:'v',color:'#3A6EA5'}], {parallelogram:true});
+      return {promptHTML:`${vecHTML(u)} <span class="op">∧</span> ${vecHTML(v)} = <span class="qmark">?</span>${diagram}`,
+              scenarioHTML:`<span class="topictag">Signed area</span><div>The wedge of two 2-vectors is the signed area of the parallelogram they span. In 3D this becomes the cross-product vector.</div>`,
+              proseHTML:null,
+              scenarioFact:'In geometric algebra, the full vector product is u v = u·v + u∧v — the dot is the cosine (a²+b² style), the wedge is the sine (2ab style).',
+              answer:ansStr, distractors:dist, type:'wedge',
+              exp:{a,b,c,d, ans:ansStr, dot, wedge:ans}};
     }
   }
 };
@@ -933,7 +1038,8 @@ function operationsFor(nt,cat){
       {key:'add',label:'Addition',desc:'2D add — pick the view',symbol:'+',enabled:true,topic:'vcmAdd'},
       {key:'sub',label:'Subtraction',desc:'2D sub — pick the view',symbol:'−',enabled:true,topic:'vcmSub'},
       {key:'mul',label:'Multiplication',desc:'complex / Argand product',symbol:'×',enabled:true,topic:'vcmMul'},
-      {key:'dot',label:'Dot product',desc:'u · v → scalar',symbol:'·',enabled:true,topic:'vecDot'},
+      {key:'dot',label:'Dot product',desc:'u · v → scalar (cos / xx+yy)',symbol:'·',enabled:true,topic:'vecDot'},
+      {key:'wedge',label:'Wedge / Cross',desc:'u ∧ v → signed area (sin / xy−yx)',symbol:'∧',enabled:true,topic:'vecWedge'},
       {key:'matmul',label:'Matrix multiplication',desc:'general A · B',symbol:'⊞',enabled:true,topic:'matMul'}
     ]
   })[nt]||[];
@@ -992,7 +1098,7 @@ function renderUserChip(){
   if(!u){ chip.innerHTML=`<span>Sign in →</span>`; chip.onclick=()=>{$('emailIn').value='';show('signin');setTimeout(()=>$('emailIn').focus(),50);}; }
   else { const short=u.email.split('@')[0]; chip.innerHTML=`<span>${short}</span><span class="pts">★ ${u.points}</span>`; chip.onclick=()=>openProfile(); }
 }
-const TOPIC_NT = {intAdd:'integers',intSub:'integers',realMul:'real',realDiv:'real',fracDiv:'fractions',vecDot:'vcm',matMul:'vcm',vcmAdd:'vcm',vcmSub:'vcm',vcmMul:'vcm'};
+const TOPIC_NT = {intAdd:'integers',intSub:'integers',realMul:'real',realDiv:'real',fracDiv:'fractions',vecDot:'vcm',vecWedge:'vcm',matMul:'vcm',vcmAdd:'vcm',vcmSub:'vcm',vcmMul:'vcm'};
 function openProfile(){
   const u=getCurrentUser(); if(!u){show('signin');return;}
   $('profEmail').textContent=u.email;
@@ -1299,6 +1405,47 @@ function showExplain(q,right){
       <div class="fexp"><span class="frac"><span>${e.n}</span><span class="den">${e.d}</span></span> &nbsp;=&nbsp; ${e.n} ÷ ${e.d}</div>
       <div class="moveword">${e.n} ÷ ${e.d} = <b class="mono">${e.ans}</b></div></div>
       <div class="why">A fraction is just a division waiting to happen.${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
+  }
+  else if(q.type==='vcm'){
+    const e=q.exp;
+    const isMul = e.op==='×';
+    let arrows=[{v:[e.a,e.b],label:'u',color:'#FF3D71'},{v:[e.c,e.d],label:'v',color:'#3A6EA5'}];
+    let diagOpts;
+    if(e.op==='+') diagOpts={resultant:[e.a+e.c,e.b+e.d], resultantLabel:'u+v'};
+    else if(e.op==='−') diagOpts={resultant:[e.a-e.c,e.b-e.d], resultantLabel:'u−v'};
+    else diagOpts={parallelogram:true, projection:true};
+    const diag = vecDiag(arrows, diagOpts);
+    const compName = e.op==='×' ? (e.idx===0?'real part':'imag part')
+                                : (e.idx===0?'1st':'2nd')+' component';
+    html = `<div class="slidebox">${diag}<div class="moveword">Answer (${compName}) = <b class="mono">${e.ans}</b></div></div>` +
+           (isMul ? gaBreakdown(e.a,e.b,e.c,e.d) : '') +
+           `<div class="why">${isMul?'Complex × matrix × vector are three views of one operation.':'Addition / subtraction is identical in all three views.'}${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
+  }
+  else if(q.type==='vecdot'){
+    const e=q.exp;
+    let diag = '';
+    if(e.u.length===2){
+      diag = vecDiag([{v:e.u,label:'u',color:'#FF3D71'},{v:e.v,label:'v',color:'#3A6EA5'}], {projection:true});
+    }
+    const wedge = e.u.length===2 ? (e.u[0]*e.v[1]-e.u[1]*e.v[0]) : null;
+    html = `<div class="slidebox">${diag}<div class="moveword">u · v = ${e.u.map((ui,i)=>`${ui}·${e.v[i]}`).join(' + ')} = <b class="mono">${e.ans}</b></div></div>` +
+           (wedge!==null ? gaBreakdown(e.u[0],e.u[1],e.v[0],e.v[1]) : '') +
+           `<div class="why">Dot product is the sum of like-direction products (xx + yy + zz) — the cosine half of the geometric product.${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
+  }
+  else if(q.type==='wedge'){
+    const e=q.exp;
+    const diag = vecDiag([{v:[e.a,e.b],label:'u',color:'#FF3D71'},{v:[e.c,e.d],label:'v',color:'#3A6EA5'}], {parallelogram:true});
+    html = `<div class="slidebox">${diag}<div class="moveword">u ∧ v = ${e.a}·${e.d} − ${e.b}·${e.c} = <b class="mono">${e.ans}</b></div></div>` +
+           gaBreakdown(e.a,e.b,e.c,e.d) +
+           `<div class="why">The wedge is the signed area of the purple parallelogram — the sine half of the geometric product. Strip the bivector basis and you get the cross product.${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
+  }
+  else if(q.type==='matmul'){
+    const e=q.exp;
+    const row = e.A[e.r], col = e.B.map(rw=>rw[e.c]);
+    const terms = row.map((v,k)=>`${v}·${col[k]}`).join(' + ');
+    html = `<div class="slidebox">${matHTML(e.A, e.r, undefined)} <span class="op">·</span> ${matHTML(e.B, undefined, e.c)}
+      <div class="moveword">row ${e.r+1} · column ${e.c+1} = ${terms} = <b class="mono">${e.ans}</b></div></div>
+      <div class="why">Matrix multiplication: each output cell is a dot product of a row from A and a column from B.${showFact?`<span class="fact">${q.scenarioFact}</span>`:''}</div>`;
   }
   body.innerHTML=html;
   $('explain').classList.add('on');
