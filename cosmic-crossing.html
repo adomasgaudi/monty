@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.2.0 -->
+<!-- Cosmic Crossing v1.4.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.2.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.4.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -168,6 +168,26 @@
   .conf{position:absolute;width:6px;height:6px;opacity:0;background:var(--ink);}
   @keyframes fall{0%{opacity:.7;transform:translateY(-20px) rotate(0);}100%{opacity:0;transform:translateY(500px) rotate(360deg);}}
 
+  /* user chip + sign-in + profile */
+  .userchip{cursor:pointer;font-family:'DM Mono',monospace;font-size:.78rem;
+    background:none;border:1px solid var(--line);border-radius:20px;padding:5px 11px;
+    color:var(--ink);transition:border-color .12s;display:flex;align-items:center;gap:6px;
+    white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;}
+  .userchip:hover{border-color:var(--ink);}
+  .userchip .pts{color:var(--muted);font-size:.72rem;}
+  .emailin{font-family:'DM Mono',monospace;font-size:1.05rem;width:100%;
+    border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:none;color:var(--ink);}
+  .emailin:focus{outline:none;border-color:var(--ink);}
+  .proftopics{display:grid;gap:6px;margin-top:10px;}
+  .proftopic{display:flex;justify-content:space-between;align-items:center;
+    padding:10px 0;border-bottom:1px solid var(--line);font-size:.92rem;}
+  .proftopic .tk{color:var(--ink);}
+  .proftopic .tv{font-family:'DM Mono',monospace;color:var(--muted);font-size:.88rem;}
+
+  /* start gate */
+  .startgate{padding:32px 8px 16px;text-align:center;}
+  .gatemsg{font-size:1.3rem;font-weight:500;color:var(--ink);margin-bottom:6px;}
+
   .version{position:fixed;bottom:10px;right:14px;font-family:'DM Mono',monospace;
     font-size:.7rem;color:var(--muted);opacity:.6;letter-spacing:.04em;pointer-events:none;}
 </style>
@@ -178,9 +198,42 @@
 
   <!-- TOPICS -->
   <section class="screen on" id="topics">
-    <h1>Cosmic <span class="accent">Crossing</span></h1>
-    <p class="tag">Math at the edge of physics, chemistry & alchemy. Pick a domain.</p>
+    <div class="topbar">
+      <div style="flex:1;">
+        <h1>Cosmic <span class="accent">Crossing</span></h1>
+        <p class="tag">Math at the edge of physics, chemistry & alchemy.</p>
+      </div>
+      <button class="userchip" id="userChip"></button>
+    </div>
     <div class="topics" id="topicList"></div>
+  </section>
+
+  <!-- SIGN-IN -->
+  <section class="screen" id="signin">
+    <div class="topbar"><button class="back" data-go="topics">← Topics</button><span class="crumb">Sign in</span></div>
+    <p class="tag" style="margin-top:16px;">Track your points across sessions. Stored locally — no server.</p>
+    <div class="setblock">
+      <div class="setlabel">Email</div>
+      <input class="emailin mono" id="emailIn" type="email" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <button class="startbtn" id="signinBtn">Continue →</button>
+  </section>
+
+  <!-- PROFILE -->
+  <section class="screen" id="profile">
+    <div class="topbar"><button class="back" data-go="topics">← Topics</button><span class="crumb">Profile</span></div>
+    <div class="endcard" style="text-align:left;">
+      <div class="setlabel" style="margin-top:18px;">Signed in as</div>
+      <div class="mono" id="profEmail" style="font-size:1.1rem;margin-top:4px;"></div>
+      <div class="stats" style="justify-content:flex-start;margin-top:24px;">
+        <div class="stat"><div class="v" id="profPoints">0</div><div class="k">total points</div></div>
+        <div class="stat"><div class="v" id="profGames">0</div><div class="k">games played</div></div>
+        <div class="stat"><div class="v" id="profAcc">0%</div><div class="k">lifetime accuracy</div></div>
+      </div>
+      <div class="setlabel" style="margin-top:24px;">By topic</div>
+      <div id="profTopics" class="proftopics"></div>
+      <button class="next" id="logoutBtn" style="margin-top:24px;background:none;color:var(--no);border:1px solid var(--no);">Sign out</button>
+    </div>
   </section>
 
   <!-- SETTINGS -->
@@ -232,20 +285,28 @@
     </div>
     <div class="progress"><div id="bar"></div></div>
 
-    <div class="scenario" id="scenario"></div>
-    <div class="q mono" id="question"></div>
-
-    <div class="answers" id="answers"></div>
-
-    <div class="typewrap" id="typewrap" style="display:none;">
-      <div class="typeline"><input class="typein mono" id="typein" inputmode="decimal" autocomplete="off" placeholder="?"><span class="unitlabel" id="unitLabel"></span></div>
-      <button class="submitbtn" id="submitBtn">Check</button>
+    <div id="startGate" class="startgate">
+      <div class="gatemsg">Ready when you are.</div>
+      <p class="tag" style="text-align:center;margin-bottom:18px;">Timer starts on click.</p>
+      <button class="startbtn" id="gateBtn">Start →</button>
     </div>
 
-    <div class="explain" id="explain">
-      <div class="verdict" id="verdict"></div>
-      <div id="explainBody"></div>
-      <button class="next" id="nextBtn">Next →</button>
+    <div id="playBody" style="display:none;">
+      <div class="scenario" id="scenario"></div>
+      <div class="q mono" id="question"></div>
+
+      <div class="answers" id="answers"></div>
+
+      <div class="typewrap" id="typewrap" style="display:none;">
+        <div class="typeline"><input class="typein mono" id="typein" inputmode="decimal" autocomplete="off" placeholder="?"><span class="unitlabel" id="unitLabel"></span></div>
+        <button class="submitbtn" id="submitBtn">Check</button>
+      </div>
+
+      <div class="explain" id="explain">
+        <div class="verdict" id="verdict"></div>
+        <div id="explainBody"></div>
+        <button class="next" id="nextBtn">Next →</button>
+      </div>
     </div>
   </section>
 
@@ -267,7 +328,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.2.0</div>
+<div class="version">v1.4.0</div>
 
 <script>
 /* ===== math helpers ===== */
@@ -297,79 +358,127 @@ function fracToDec(n,d){let s=(n/d).toFixed(8);return s.replace(/0+$/,'').replac
 const intStr = n => String(n===0?0:n);
 const rnd = a => a[Math.floor(Math.random()*a.length)];
 
-/* ===== Real-world scenarios — same math, wrapped in physics/chemistry/alchemy ===== */
-/* Each scenario:
-   pick(a, op): returns {tag, intro(a), outro(ans), unit} — uses the value a + the operation op
-*/
+/* ===== Real-world scenarios ===== */
+const _opPhrase = {
+  '×10':'ten times','×100':'a hundred times','×1000':'a thousand times',
+  '÷10':'one tenth','÷100':'one hundredth','÷1000':'one thousandth'
+};
+const _as = (adj, op) => `${_opPhrase[op]||op} as ${adj}`;
+
 const SCENARIOS = {
-  scale:[ // for shift / powers — multiplying or dividing by 10/100/1000
+  scale:[
     {tag:'Black Holes', unit:'km',
       intro:(a,op)=>`The Schwarzschild radius of a small black hole is <b>${a} km</b>. A black hole <b>${op}</b> as massive has a radius...`,
+      prose:(a,op)=>`A small black hole has a Schwarzschild radius of ${a} km. A black hole ${_as('massive',op)} has what radius?`,
       fact:`A black hole's event horizon scales linearly with mass — 10× the mass means 10× the radius.`},
     {tag:'Neutron Stars', unit:'km',
       intro:(a,op)=>`A neutron star is about <b>${a} km</b> across. In a 3D simulation scaled <b>${op}</b>, its diameter becomes...`,
+      prose:(a,op)=>`A neutron star is about ${a} km across. A scaled simulation makes it ${_as('wide',op)}. What's the new diameter?`,
       fact:`Real neutron stars are ~20 km across yet pack 1.4 Sun-masses — denser than an atomic nucleus.`},
     {tag:'Atomic Radius', unit:'Å',
       intro:(a,op)=>`A hydrogen atom has a radius of <b>${a} Å</b>. Stretched <b>${op}</b> in a Rydberg state, the radius is...`,
+      prose:(a,op)=>`A hydrogen atom has a radius of ${a} Å. A Rydberg cousin is ${_as('wide',op)}. What's its radius?`,
       fact:`1 Ångström = 10⁻¹⁰ m. Excited "Rydberg atoms" can balloon thousands of times larger.`},
     {tag:'Light & Distance', unit:'ly',
       intro:(a,op)=>`A star sits <b>${a} ly</b> away. A galaxy <b>${op}</b> as far would be at...`,
+      prose:(a,op)=>`A star sits ${a} light-years away. A distant galaxy is ${_as('far',op)}. What's its distance?`,
       fact:`The Milky Way is ~100,000 light-years across; Andromeda is 2.5 million ly away.`},
     {tag:'Alchemy / Concentration', unit:'mol/L',
       intro:(a,op)=>`A reagent sits at <b>${a} mol/L</b>. After a <b>${op}</b> dilution step the concentration is...`,
+      prose:(a,op)=>`A reagent sits at ${a} mol/L. After a dilution it ends up ${_as('concentrated',op)}. Final molarity?`,
       fact:`Each ×10 dilution drops concentration by one order of magnitude — homeopathy abuses this.`},
     {tag:'Half-life', unit:'s',
       intro:(a,op)=>`An isotope has a half-life of <b>${a} s</b>. A nucleus <b>${op}</b> more stable lasts...`,
+      prose:(a,op)=>`An isotope has a half-life of ${a} seconds. A more stable isotope lasts ${_as('long',op)}. What's its half-life?`,
       fact:`Half-lives span 30 orders of magnitude — from yoctoseconds to billions of years.`},
     {tag:'Wavelengths', unit:'nm',
       intro:(a,op)=>`A laser emits at <b>${a} nm</b>. Shifted <b>${op}</b>, the new wavelength is...`,
+      prose:(a,op)=>`A laser emits at ${a} nm. A second source emits ${_as('long',op)} a wavelength. What's its wavelength?`,
       fact:`Visible light: 380–750 nm. Radio: meters. Gamma: picometers. All the same EM spectrum.`}
   ],
-  cross:[ // for negatives — values crossing zero
+  cross:[
     {tag:'Cryogenics', unit:'°C',
-      intro:(x,op,y)=>`Liquid helium sits at <b>${x}°C</b>. Heat it by <b>${op}${formatY(y,op)} °C</b>. New temperature?`,
+      intro:(x,op,y)=>`Liquid helium sits at <b>${x}°C</b>. Heat it by <b>${op} ${y<0?`(${y})`:y} °C</b>. New temperature?`,
+      prose:(x,op,y)=>{
+        const d = op==='−' ? -y : y;
+        const xP = x<0 ? `${Math.abs(x)} degrees below zero` : `${x} degrees above zero`;
+        const dP = d>=0 ? `warms it by ${Math.abs(d)} degrees` : `cools it by ${Math.abs(d)} degrees`;
+        return `A flask of liquid helium reads ${xP}. A pad ${dP}. What does the thermometer read now?`;
+      },
       fact:`Absolute zero is −273.15°C. Below ~−270°C, helium becomes a superfluid that climbs walls.`},
     {tag:'Voltage', unit:'V',
-      intro:(x,op,y)=>`A capacitor plate is at <b>${x} V</b>. Apply a swing of <b>${op}${formatY(y,op)} V</b>. Final potential?`,
+      intro:(x,op,y)=>`A capacitor plate is at <b>${x} V</b>. Apply a swing of <b>${op} ${y<0?`(${y})`:y} V</b>. Final potential?`,
+      prose:(x,op,y)=>{
+        const d = op==='−' ? -y : y;
+        const xP = x<0 ? `${Math.abs(x)} volts below ground` : `${x} volts above ground`;
+        const dP = d>=0 ? `raises the plate by ${Math.abs(d)} volts` : `drops the plate by ${Math.abs(d)} volts`;
+        return `A capacitor plate sits at ${xP}. A pulse ${dP}. What's the new potential?`;
+      },
       fact:`Crossing zero volts changes the direction current wants to flow — that's how alternators work.`},
     {tag:'Atmospheric Pressure', unit:'kPa',
-      intro:(x,op,y)=>`Pressure deviation reads <b>${x} kPa</b>. A storm front brings <b>${op}${formatY(y,op)} kPa</b>. New reading?`,
+      intro:(x,op,y)=>`Pressure deviation reads <b>${x} kPa</b>. A storm front brings <b>${op} ${y<0?`(${y})`:y} kPa</b>. New reading?`,
+      prose:(x,op,y)=>{
+        const d = op==='−' ? -y : y;
+        const xP = x<0 ? `${Math.abs(x)} kPa below the baseline` : `${x} kPa above the baseline`;
+        const dP = d>=0 ? `pushes pressure up by ${Math.abs(d)} kPa` : `drops pressure by ${Math.abs(d)} kPa`;
+        return `A barometer sits ${xP}. A weather front ${dP}. What does it read now?`;
+      },
       fact:`Negative = below sea-level baseline. Hurricane eyes can drop pressure 100+ kPa below normal.`},
     {tag:'Electron Energy Levels', unit:'eV',
-      intro:(x,op,y)=>`A bound electron sits at <b>${x} eV</b> (negative = bound). Absorb <b>${op}${formatY(y,op)} eV</b>. New level?`,
+      intro:(x,op,y)=>`A bound electron sits at <b>${x} eV</b> (negative = bound). Absorb <b>${op} ${y<0?`(${y})`:y} eV</b>. New level?`,
+      prose:(x,op,y)=>{
+        const d = op==='−' ? -y : y;
+        const xP = x<0 ? `${Math.abs(x)} eV below the vacuum level` : `${x} eV above the vacuum level`;
+        const dP = d>=0 ? `gains ${Math.abs(d)} eV from a photon` : `releases ${Math.abs(d)} eV as a photon`;
+        return `An electron sits ${xP}. It ${dP}. Where's its energy now?`;
+      },
       fact:`Hydrogen's ground state is −13.6 eV. Reach 0 eV and the electron escapes — ionization.`},
-    {tag:'Antimatter Charge', unit:'e',
-      intro:(x,op,y)=>`A particle carries <b>${x} e</b> of charge. It captures a partner of <b>${op}${formatY(y,op)} e</b>. Net charge?`,
+    {tag:'Charge Balance', unit:'e',
+      intro:(x,op,y)=>`A particle carries <b>${x} e</b> of charge. It captures a partner of <b>${op} ${y<0?`(${y})`:y} e</b>. Net charge?`,
+      prose:(x,op,y)=>{
+        const d = op==='−' ? -y : y;
+        const xP = x<0 ? `${Math.abs(x)} units of negative charge` : `${x} units of positive charge`;
+        const dP = d>=0 ? `gains ${Math.abs(d)} units of positive charge` : `gains ${Math.abs(d)} units of negative charge`;
+        return `An ion holds ${xP}. It ${dP}. What's the net charge in units of e?`;
+      },
       fact:`Antiparticles have opposite charge — annihilation collapses charge to zero, releasing γ-rays.`},
     {tag:'Heat of Reaction', unit:'kJ/mol',
-      intro:(x,op,y)=>`A reaction's ΔH starts at <b>${x} kJ/mol</b>. A catalyst shifts it by <b>${op}${formatY(y,op)} kJ/mol</b>. New ΔH?`,
+      intro:(x,op,y)=>`A reaction's ΔH starts at <b>${x} kJ/mol</b>. A catalyst shifts it by <b>${op} ${y<0?`(${y})`:y} kJ/mol</b>. New ΔH?`,
+      prose:(x,op,y)=>{
+        const d = op==='−' ? -y : y;
+        const xP = x<0 ? `releases ${Math.abs(x)} kJ/mol (exothermic)` : `absorbs ${x} kJ/mol (endothermic)`;
+        const dP = d>=0 ? `raises ΔH by ${Math.abs(d)} kJ/mol` : `lowers ΔH by ${Math.abs(d)} kJ/mol`;
+        return `A reaction ${xP}. A catalyst ${dP}. What's the new ΔH in kJ/mol?`;
+      },
       fact:`Negative ΔH = exothermic (releases heat). Crossing zero flips the reaction's spontaneity story.`}
   ],
-  ratio:[ // for fractions → decimals — abundance / composition
+  ratio:[
     {tag:'Universe Composition',
       intro:(n,d)=>`Hydrogen makes up <b>${n}/${d}</b> of the ordinary mass in a star. As a decimal mass-fraction?`,
+      prose:(n,d)=>`Hydrogen makes up ${n} out of every ${d} parts of a star's ordinary mass. What's that as a decimal?`,
       fact:`Stars are ~75% H, ~24% He by mass — the rest is everything else.`},
     {tag:'Isotopic Abundance',
       intro:(n,d)=>`A sample of an element is <b>${n}/${d}</b> a single isotope. The decimal abundance?`,
+      prose:(n,d)=>`In a sample of ${d} atoms, ${n} are a single isotope. What's the decimal abundance?`,
       fact:`Carbon is 98.9% ¹²C, 1.1% ¹³C. Mass spectrometry can measure parts-per-million abundances.`},
     {tag:'Alloy / Alchemy',
       intro:(n,d)=>`A gold-copper alloy is <b>${n}/${d}</b> gold by mass. Express as a decimal:`,
+      prose:(n,d)=>`A gold-copper alloy contains ${n} parts gold for every ${d} parts total. As a decimal?`,
       fact:`24-karat gold = 1.000 pure. 18-karat = 18/24 = 0.75. Karat is just a fraction in disguise.`},
     {tag:'Molarity',
       intro:(n,d)=>`A solution contains <b>${n}/${d}</b> of a mole per liter. As a decimal mol/L?`,
+      prose:(n,d)=>`A solution contains ${n} parts solute for every ${d} parts of a mole per liter. As a decimal?`,
       fact:`Concentration in decimal form is easier to plug into the rate equation k[A][B].`},
     {tag:'Decay Survival',
       intro:(n,d)=>`After several half-lives, <b>${n}/${d}</b> of the original nuclei remain. As a decimal:`,
+      prose:(n,d)=>`After several half-lives, ${n} out of every ${d} nuclei remain. What's that as a decimal?`,
       fact:`Each half-life halves what's left: 1, 1/2, 1/4, 1/8, ... a geometric series with ratio 1/2.`},
     {tag:'Eclipse Coverage',
       intro:(n,d)=>`The Moon covers <b>${n}/${d}</b> of the Sun's disk. As a decimal fraction:`,
+      prose:(n,d)=>`The Moon covers ${n} parts out of every ${d} of the Sun's disk. As a decimal?`,
       fact:`A total eclipse needs 1.000 coverage. At 0.999 you still need eye protection.`}
   ]
 };
-function formatY(y, op){
-  // y is positive integer; op is '+' or '−'. For negatives display "(−y)" style if y is intentionally negative
-  return ` ${y}`;
-}
 
 /* Pick scenario per category, keeping it stable for the explain step */
 function pickScenario(category){
@@ -395,6 +504,7 @@ const TOPICS = {
       const sc = pickScenario('scale');
       return {promptHTML:`${a} <span class="${op==='×10'?'op':'opd'}">${op}</span> = <span class="qmark">?</span>`,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,op)}</div>`,
+              proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(a,op)}</div>`:null,
               scenarioFact:sc.fact,
               answer:ans, distractors:dist, type:'shift',
               exp:{a, op, places, ans, unit:sc.unit||'', tag:sc.tag}};
@@ -418,6 +528,7 @@ const TOPICS = {
       const sc = pickScenario('scale');
       return {promptHTML:`${a} <span class="${sign>0?'op':'opd'}">${op}</span> = <span class="qmark">?</span>`,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(a,op)}</div>`,
+              proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(a,op)}</div>`:null,
               scenarioFact:sc.fact,
               answer:ans, distractors:dist, type:'shift',
               exp:{a, op, places, ans, unit:sc.unit||'', tag:sc.tag}};
@@ -440,7 +551,8 @@ const TOPICS = {
       const dist=[ intStr(sub? x+y : x-y), intStr(-res), intStr(res+ (res>=0?-1:1)), intStr(res + (Math.random()<.5?2:-2)) ];
       const sc = pickScenario('cross');
       return {promptHTML:`${x} <span class="op">${opShown}</span> ${ystr} = <span class="qmark">?</span>`,
-              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(x,opShown,y<0?`(${y})`:y)}</div>`,
+              scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(x,opShown,y)}</div>`,
+              proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(x,opShown,y)}</div>`:null,
               scenarioFact:sc.fact,
               answer:ans, distractors:dist, type:'neg',
               exp:{start:x, delta: sub? -y : y, end:res, unit:sc.unit||'', tag:sc.tag}};
@@ -461,6 +573,7 @@ const TOPICS = {
       const sc = pickScenario('ratio');
       return {promptHTML:`<span class="frac"><span class="num">${n}</span><span class="den">${d}</span></span> = <span class="qmark">?</span>`,
               scenarioHTML:`<span class="topictag">${sc.tag}</span><div>${sc.intro(n,d)}</div>`,
+              proseHTML:sc.prose?`<span class="topictag">${sc.tag}</span><div>${sc.prose(n,d)}</div>`:null,
               scenarioFact:sc.fact,
               answer:ans, distractors:dist, type:'frac',
               exp:{n, d, ans, tag:sc.tag}};
@@ -469,10 +582,10 @@ const TOPICS = {
 };
 
 /* ===== settings model ===== */
-const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:true, mode:'pure', showEq:true, useUnits:false };
+const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:true, mode:'pure', showEq:'show', useUnits:false };
 const COUNTS=[5,10,15,20];
 const MODES=[['pure','Pure math','just numbers'],['real','Real world','physics & alchemy']];
-const EQS=[[true,'Show','keep the math line'],[false,'Hide','text only']];
+const EQS=[['show','Show','equation visible'],['hide','Hide','text only'],['prose','Prose','infer the math']];
 const UNITS=[[false,'Plain','just the number'],[true,'With units','km, V, °C…']];
 const METHODS=[['choice','Multiple choice','easier'],['type','Type the answer','harder']];
 const FBS=[[true,'On','see why'],[false,'Off','speed run']];
@@ -481,6 +594,52 @@ const FBS=[[true,'On','see why'],[false,'Off','speed run']];
 let queue, idx, score, attempts, startTime, timerInt, locked;
 const $=id=>document.getElementById(id);
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');}
+
+/* ===== user / points ===== */
+const USER_KEY='cc_currentUser';
+function userKey(email){return `cc_user_${email.toLowerCase()}`;}
+function getCurrentUser(){
+  const email=localStorage.getItem(USER_KEY); if(!email) return null;
+  const raw=localStorage.getItem(userKey(email)); if(!raw) return null;
+  try{return JSON.parse(raw);}catch{return null;}
+}
+function saveUser(u){localStorage.setItem(userKey(u.email),JSON.stringify(u));localStorage.setItem(USER_KEY,u.email);}
+function signInWithEmail(email){
+  email=email.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  const existing=localStorage.getItem(userKey(email));
+  const u = existing ? JSON.parse(existing) : {email,points:0,games:0,correctTotal:0,answeredTotal:0,byTopic:{}};
+  saveUser(u);
+  return u;
+}
+function signOut(){localStorage.removeItem(USER_KEY);renderUserChip();}
+function recordGame(u,topicKey,score,count){
+  u.points+=score; u.games+=1; u.correctTotal+=score; u.answeredTotal+=count;
+  if(!u.byTopic[topicKey]) u.byTopic[topicKey]={points:0,games:0,correct:0,answered:0};
+  const t=u.byTopic[topicKey]; t.points+=score; t.games+=1; t.correct+=score; t.answered+=count;
+  saveUser(u);
+}
+function renderUserChip(){
+  const u=getCurrentUser(); const chip=$('userChip');
+  if(!u){ chip.innerHTML=`<span>Sign in →</span>`; chip.onclick=()=>{$('emailIn').value='';show('signin');setTimeout(()=>$('emailIn').focus(),50);}; }
+  else { const short=u.email.split('@')[0]; chip.innerHTML=`<span>${short}</span><span class="pts">★ ${u.points}</span>`; chip.onclick=()=>openProfile(); }
+}
+function openProfile(){
+  const u=getCurrentUser(); if(!u){show('signin');return;}
+  $('profEmail').textContent=u.email;
+  $('profPoints').textContent=u.points;
+  $('profGames').textContent=u.games;
+  $('profAcc').textContent=u.answeredTotal ? Math.round(u.correctTotal/u.answeredTotal*100)+'%' : '—';
+  const tlist=$('profTopics'); tlist.innerHTML='';
+  const keys=Object.keys(u.byTopic);
+  if(!keys.length){ tlist.innerHTML=`<div class="proftopic"><span class="tk" style="color:var(--muted);">No games yet.</span></div>`; }
+  else keys.forEach(k=>{
+    const t=u.byTopic[k]; const title=(TOPICS[k]&&TOPICS[k].title)||k;
+    const acc=t.answered?Math.round(t.correct/t.answered*100)+'%':'—';
+    tlist.innerHTML+=`<div class="proftopic"><span class="tk">${title}</span><span class="tv">${t.points} ★ · ${t.games} games · ${acc}</span></div>`;
+  });
+  show('profile');
+}
 
 function buildTopics(){
   const list=$('topicList'); list.innerHTML='';
@@ -532,34 +691,64 @@ $('nextBtn').addEventListener('click', nextQuestion);
 $('submitBtn').addEventListener('click', submitTyped);
 $('againBtn').addEventListener('click', startGame);
 $('changeBtn').addEventListener('click', ()=> show('settings'));
+$('gateBtn').addEventListener('click', beginPlay);
+$('signinBtn').addEventListener('click', ()=>{ const u=signInWithEmail($('emailIn').value); if(!u){$('emailIn').style.borderColor='var(--no)';return;} renderUserChip(); show('topics'); });
+$('emailIn').addEventListener('keydown', e=>{ if(e.key==='Enter') $('signinBtn').click(); });
+$('emailIn').addEventListener('input', ()=>{ $('emailIn').style.borderColor=''; });
+$('logoutBtn').addEventListener('click', ()=>{ signOut(); show('topics'); });
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{clearInterval(timerInt);show(b.dataset.go);}));
 $('typein').addEventListener('keydown', e=>{ if(e.key==='Enter') submitTyped(); });
 
 function startGame(){
   const t=TOPICS[SET.topic];
-  queue=[]; for(let i=0;i<SET.count;i++) queue.push(t.make(SET.diff));
+  queue=[];
+  for(let i=0;i<SET.count;i++){
+    let q=t.make(SET.diff);
+    if(SET.mode==='real' && SET.showEq==='prose' && q.type==='shift'){
+      let tries=0;
+      while(String(q.exp.a).startsWith('-') && tries++<30) q=t.make(SET.diff);
+    }
+    queue.push(q);
+  }
   idx=0; score=0; attempts=0; locked=false;
-  startTime=Date.now(); clearInterval(timerInt);
+  clearInterval(timerInt);
+  $('timer').textContent='0.0s';
+  $('qcount').textContent=`1 / ${SET.count}`;
+  $('score').textContent=`★ 0`;
+  $('bar').style.width='0%';
+  $('startGate').style.display='block';
+  $('playBody').style.display='none';
+  show('play');
+}
+function beginPlay(){
+  startTime=Date.now();
   timerInt=setInterval(()=>{$('timer').textContent=((Date.now()-startTime)/1000).toFixed(1)+'s';},100);
-  show('play'); renderQuestion();
+  $('startGate').style.display='none';
+  $('playBody').style.display='block';
+  renderQuestion();
 }
 
 function renderQuestion(){
   locked=false;
   const q=queue[idx];
   const isReal = SET.mode==='real';
+  const useProse = isReal && SET.showEq==='prose';
+  const showBareEq = !isReal || SET.showEq==='show';
   const unit = (isReal && SET.useUnits && q.exp && q.exp.unit) ? q.exp.unit : '';
 
   $('question').innerHTML=q.promptHTML;
-  $('question').style.display = (isReal && !SET.showEq) ? 'none' : 'block';
+  $('question').style.display = showBareEq ? 'block' : 'none';
   $('qcount').textContent=`${idx+1} / ${SET.count}`;
   $('score').textContent=`★ ${score}`;
   $('bar').style.width=(idx/SET.count*100)+'%';
   $('explain').classList.remove('on');
 
   const scn=$('scenario');
-  if(isReal && q.scenarioHTML){ scn.innerHTML=q.scenarioHTML; scn.classList.add('on'); }
-  else { scn.classList.remove('on'); scn.innerHTML=''; }
+  if(isReal){
+    const html = useProse && q.proseHTML ? q.proseHTML : q.scenarioHTML;
+    if(html){ scn.innerHTML=html; scn.classList.add('on'); }
+    else { scn.classList.remove('on'); scn.innerHTML=''; }
+  } else { scn.classList.remove('on'); scn.innerHTML=''; }
 
   if(SET.method==='choice'){
     $('answers').style.display='grid';
@@ -674,6 +863,8 @@ function nextQuestion(){
 function endGame(){
   clearInterval(timerInt);
   const total=((Date.now()-startTime)/1000).toFixed(1);
+  const u=getCurrentUser();
+  if(u){ recordGame(u, SET.topic, score, SET.count); renderUserChip(); }
   show('end');
   $('finalScore').textContent=score;
   $('finalOf').textContent=' / '+SET.count;
@@ -701,6 +892,7 @@ function burst(){
 }
 
 buildTopics();
+renderUserChip();
 </script>
 </body>
 </html>
