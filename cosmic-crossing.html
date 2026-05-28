@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.15.0 -->
+<!-- Cosmic Crossing v1.15.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.15.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.15.1 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -557,7 +557,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.15.0</div>
+<div class="version">v1.15.1</div>
 
 <script>
 /* ============================================================================
@@ -576,7 +576,7 @@
  *  10. Init                  — load persisted state, render home screen
  *
  * CODE STYLE: targeted for LLM readability per evidence in commit notes for
- * v1.15.0 — short functions, descriptive names, multi-line expansion of dense
+ * v1.10.0 — short functions, descriptive names, multi-line expansion of dense
  * helpers, duplication tolerated over premature abstraction. No bundler; one
  * file ships as-is.
  * ========================================================================== */
@@ -1481,7 +1481,7 @@ function operationsFor(nt,cat){
 const NAV = {numberType:null,category:null,operation:null};
 
 /* ─── 6. Settings model ─────────────────────────────────────────────────── */
-const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:'long', mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector', vcmCompMode:'random' };
+const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:'long', mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector', vcmCompMode:'first' };
 const COUNTS=[5,10,15,20];
 const MODES=[['pure','Pure math','just numbers'],['real','Real world','physics & alchemy']];
 const EQS=[['show','Show','equation visible'],['hide','Hide','text only'],['prose','Prose','infer the math']];
@@ -1490,10 +1490,10 @@ const NUMFORMS=[['decimal','Decimal','0.5'],['fraction','Fraction','½']];
 const DIVFORMS=[['symbol','÷ symbol','30 ÷ 10'],['fraction','Fraction bar','³⁰⁄₁₀']];
 const VIEWS=[['vector','Vector','[a, b]'],['complex','Complex','a + bi'],['matrix','Matrix','[a / b]']];
 const VCM_COMPS=[
-  ['random','Random','either each time'],
-  ['half','Half-half','1st half, then 2nd'],
   ['first','1st only','only ask 1st component'],
-  ['second','2nd only','only ask 2nd component']
+  ['second','2nd only','only ask 2nd component'],
+  ['half','Half-half','1st half, then 2nd'],
+  ['random','Random','either each time']
 ];
 const METHODS=[['choice','Multiple choice','easier'],['type','Type the answer','harder']];
 const FBS=[
@@ -2071,7 +2071,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.15.0';
+const APP_VERSION = 'v1.15.1';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
