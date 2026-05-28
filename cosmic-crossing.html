@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.14.0 -->
+<!-- Cosmic Crossing v1.14.1 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.14.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.14.1 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -105,7 +105,9 @@
   .vec{display:inline-flex;vertical-align:middle;font-family:'DM Mono',monospace;
     border-left:2px solid currentColor;border-right:2px solid currentColor;
     padding:4px 6px;line-height:1;}
-  .vec .el{padding:0 6px;}
+  .vec .el{padding:0 6px;display:inline-flex;align-items:baseline;gap:1px;}
+  .vec .elaxis{font-size:.5em;color:var(--muted);font-style:italic;
+    transform:translateY(.25em);padding-left:1px;}
   .mat{display:inline-grid;vertical-align:middle;font-family:'DM Mono',monospace;
     border-left:2px solid currentColor;border-right:2px solid currentColor;
     padding:6px 8px;column-gap:10px;row-gap:4px;line-height:1.1;
@@ -490,7 +492,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.14.0</div>
+<div class="version">v1.14.1</div>
 
 <script>
 /* ============================================================================
@@ -509,7 +511,7 @@
  *  10. Init                  — load persisted state, render home screen
  *
  * CODE STYLE: targeted for LLM readability per evidence in commit notes for
- * v1.14.0 — short functions, descriptive names, multi-line expansion of dense
+ * v1.14.1 — short functions, descriptive names, multi-line expansion of dense
  * helpers, duplication tolerated over premature abstraction. No bundler; one
  * file ships as-is.
  * ========================================================================== */
@@ -804,7 +806,10 @@ const SCENARIOS = {
   ]
 };
 
-function vecHTML(v){ return `<span class="vec">${v.map(e=>`<span class="el">${e}</span>`).join('')}</span>`; }
+const BASIS_AXES = ['x','y','z','w'];
+function vecHTML(v){
+  return `<span class="vec">${v.map((e,i)=>`<span class="el">${e}<span class="elaxis">${BASIS_AXES[i]||''}</span></span>`).join('')}</span>`;
+}
 function matHTML(M, hlRow, hlCol){
   const cols = M[0].length;
   let html = `<span class="mat" style="--cols:${cols};">`;
@@ -897,7 +902,12 @@ function fmt2D(a, b, view){
   if(view==='matrix'){
     return `<span class="mat" style="--cols:1;"><span class="el">${a}</span><span class="el">${b}</span></span>`;
   }
-  return `<span class="vec"><span class="el">${a}</span><span class="el">${b}</span></span>`;
+  // Vector view: components carry their basis labels (x̂, ŷ) so the
+  // student sees which axis each number lives on.
+  return `<span class="vec">
+    <span class="el">${a}<span class="elaxis">x</span></span>
+    <span class="el">${b}<span class="elaxis">y</span></span>
+  </span>`;
 }
 function askLabel(view, idx){
   if(view==='complex') return idx===0 ? 'real part' : 'imaginary part';
@@ -1398,13 +1408,8 @@ let visualShown = true; // toggled per-game; init in startGame()
 let gameActive = false; // true between startGame() and endGame()/mid-exit
 
 function initVisualState(){
-  // vcmAdd/Sub/Mul hide diagram by default in complex/matrix views (it's a hint).
-  // vecDot and vecWedge always show by default (vectors are the natural view).
-  if(['vcmAdd','vcmSub','vcmMul'].includes(SET.topic)){
-    visualShown = (SET.viewForm === 'vector');
-  } else {
-    visualShown = true;
-  }
+  // Always start hidden — the diagram is a hint the user opts into.
+  visualShown = false;
 }
 
 function applyVisualState(){
@@ -1422,7 +1427,7 @@ function applyVisualState(){
     toggle.textContent = '👁 Hide diagram';
   } else {
     div.style.display = 'none';
-    toggle.textContent = '💡 Show visual hint';
+    toggle.textContent = '💡 Show diagram';
   }
 }
 
