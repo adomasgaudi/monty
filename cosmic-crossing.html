@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.11.0 -->
+<!-- Cosmic Crossing v1.13.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.11.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.13.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -175,6 +175,12 @@
     font-weight:500;font-size:1rem;background:var(--ink);color:var(--bg);border:none;
     border-radius:10px;padding:13px;transition:opacity .12s;}
   .next:hover{opacity:.85;}
+  .explainfoot{display:flex;gap:10px;align-items:stretch;margin-top:20px;}
+  .explainfoot .next{margin-top:0;flex:1;}
+  .pausebtn{cursor:pointer;font-family:inherit;font-weight:500;font-size:.88rem;
+    background:none;border:1px solid var(--line);border-radius:10px;padding:0 14px;color:var(--muted);
+    white-space:nowrap;transition:border-color .12s,color .12s;}
+  .pausebtn:hover{border-color:var(--ink);color:var(--ink);}
 
   /* ---------- end ---------- */
   .endcard{text-align:center;padding-top:8px;}
@@ -222,6 +228,15 @@
   .startgate{padding:32px 8px 16px;text-align:center;}
   .gatemsg{font-size:1.3rem;font-weight:500;color:var(--ink);margin-bottom:6px;}
 
+  /* persistent navbar */
+  .navbar{display:flex;align-items:center;gap:6px;margin-bottom:12px;padding:2px 0;}
+  .navbtn{font-family:inherit;font-size:.95rem;font-weight:500;cursor:pointer;
+    background:none;border:1px solid var(--line);border-radius:10px;padding:6px 11px;
+    color:var(--muted);transition:border-color .12s,color .12s,background .12s;}
+  .navbtn:hover:not(:disabled){border-color:var(--ink);color:var(--ink);}
+  .navbtn:disabled{opacity:.35;cursor:default;}
+  .navbtn.navspacer{flex:1;border:none;background:none;pointer-events:none;}
+
   /* advanced settings toggle */
   .advtoggle{display:flex;align-items:center;gap:8px;margin-top:24px;width:100%;
     background:none;border:1px dashed var(--line);border-radius:10px;padding:11px 14px;
@@ -256,6 +271,13 @@
 <body>
 <div class="stage">
   <div class="confetti" id="confetti"></div>
+
+  <nav class="navbar" id="navbar">
+    <button class="navbtn" id="navBack" type="button" title="Back">←</button>
+    <button class="navbtn" id="navHome" type="button" title="Home">🏠</button>
+    <button class="navbtn navspacer" tabindex="-1" disabled></button>
+    <button class="navbtn" id="navProfile" type="button" title="Profile">👤</button>
+  </nav>
 
   <!-- NUMBERS (home) -->
   <section class="screen on" id="numbers">
@@ -328,29 +350,29 @@
       <span class="crumb" id="setCrumb"></span>
     </div>
 
-    <!-- Required settings — always visible -->
-    <div class="setblock">
-      <div class="setlabel">Difficulty</div>
-      <div class="opts" id="optDiff"></div>
-    </div>
-    <div class="setblock">
-      <div class="setlabel">How many questions</div>
-      <div class="opts" id="optCount"></div>
-    </div>
+    <!-- Required — the one choice every player must make -->
     <div class="setblock">
       <div class="setlabel">Mode</div>
       <div class="opts" id="optMode"></div>
     </div>
-    <div class="setblock">
-      <div class="setlabel">How you answer</div>
-      <div class="opts" id="optMethod"></div>
-    </div>
 
-    <!-- Advanced settings — hidden by default, revealed by the gear toggle -->
+    <!-- Advanced — hidden by default, revealed by the gear toggle -->
     <button class="advtoggle" id="advToggle" type="button" aria-expanded="false">
       <span class="advicon">⚙</span><span>More options</span><span class="advcaret">▾</span>
     </button>
     <div class="advanced" id="advancedBlock" style="display:none;">
+      <div class="setblock">
+        <div class="setlabel">Difficulty</div>
+        <div class="opts" id="optDiff"></div>
+      </div>
+      <div class="setblock">
+        <div class="setlabel">How many questions</div>
+        <div class="opts" id="optCount"></div>
+      </div>
+      <div class="setblock">
+        <div class="setlabel">How you answer</div>
+        <div class="opts" id="optMethod"></div>
+      </div>
       <div class="setblock" id="setEqBlock" style="display:none;">
         <div class="setlabel">Equation</div>
         <div class="opts" id="optEq"></div>
@@ -410,7 +432,10 @@
       <div class="explain" id="explain">
         <div class="verdict" id="verdict"></div>
         <div id="explainBody"></div>
-        <button class="next" id="nextBtn">Next →</button>
+        <div class="explainfoot">
+          <button class="pausebtn" id="pauseBtn" type="button" style="display:none;">⏸ Pause to read</button>
+          <button class="next" id="nextBtn">Next →</button>
+        </div>
       </div>
     </div>
   </section>
@@ -433,7 +458,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.11.0</div>
+<div class="version">v1.13.0</div>
 
 <script>
 /* ============================================================================
@@ -452,7 +477,7 @@
  *  10. Init                  — load persisted state, render home screen
  *
  * CODE STYLE: targeted for LLM readability per evidence in commit notes for
- * v1.11.0 — short functions, descriptive names, multi-line expansion of dense
+ * v1.13.0 — short functions, descriptive names, multi-line expansion of dense
  * helpers, duplication tolerated over premature abstraction. No bundler; one
  * file ships as-is.
  * ========================================================================== */
@@ -887,6 +912,119 @@ function pickScenario(category){
  * concrete reads better for LLMs than a shared abstract base class would.
  * ─────────────────────────────────────────────────────────────────────────── */
 const TOPICS = {
+  natAdd:{
+    title:'Natural number addition',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      const max = diff==='Easy' ? 10 : diff==='Medium' ? 25 : 99;
+      const a = 1 + Math.floor(Math.random()*max);
+      const b = 1 + Math.floor(Math.random()*max);
+      const ans = a + b;
+      const dist = [intStr(a-b), intStr(a*b), intStr(ans-1), intStr(ans+1)];
+      return {promptHTML:`${a} <span class="op">+</span> ${b} = <span class="qmark">?</span>`,
+              scenarioHTML:null, proseHTML:null, scenarioFact:null,
+              answer:intStr(ans), distractors:dist, type:'arith',
+              exp:{expr:`${a} + ${b}`, ans:intStr(ans), why:'Counting forward.'}};
+    }
+  },
+  natSub:{
+    title:'Natural number subtraction',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      const max = diff==='Easy' ? 10 : diff==='Medium' ? 25 : 99;
+      const a = 1 + Math.floor(Math.random()*max);
+      const b = 1 + Math.floor(Math.random()*a);   // keep result ≥ 0
+      const ans = a - b;
+      const dist = [intStr(a+b), intStr(b-a), intStr(ans+1), intStr(ans-1<0?ans+2:ans-1)];
+      return {promptHTML:`${a} <span class="op">−</span> ${b} = <span class="qmark">?</span>`,
+              scenarioHTML:null, proseHTML:null, scenarioFact:null,
+              answer:intStr(ans), distractors:dist, type:'arith',
+              exp:{expr:`${a} − ${b}`, ans:intStr(ans), why:'Counting backward (still landing on a natural).'}};
+    }
+  },
+  natMul:{
+    title:'Times tables',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      const top = diff==='Easy' ? 10 : diff==='Medium' ? 12 : 15;
+      const a = 2 + Math.floor(Math.random()*(top-1));
+      const b = 2 + Math.floor(Math.random()*(top-1));
+      const ans = a * b;
+      const dist = [intStr(a+b), intStr(a*b + a), intStr(a*b - b), intStr(ans+a)];
+      return {promptHTML:`${a} <span class="op">×</span> ${b} = <span class="qmark">?</span>`,
+              scenarioHTML:null, proseHTML:null, scenarioFact:null,
+              answer:intStr(ans), distractors:dist, type:'arith',
+              exp:{expr:`${a} × ${b}`, ans:intStr(ans), why:`${a} groups of ${b}.`}};
+    }
+  },
+  natDiv:{
+    title:'Exact division',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      const bRange = diff==='Easy' ? [2,3,4,5] : diff==='Medium' ? [2,3,4,5,6,7,8,9] : [3,4,6,7,8,9,11,12];
+      const cMax   = diff==='Easy' ? 10 : diff==='Medium' ? 12 : 15;
+      const b = rnd(bRange);
+      const c = 2 + Math.floor(Math.random()*(cMax-1));
+      const a = b * c;
+      const ans = c;
+      const dist = [intStr(a-b), intStr(b), intStr(c+1), intStr(c-1<1?c+2:c-1)];
+      return {promptHTML:`${a} <span class="opd">÷</span> ${b} = <span class="qmark">?</span>`,
+              scenarioHTML:null, proseHTML:null, scenarioFact:null,
+              answer:intStr(ans), distractors:dist, type:'arith',
+              exp:{expr:`${a} ÷ ${b}`, ans:intStr(ans), why:`${a} split into ${b} equal groups.`}};
+    }
+  },
+  natExp:{
+    title:'Powers — natural base',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      const aRange = diff==='Easy' ? [2,3,4,5] : diff==='Medium' ? [2,3,4,5,6,7] : [2,3,4,5,6,7,8,9,10];
+      const bRange = diff==='Easy' ? [2,3]     : diff==='Medium' ? [2,3,4]       : [2,3,4,5];
+      const a = rnd(aRange);
+      const b = rnd(bRange);
+      const ans = Math.pow(a, b);
+      const dist = [intStr(a*b), intStr(Math.pow(a, b-1)), intStr(Math.pow(a, b+1)), intStr(ans+a)];
+      return {promptHTML:`${a}<sup class="op">${b}</sup> = <span class="qmark">?</span>`,
+              scenarioHTML:null, proseHTML:null, scenarioFact:null,
+              answer:intStr(ans), distractors:dist, type:'arith',
+              exp:{expr:`${a}^${b}`, ans:intStr(ans), why:`${a} multiplied by itself ${b} time${b>1?'s':''}.`}};
+    }
+  },
+  intExp:{
+    title:'Powers — signed base',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      const aRange = diff==='Easy' ? [-3,-2,2,3] : diff==='Medium' ? [-5,-4,-3,-2,2,3,4,5] : [-7,-5,-4,-3,3,4,5,7];
+      const bRange = diff==='Easy' ? [2,3]       : diff==='Medium' ? [2,3,4]               : [2,3,4,5];
+      const a = rnd(aRange);
+      const b = rnd(bRange);
+      const ans = Math.pow(a, b);
+      const dist = [intStr(-ans), intStr(a*b), intStr(Math.pow(Math.abs(a), b)), intStr(ans+a)];
+      return {promptHTML:`(${a})<sup class="op">${b}</sup> = <span class="qmark">?</span>`,
+              scenarioHTML:null, proseHTML:null, scenarioFact:null,
+              answer:intStr(ans), distractors:dist, type:'arith',
+              exp:{expr:`(${a})^${b}`, ans:intStr(ans), why:b%2===0?'Even power → positive result, sign cancels.':'Odd power → sign of base is preserved.'}};
+    }
+  },
+  realExp:{
+    title:'Powers — decimal base',
+    diffs:['Easy','Medium','Hard'],
+    make(diff){
+      const aRange = diff==='Easy'   ? ['0.5','0.1','0.2','2','3']
+                    : diff==='Medium'? ['0.5','0.1','0.4','0.25','1.5','2.5']
+                    :                  ['0.05','0.4','0.25','0.75','1.2','1.5'];
+      const bRange = diff==='Hard' ? [2,3] : [2,3];
+      const a = rnd(aRange);
+      const b = rnd(bRange);
+      const numericPow = Math.pow(parseFloat(a), b);
+      const ans = normalize(String(parseFloat(numericPow.toPrecision(8))));
+      const dist = [shiftPoint(ans,1), shiftPoint(ans,-1), normalize(String(parseFloat(a)*b)), a];
+      return {promptHTML:`${a}<sup class="op">${b}</sup> = <span class="qmark">?</span>`,
+              scenarioHTML:null, proseHTML:null, scenarioFact:null,
+              answer:ans, distractors:dist, type:'arith',
+              exp:{expr:`${a}^${b}`, ans, why:`${a} multiplied by itself ${b} time${b>1?'s':''}.`}};
+    }
+  },
   intAdd:{
     title:'Integer addition',
     diffs:['Easy','Medium','Hard'],
@@ -1131,7 +1269,7 @@ const TOPICS = {
 
 /* ─── 5. Navigation hierarchy ───────────────────────────────────────────── */
 const NUMBER_TYPES = [
-  {key:'natural',label:'Natural numbers',desc:'1, 2, 3 …',symbol:'ℕ',enabled:false},
+  {key:'natural',label:'Natural numbers',desc:'1, 2, 3 … the counting numbers',symbol:'ℕ',enabled:true},
   {key:'integers',label:'Integers',desc:'… −2, −1, 0, 1, 2 …',symbol:'ℤ',enabled:true},
   {key:'fractions',label:'Fractions',desc:'½, ¾, ⅛ …',symbol:'¾',enabled:true},
   {key:'real',label:'Real numbers',desc:'0.5, 3.14 …',symbol:'ℝ',enabled:true},
@@ -1143,7 +1281,7 @@ const CATEGORIES_BASE = [
 ];
 function categoriesFor(nt){
   const enabled = {
-    natural:{arithmetic:false,inequalities:false},
+    natural:{arithmetic:true,inequalities:false},
     integers:{arithmetic:true,inequalities:false},
     fractions:{arithmetic:true,inequalities:false},
     real:{arithmetic:true,inequalities:false},
@@ -1159,11 +1297,19 @@ function operationsFor(nt,cat){
     ];
   }
   return ({
+    natural:[
+      {key:'add',label:'Addition',desc:'a + b',symbol:'+',enabled:true,topic:'natAdd'},
+      {key:'sub',label:'Subtraction',desc:'a − b',symbol:'−',enabled:true,topic:'natSub'},
+      {key:'mul',label:'Multiplication',desc:'times tables',symbol:'×',enabled:true,topic:'natMul'},
+      {key:'div',label:'Division',desc:'a ÷ b (exact)',symbol:'÷',enabled:true,topic:'natDiv'},
+      {key:'exp',label:'Exponentiation',desc:'aᵇ — powers',symbol:'^',enabled:true,topic:'natExp'}
+    ],
     integers:[
       {key:'add',label:'Addition',desc:'cross zero with +',symbol:'+',enabled:true,topic:'intAdd'},
       {key:'sub',label:'Subtraction',desc:'cross zero with −',symbol:'−',enabled:true,topic:'intSub'},
       {key:'mul',label:'Multiplication',desc:'a × b',symbol:'×',enabled:false},
-      {key:'div',label:'Division',desc:'a ÷ b',symbol:'÷',enabled:false}
+      {key:'div',label:'Division',desc:'a ÷ b',symbol:'÷',enabled:false},
+      {key:'exp',label:'Exponentiation',desc:'aᵇ — sign matters',symbol:'^',enabled:true,topic:'intExp'}
     ],
     fractions:[
       {key:'add',label:'Addition',desc:'common denominators',symbol:'+',enabled:false},
@@ -1175,7 +1321,8 @@ function operationsFor(nt,cat){
       {key:'add',label:'Addition',desc:'decimal addition',symbol:'+',enabled:false},
       {key:'sub',label:'Subtraction',desc:'decimal subtraction',symbol:'−',enabled:false},
       {key:'mul',label:'Multiplication',desc:'×10, ×100, ×1000',symbol:'×',enabled:true,topic:'realMul'},
-      {key:'div',label:'Division',desc:'÷10, ÷100, ÷1000',symbol:'÷',enabled:true,topic:'realDiv'}
+      {key:'div',label:'Division',desc:'÷10, ÷100, ÷1000',symbol:'÷',enabled:true,topic:'realDiv'},
+      {key:'exp',label:'Exponentiation',desc:'small powers of small decimals',symbol:'^',enabled:true,topic:'realExp'}
     ],
     vcm:[
       {key:'add',label:'Addition',desc:'2D add — pick the view',symbol:'+',enabled:true,topic:'vcmAdd'},
@@ -1190,7 +1337,7 @@ function operationsFor(nt,cat){
 const NAV = {numberType:null,category:null,operation:null};
 
 /* ─── 6. Settings model ─────────────────────────────────────────────────── */
-const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:true, mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector' };
+const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:'long', mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector' };
 const COUNTS=[5,10,15,20];
 const MODES=[['pure','Pure math','just numbers'],['real','Real world','physics & alchemy']];
 const EQS=[['show','Show','equation visible'],['hide','Hide','text only'],['prose','Prose','infer the math']];
@@ -1199,13 +1346,85 @@ const NUMFORMS=[['decimal','Decimal','0.5'],['fraction','Fraction','½']];
 const DIVFORMS=[['symbol','÷ symbol','30 ÷ 10'],['fraction','Fraction bar','³⁰⁄₁₀']];
 const VIEWS=[['vector','Vector','[a, b]'],['complex','Complex','a + bi'],['matrix','Matrix','[a / b]']];
 const METHODS=[['choice','Multiple choice','easier'],['type','Type the answer','harder']];
-const FBS=[[true,'On','see why'],[false,'Off','speed run']];
+const FBS=[
+  ['off',  'Off',   'no feedback · 0.6s'],
+  ['short','Short', 'right/wrong · 1s'],
+  ['long', 'Long',  'panel · 6s, pause to read']
+];
 const DIFF_MULT={Easy:1,Medium:2,Hard:3};
+const FB_TIMING={off:600, short:1000, long:6000};
 
 /* ─── 7. Runtime state + screen switcher ────────────────────────────────── */
 let queue, idx, score, correctCount, attempts, startTime, timerInt, locked;
+let fbInterval = null, fbTimeout = null;
+
+function clearFeedbackTimer(){
+  if(fbInterval){ clearInterval(fbInterval); fbInterval = null; }
+  if(fbTimeout){ clearTimeout(fbTimeout); fbTimeout = null; }
+  const pause = document.getElementById('pauseBtn');
+  if(pause) pause.style.display = 'none';
+  const next = document.getElementById('nextBtn');
+  if(next) next.textContent = 'Next →';
+}
+
+/* ─── 7b. Navbar — Back / Home / Profile, persistent on every screen ────── */
+
+/** Where each screen's "back" arrow should land. null = no back (home). */
+const BACK_OF = {
+  numbers:    null,
+  categories: 'numbers',
+  operations: 'categories',
+  settings:   'operations',
+  play:       'settings',
+  end:        'numbers',
+  signin:     'numbers',
+  profile:    'numbers',
+};
+
+function currentScreen(){
+  const el = document.querySelector('.screen.on');
+  return el ? el.id : null;
+}
+
+function leavingCleanup(){
+  clearInterval(timerInt);
+  clearFeedbackTimer();
+}
+
+function navBack(){
+  const target = BACK_OF[currentScreen()];
+  if(!target) return;
+  leavingCleanup();
+  if(target === 'numbers') renderRecents();
+  show(target);
+  updateNavbar();
+}
+function navHome(){
+  leavingCleanup();
+  renderRecents();
+  show('numbers');
+  updateNavbar();
+}
+function navProfile(){
+  leavingCleanup();
+  if(getCurrentUser()) openProfile();
+  else show('signin');
+  updateNavbar();
+}
+
+function updateNavbar(){
+  const cur = currentScreen();
+  const back = $('navBack');
+  const home = $('navHome');
+  back.disabled = !(cur && BACK_OF[cur]);
+  home.disabled = (cur === 'numbers');
+}
 const $=id=>document.getElementById(id);
-function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');}
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  $(id).classList.add('on');
+  if(typeof updateNavbar === 'function') updateNavbar();
+}
 
 /* ─── 8. User account + points (localStorage-backed) ────────────────────── */
 const USER_KEY='cc_currentUser';
@@ -1241,7 +1460,13 @@ function renderUserChip(){
   if(!u){ chip.innerHTML=`<span>Sign in →</span>`; chip.onclick=()=>{$('emailIn').value='';show('signin');setTimeout(()=>$('emailIn').focus(),50);}; }
   else { const short=u.email.split('@')[0]; chip.innerHTML=`<span>${short}</span><span class="pts">★ ${u.points}</span>`; chip.onclick=()=>openProfile(); }
 }
-const TOPIC_NT = {intAdd:'integers',intSub:'integers',realMul:'real',realDiv:'real',fracDiv:'fractions',vecDot:'vcm',vecWedge:'vcm',matMul:'vcm',vcmAdd:'vcm',vcmSub:'vcm',vcmMul:'vcm'};
+const TOPIC_NT = {
+  natAdd:'natural', natSub:'natural', natMul:'natural', natDiv:'natural', natExp:'natural',
+  intAdd:'integers', intSub:'integers', intExp:'integers',
+  realMul:'real', realDiv:'real', realExp:'real',
+  fracDiv:'fractions',
+  vecDot:'vcm', vecWedge:'vcm', matMul:'vcm', vcmAdd:'vcm', vcmSub:'vcm', vcmMul:'vcm'
+};
 function openProfile(){
   const u=getCurrentUser(); if(!u){show('signin');return;}
   $('profEmail').textContent=u.email;
@@ -1254,7 +1479,7 @@ function openProfile(){
   /* group by number type */
   const groups={};
   keys.forEach(k=>{ const nt=TOPIC_NT[k]||'other'; (groups[nt]=groups[nt]||[]).push(k); });
-  const ntOrder=['integers','fractions','real','vcm','natural','other'];
+  const ntOrder=['natural','integers','fractions','real','vcm','other'];
   ntOrder.filter(nt=>groups[nt]).forEach(nt=>{
     const ntDef = NUMBER_TYPES.find(n=>n.key===nt);
     const ntLabel = ntDef ? ntDef.label : nt;
@@ -1475,12 +1700,17 @@ const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
 function loadSettings(){
   try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'null'); if(s&&typeof s==='object') Object.assign(SET, s); }catch{}
   try{ const n=JSON.parse(localStorage.getItem(NAV_KEY)||'null'); if(n&&typeof n==='object') Object.assign(NAV, n); }catch{}
+  // Migrate older boolean SET.feedback → string enum
+  if(typeof SET.feedback === 'boolean') SET.feedback = SET.feedback ? 'long' : 'off';
 }
 function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(SET)); }catch{} }
 function saveNav(){ try{ localStorage.setItem(NAV_KEY, JSON.stringify(NAV)); }catch{} }
 
 $('startBtn').addEventListener('click', startGame);
-$('exitBtn').addEventListener('click', ()=>{ clearInterval(timerInt); show('settings'); });
+$('exitBtn').addEventListener('click', ()=>{ leavingCleanup(); show('settings'); });
+$('navBack').addEventListener('click', navBack);
+$('navHome').addEventListener('click', navHome);
+$('navProfile').addEventListener('click', navProfile);
 $('nextBtn').addEventListener('click', nextQuestion);
 $('submitBtn').addEventListener('click', submitTyped);
 $('againBtn').addEventListener('click', startGame);
@@ -1603,8 +1833,40 @@ function resolve(right, btn, q){
   }
   if(right){ score += (DIFF_MULT[SET.diff]||1); correctCount++; $('score').textContent=`★ ${score}`; burst(); }
 
-  if(SET.feedback){ showExplain(q,right); }
-  else { setTimeout(nextQuestion, 650); }
+  const fb = SET.feedback;
+  if(fb === 'long'){
+    showExplain(q, right);
+    startFeedbackCountdown(FB_TIMING.long);
+  } else if(fb === 'short'){
+    fbTimeout = setTimeout(nextQuestion, FB_TIMING.short);
+  } else {
+    fbTimeout = setTimeout(nextQuestion, FB_TIMING.off);
+  }
+}
+
+/** In Long-feedback mode: count down inside the Next button; pause to read. */
+function startFeedbackCountdown(totalMs){
+  let remaining = Math.round(totalMs / 1000);
+  const nextBtn  = $('nextBtn');
+  const pauseBtn = $('pauseBtn');
+
+  nextBtn.textContent  = `Next → (${remaining}s)`;
+  pauseBtn.style.display = 'inline-block';
+
+  fbInterval = setInterval(() => {
+    remaining -= 1;
+    if(remaining <= 0){
+      clearFeedbackTimer();
+      nextQuestion();
+    } else {
+      nextBtn.textContent = `Next → (${remaining}s)`;
+    }
+  }, 1000);
+
+  pauseBtn.onclick = () => {
+    clearFeedbackTimer();
+    nextBtn.textContent = 'Next →';
+  };
 }
 
 /* ─── 10. Explainers — one helper per question type ─────────────────────── */
@@ -1735,6 +1997,14 @@ function explainWedge(q){
   <div class="why">The wedge is the signed area of the purple parallelogram — the sine half of the geometric product. Strip the bivector basis and you get the cross product.${factSpan(q)}</div>`;
 }
 
+function explainArith(q){
+  const e = q.exp;
+  return `<div class="slidebox">
+    <div class="moveword" style="font-size:1.35rem;">${e.expr} = <b class="mono">${e.ans}</b></div>
+  </div>
+  <div class="why">${e.why || ''}${factSpan(q)}</div>`;
+}
+
 const EXPLAINERS = {
   shift: explainShift,
   neg:   explainNeg,
@@ -1742,6 +2012,7 @@ const EXPLAINERS = {
   vcm:   explainVcm,
   vecdot: explainVecDot,
   wedge: explainWedge,
+  arith: explainArith,
 };
 
 function showExplain(q, right){
@@ -1770,6 +2041,7 @@ function explainMatMul(q){
 EXPLAINERS.matmul = explainMatMul;
 
 function nextQuestion(){
+  clearFeedbackTimer();
   idx++;
   if(idx>=SET.count){ endGame(); return; }
   renderQuestion();
