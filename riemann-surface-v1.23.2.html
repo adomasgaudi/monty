@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.23.1 -->
+<!-- Riemann Surface v1.23.2 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.23.1 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.23.2 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -176,6 +176,10 @@
     background:rgba(0,0,0,.03);padding:10px 14px;border-radius:8px;text-align:center;line-height:1.5;}
   .lesson-output b{color:var(--no);}
   .lesson-hint{font-size:.82rem;color:var(--muted);text-align:center;}
+  .lesson-persp{font-family:inherit;font-size:.85rem;font-weight:500;cursor:pointer;
+    background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;
+    color:var(--ink);transition:border-color .12s,background .12s;}
+  .lesson-persp:hover{border-color:var(--ink);background:rgba(0,0,0,.025);}
   .lessonbody #lessonPlayBtn{margin-top:16px;}
 
   .answers{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
@@ -657,7 +661,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.23.1</div>
+<div class="version">v1.23.2</div>
 
 <script>
 /* ============================================================================
@@ -2710,7 +2714,11 @@ function openLesson(topic){
 
 /** Build the dot-product intro: a draggable u and v with a live u · v read-out.
  *  Drag either coloured circle to move that vector's tip; the dot product
- *  display updates immediately. Snaps to integer coordinates. */
+ *  display updates immediately. Snaps to integer coordinates.
+ *  Each vector also draws a faint dashed extension along its line so you
+ *  can see where one vector's projection lands on the other vector's
+ *  direction. A toggle button swaps the perspective between u · v
+ *  (project v onto u) and v · u (project u onto v). */
 function makeVecDotLesson(){
   const root = document.createElement('div');
   const intro = document.createElement('div');
@@ -2718,11 +2726,12 @@ function makeVecDotLesson(){
     <h2>Dot product &nbsp; u <span class="dotop">·</span> v</h2>
     <p>The dot product is one number that says <i>how much two vectors point the same way</i>:</p>
     <p><span class="mono">u <span class="dotop">·</span> v &nbsp;=&nbsp; u<sub>x</sub>×v<sub>x</sub> &nbsp;+&nbsp; u<sub>y</sub>×v<sub>y</sub></span></p>
-    <p>It's positive when they roughly agree, zero when they're perpendicular, and negative when they oppose. Drag either tip below to feel it:</p>`;
+    <p>It's positive when they roughly agree, zero when they're perpendicular, and negative when they oppose. Drag either tip below to feel it. The dashed lines extend each vector through the origin — drop a perpendicular from one tip onto the other line and you've found the projection.</p>`;
   root.appendChild(intro);
 
   const lab = document.createElement('div'); lab.className = 'lesson-interactive';
   let u = [3, 1], v = [1, 2];
+  let projectOntoU = true; // true = v projected onto u (u · v perspective)
   const SIZE = 280, SCALE = 30, C = SIZE / 2;
   const ns = 'http://www.w3.org/2000/svg';
   const el = (name, a) => { const e = document.createElementNS(ns, name); if(a) for(const k in a) e.setAttribute(k, a[k]); return e; };
@@ -2737,8 +2746,14 @@ function makeVecDotLesson(){
   svg.appendChild(el('line', { x1: 0, y1: C, x2: SIZE, y2: C, stroke: 'rgba(0,0,0,.3)' }));
   svg.appendChild(el('line', { x1: C, y1: 0, x2: C, y2: SIZE, stroke: 'rgba(0,0,0,.3)' }));
 
+  // Faint dashed extensions of each vector's line through origin.
+  // Drawn first so they sit visually behind the arrows / projection.
+  const uExt = el('line', { stroke: '#FF3D71', 'stroke-width': 1, 'stroke-dasharray': '4 4', opacity: 0.35 });
+  const vExt = el('line', { stroke: '#3A6EA5', 'stroke-width': 1, 'stroke-dasharray': '4 4', opacity: 0.35 });
+  svg.appendChild(uExt); svg.appendChild(vExt);
+
   // projection guides (filled in render())
-  const projLine = el('line', { stroke: 'rgba(31,143,95,.55)', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
+  const projLine = el('line', { stroke: 'rgba(31,143,95,.6)', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
   const projDot  = el('line', { stroke: 'rgba(31,143,95,.85)', 'stroke-width': 4, 'stroke-linecap': 'round' });
   svg.appendChild(projLine); svg.appendChild(projDot);
 
@@ -2758,9 +2773,18 @@ function makeVecDotLesson(){
   svg.appendChild(uLbl); svg.appendChild(vLbl);
 
   const out = document.createElement('div'); out.className = 'lesson-output';
+  const persp = document.createElement('button'); persp.className = 'lesson-persp'; persp.type = 'button';
   const hint = document.createElement('div'); hint.className = 'lesson-hint'; hint.textContent = 'Drag the red or blue dot to move that vector.';
 
   const px = (mx, my) => [C + mx*SCALE, C - my*SCALE];
+  function extLineEndpoints(vec){
+    // Far multiple along the vector's direction so the line extends past
+    // the SVG bounds in both directions.
+    const dx = vec[0], dy = vec[1];
+    if(dx === 0 && dy === 0) return null;
+    const t = 20;
+    return { a: [-dx*t, -dy*t], b: [dx*t, dy*t] };
+  }
   function render(){
     const [ux, uy] = px(u[0], u[1]);
     const [vx, vy] = px(v[0], v[1]);
@@ -2770,20 +2794,49 @@ function makeVecDotLesson(){
     vTip.setAttribute('cx', vx); vTip.setAttribute('cy', vy);
     uLbl.setAttribute('x', ux + 10); uLbl.setAttribute('y', uy - 8);
     vLbl.setAttribute('x', vx + 10); vLbl.setAttribute('y', vy - 8);
-    // Projection of v onto u (geometric visual for the dot).
-    const m2 = u[0]*u[0] + u[1]*u[1];
+    // Dashed extension lines through origin.
+    const uE = extLineEndpoints(u), vE = extLineEndpoints(v);
+    if(uE){
+      const [x1, y1] = px(uE.a[0], uE.a[1]);
+      const [x2, y2] = px(uE.b[0], uE.b[1]);
+      uExt.setAttribute('x1', x1); uExt.setAttribute('y1', y1);
+      uExt.setAttribute('x2', x2); uExt.setAttribute('y2', y2);
+      uExt.setAttribute('opacity', 0.35);
+    } else { uExt.setAttribute('opacity', 0); }
+    if(vE){
+      const [x1, y1] = px(vE.a[0], vE.a[1]);
+      const [x2, y2] = px(vE.b[0], vE.b[1]);
+      vExt.setAttribute('x1', x1); vExt.setAttribute('y1', y1);
+      vExt.setAttribute('x2', x2); vExt.setAttribute('y2', y2);
+      vExt.setAttribute('opacity', 0.35);
+    } else { vExt.setAttribute('opacity', 0); }
+    // Projection — drop a perpendicular from one tip onto the other line.
+    const axis   = projectOntoU ? u : v;
+    const tipVec = projectOntoU ? v : u;
+    const [tipX, tipY] = projectOntoU ? [vx, vy] : [ux, uy];
+    const m2 = axis[0]*axis[0] + axis[1]*axis[1];
     if(m2 > 0){
-      const t = (u[0]*v[0] + u[1]*v[1]) / m2;
-      const [pxX, pxY] = px(u[0]*t, u[1]*t);
-      projLine.setAttribute('x1', vx); projLine.setAttribute('y1', vy);
-      projLine.setAttribute('x2', pxX); projLine.setAttribute('y2', pxY);
+      const t = (axis[0]*tipVec[0] + axis[1]*tipVec[1]) / m2;
+      const [pX, pY] = px(axis[0]*t, axis[1]*t);
+      projLine.setAttribute('x1', tipX); projLine.setAttribute('y1', tipY);
+      projLine.setAttribute('x2', pX); projLine.setAttribute('y2', pY);
       projDot.setAttribute('x1', C); projDot.setAttribute('y1', C);
-      projDot.setAttribute('x2', pxX); projDot.setAttribute('y2', pxY);
+      projDot.setAttribute('x2', pX); projDot.setAttribute('y2', pY);
+      projLine.setAttribute('opacity', 1); projDot.setAttribute('opacity', 1);
+    } else {
+      projLine.setAttribute('opacity', 0); projDot.setAttribute('opacity', 0);
     }
     const dot = u[0]*v[0] + u[1]*v[1];
-    out.innerHTML = `u = (${u[0]}, ${u[1]}) &nbsp;·&nbsp; v = (${v[0]}, ${v[1]})<br>
-      u <span class="dotop">·</span> v = ${u[0]}×${v[0]} + ${u[1]}×${v[1]} = <b>${dot}</b>`;
+    const aLabel = projectOntoU ? 'u' : 'v';
+    const bLabel = projectOntoU ? 'v' : 'u';
+    const aVec   = projectOntoU ? u   : v;
+    const bVec   = projectOntoU ? v   : u;
+    out.innerHTML = `${aLabel} = (${aVec[0]}, ${aVec[1]}) &nbsp;·&nbsp; ${bLabel} = (${bVec[0]}, ${bVec[1]})<br>
+      ${aLabel} <span class="dotop">·</span> ${bLabel} = ${aVec[0]}×${bVec[0]} + ${aVec[1]}×${bVec[1]} = <b>${dot}</b>`;
+    persp.textContent = projectOntoU ? 'Show v ·  u perspective →' : 'Show u ·  v perspective →';
   }
+
+  persp.addEventListener('click', ()=>{ projectOntoU = !projectOntoU; render(); });
 
   let drag = null;
   function startDrag(target, ref){
@@ -2809,7 +2862,7 @@ function makeVecDotLesson(){
   svg.addEventListener('pointerup', () => { drag = null; });
   svg.addEventListener('pointercancel', () => { drag = null; });
 
-  lab.appendChild(svg); lab.appendChild(out); lab.appendChild(hint);
+  lab.appendChild(svg); lab.appendChild(out); lab.appendChild(persp); lab.appendChild(hint);
   root.appendChild(lab);
   render();
   return root;
@@ -2993,7 +3046,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.23.1';
+const APP_VERSION = 'v1.23.2';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
