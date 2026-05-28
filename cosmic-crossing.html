@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.17.1 -->
+<!-- Cosmic Crossing v1.18.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.17.1 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.18.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -220,22 +220,23 @@
   .gradelvl{font-family:'DM Mono',monospace;font-weight:500;font-size:1.9rem;line-height:1;color:var(--ink);}
   .gradetier{font-family:'Fredoka',sans-serif;font-weight:500;font-size:1rem;color:var(--muted);
     margin-top:4px;letter-spacing:.04em;text-transform:uppercase;}
-  .gradebox[data-tier="1"], .gradebox[data-tier="2"], .gradebox[data-tier="3"]{
-    background:rgba(120,120,120,.06);border-color:rgba(120,120,120,.3);}
-  .gradebox[data-tier="4"]{background:rgba(31,143,95,.07);border-color:rgba(31,143,95,.35);}
-  .gradebox[data-tier="4"] .gradetier{color:#2F8F5F;}
-  .gradebox[data-tier="5"]{background:rgba(58,110,165,.07);border-color:rgba(58,110,165,.35);}
-  .gradebox[data-tier="5"] .gradetier{color:#3A6EA5;}
-  .gradebox[data-tier="6"]{background:rgba(82,160,255,.08);border-color:rgba(82,160,255,.4);}
+  .gradebox[data-tier="4"]{background:rgba(120,120,120,.06);border-color:rgba(120,120,120,.3);}
+  .gradebox[data-tier="4"] .gradetier{color:#6a6a6a;}
+  .gradebox[data-tier="5"]{background:rgba(31,143,95,.07);border-color:rgba(31,143,95,.35);}
+  .gradebox[data-tier="5"] .gradetier{color:#2F8F5F;}
+  .gradebox[data-tier="6"]{background:rgba(58,110,165,.07);border-color:rgba(58,110,165,.35);}
   .gradebox[data-tier="6"] .gradetier{color:#3A6EA5;}
-  .gradebox[data-tier="7"]{background:rgba(155,92,255,.08);border-color:rgba(155,92,255,.4);}
-  .gradebox[data-tier="7"] .gradetier{color:#7A3FE6;}
-  .gradebox[data-tier="8"]{background:rgba(255,201,60,.12);border-color:rgba(200,140,30,.45);}
-  .gradebox[data-tier="8"] .gradetier{color:#B07A1E;}
-  .gradebox[data-tier="9"], .gradebox[data-tier="10"]{
-    background:linear-gradient(135deg,rgba(255,201,60,.18),rgba(255,61,113,.12));
+  .gradebox[data-tier="7"]{background:rgba(82,160,255,.08);border-color:rgba(82,160,255,.4);}
+  .gradebox[data-tier="7"] .gradetier{color:#3A6EA5;}
+  .gradebox[data-tier="8"]{background:rgba(155,92,255,.08);border-color:rgba(155,92,255,.4);}
+  .gradebox[data-tier="8"] .gradetier{color:#7A3FE6;}
+  .gradebox[data-tier="9"]{background:rgba(155,92,255,.12);border-color:rgba(120,60,200,.5);}
+  .gradebox[data-tier="9"] .gradetier{color:#5A2EB0;}
+  .gradebox[data-tier="10"]{background:rgba(255,201,60,.12);border-color:rgba(200,140,30,.45);}
+  .gradebox[data-tier="10"] .gradetier{color:#B07A1E;}
+  .gradebox[data-tier="11"]{background:linear-gradient(135deg,rgba(255,201,60,.18),rgba(255,61,113,.12));
     border-color:rgba(200,80,40,.5);}
-  .gradebox[data-tier="9"] .gradetier, .gradebox[data-tier="10"] .gradetier{color:#B33B1F;font-weight:600;}
+  .gradebox[data-tier="11"] .gradetier{color:#B33B1F;font-weight:600;}
 
   .bigscore{font-family:'DM Mono',monospace;font-weight:400;font-size:3.4rem;line-height:1;margin:16px 0;color:var(--ink);}
   .bigscore .of{color:var(--muted);font-size:1.8rem;}
@@ -303,12 +304,14 @@
   .gradebadge{display:inline-block;font-family:'DM Mono',monospace;font-size:.7rem;
     padding:1px 7px;border-radius:8px;border:1px solid var(--line);color:var(--muted);
     margin-left:6px;letter-spacing:.02em;vertical-align:middle;}
-  .gradebadge[data-tier="4"]{background:rgba(31,143,95,.08);border-color:rgba(31,143,95,.35);color:#2F8F5F;}
-  .gradebadge[data-tier="5"]{background:rgba(58,110,165,.08);border-color:rgba(58,110,165,.4);color:#3A6EA5;}
-  .gradebadge[data-tier="6"]{background:rgba(82,160,255,.1);border-color:rgba(82,160,255,.45);color:#3A6EA5;}
-  .gradebadge[data-tier="7"]{background:rgba(155,92,255,.1);border-color:rgba(155,92,255,.45);color:#7A3FE6;}
-  .gradebadge[data-tier="8"]{background:rgba(255,201,60,.15);border-color:rgba(200,140,30,.5);color:#B07A1E;}
-  .gradebadge[data-tier="9"], .gradebadge[data-tier="10"]{
+  .gradebadge[data-tier="4"]{background:rgba(120,120,120,.08);border-color:rgba(120,120,120,.35);color:#6a6a6a;}
+  .gradebadge[data-tier="5"]{background:rgba(31,143,95,.08);border-color:rgba(31,143,95,.35);color:#2F8F5F;}
+  .gradebadge[data-tier="6"]{background:rgba(58,110,165,.08);border-color:rgba(58,110,165,.4);color:#3A6EA5;}
+  .gradebadge[data-tier="7"]{background:rgba(82,160,255,.1);border-color:rgba(82,160,255,.45);color:#3A6EA5;}
+  .gradebadge[data-tier="8"]{background:rgba(155,92,255,.1);border-color:rgba(155,92,255,.45);color:#7A3FE6;}
+  .gradebadge[data-tier="9"]{background:rgba(155,92,255,.15);border-color:rgba(120,60,200,.55);color:#5A2EB0;}
+  .gradebadge[data-tier="10"]{background:rgba(255,201,60,.15);border-color:rgba(200,140,30,.5);color:#B07A1E;}
+  .gradebadge[data-tier="11"]{
     background:linear-gradient(135deg,rgba(255,201,60,.2),rgba(255,61,113,.15));
     border-color:rgba(200,80,40,.55);color:#B33B1F;font-weight:600;}
 
@@ -359,6 +362,7 @@
 
   .version{position:fixed;bottom:10px;right:14px;font-family:'DM Mono',monospace;
     font-size:.7rem;color:var(--muted);opacity:.6;letter-spacing:.04em;pointer-events:none;}
+  .settingsversion{margin-top:14px;text-align:center;color:var(--muted);font-size:.72rem;letter-spacing:.06em;}
 </style>
 </head>
 <body>
@@ -507,6 +511,7 @@
     </div>
 
     <button class="startbtn" id="startBtn">Play →</button>
+    <div class="settingsversion mono" id="settingsVersion"></div>
   </section>
 
   <!-- PLAY -->
@@ -577,7 +582,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.17.1</div>
+<div class="version">v1.18.0</div>
 
 <script>
 /* ============================================================================
@@ -1524,47 +1529,49 @@ const FBS=[
 const DIFF_MULT={Easy:1,Medium:2,Hard:3};
 const FB_TIMING={off:300, short:300, long:6000};
 
-/* Grade system — every finished exam earns a grade like "4A · Beginner".
- * The number tier is set by topic (intrinsic difficulty) modulated by the
- * chosen exam difficulty. The letter sub-grade comes from accuracy.
+/* Grade system — every finished exam earns a grade like "5A · Beginner".
+ * Tiers run 4–11. Numbers below 4 are unused.
  *
- * Tier ceilings per topic — intentionally cap "easier" math low. The user's
- * rule: all integer algebra stays below Highschool (max grade < 5). */
+ *   4  Layman      5  Beginner    6  Highschool  7  Undergrad
+ *   8  Grad        9  PhD        10  Frontier   11  Nobel
+ *
+ * Topic ceilings — nothing in this app passes Undergrad (7). Integer algebra
+ * stays below Highschool (max 5 = Beginner). Higher tiers are reserved for
+ * future content (calculus, tensor analysis, …). */
 const TOPIC_GRADE_CEIL = {
-  // Nothing in this app gets past undergraduate. Matrix multiplication is the
-  // hardest piece and caps at 6 (Gradschool / undergrad). Integer algebra
-  // stays below Highschool (max 4). PhD+ tiers are reserved for content
-  // we haven't built yet.
-  natAdd:4, natSub:4, natMul:4, natDiv:4, natExp:4,
-  intAdd:4, intSub:4, intExp:4,
-  fracDiv:4,
-  realMul:5, realDiv:5, realExp:5,
-  vcmAdd:5, vcmSub:5, vcmMul:6,
-  vecDot:6, vecWedge:6,
-  matMul:6,
+  natAdd:5, natSub:5, natMul:5, natDiv:5, natExp:5,
+  intAdd:5, intSub:5, intExp:5,
+  fracDiv:5,
+  realMul:6, realDiv:6, realExp:6,
+  vcmAdd:6, vcmSub:6, vcmMul:7,
+  vecDot:7, vecWedge:7,
+  matMul:7,
 };
 const TIER_NAMES = {
-  1:'Layman',   2:'Layman',   3:'Layman',
-  4:'Beginner',
-  5:'Highschool',
-  6:'Gradschool',
-  7:'PhD',
-  8:'Frontier',
-  9:'Nobel',    10:'Nobel'
+  4:'Layman',
+  5:'Beginner',
+  6:'Highschool',
+  7:'Undergrad',
+  8:'Grad',
+  9:'PhD',
+  10:'Frontier',
+  11:'Nobel'
 };
+const TIER_MIN = 4;
+const TIER_MAX = 11;
 
 /** Returns {number, letter, full} where:
- *    number 1–10 — which tier
+ *    number 4–11 — which tier
  *    letter A/B/C — sub-grade by accuracy (A best, C lowest)
- *    full  e.g. "4A" — number + letter concatenated
+ *    full  e.g. "5A" — number + letter concatenated
  *  Easy / Medium cap two / one tiers below the topic's ceiling, so the same
- *  topic on Hard reaches its full ceiling. */
+ *  topic on Hard reaches its full ceiling. 0% always yields Layman (4). */
 function gradeFor(accuracy, diff, topic){
   const cap   = TOPIC_GRADE_CEIL[topic] || 6;
-  const ceil  = ({Easy:Math.max(1,cap-2), Medium:Math.max(1,cap-1), Hard:cap})[diff] || cap;
+  const ceil  = ({Easy:Math.max(TIER_MIN,cap-2), Medium:Math.max(TIER_MIN,cap-1), Hard:cap})[diff] || cap;
   const acc   = Math.max(0, Math.min(1, accuracy));
-  const numeric = 1 + (ceil - 1) * acc;
-  const number  = Math.max(1, Math.min(10, Math.round(numeric)));
+  const numeric = TIER_MIN + (ceil - TIER_MIN) * acc;
+  const number  = Math.max(TIER_MIN, Math.min(TIER_MAX, Math.round(numeric)));
   const letter  = acc >= 0.85 ? 'A' : acc >= 0.55 ? 'B' : 'C';
   return { number, letter, full: `${number}${letter}` };
 }
@@ -1579,11 +1586,11 @@ function gradeCompare(a, b){
   return (lmap[ma[2]] || 0) - (lmap[mb[2]] || 0);
 }
 
-/* Every grade in ascending order — 1A, 1B, 1C, 2A, … 10C. Used to advance one
+/* Every grade in ascending order — 4A, 4B, 4C, 5A, … 11C. Used to advance one
  * step at a time when computing the 3× unlock cap. */
 const ALL_GRADES = (() => {
   const out = [];
-  for(let n=1; n<=10; n++) for(const l of ['A','B','C']) out.push(`${n}${l}`);
+  for(let n=TIER_MIN; n<=TIER_MAX; n++) for(const l of ['A','B','C']) out.push(`${n}${l}`);
   return out;
 })();
 function gradeIndex(g){ return ALL_GRADES.indexOf(String(g)); }
@@ -1858,17 +1865,19 @@ function radarChartSVG(user){
   });
 
   const n = labels.length;
-  const R = 80; // outer radius (10-tier ring)
+  const R = 80; // outer radius (TIER_MAX ring)
   const angles = labels.map((_, i) => -Math.PI/2 + i * (2*Math.PI / n));
   const pt = (a, r) => `${(r*Math.cos(a)).toFixed(2)},${(r*Math.sin(a)).toFixed(2)}`;
+  // Map a tier number in [TIER_MIN..TIER_MAX] to a radius in [0..R].
+  const tierR = v => v > 0 ? ((v - (TIER_MIN-1)) / (TIER_MAX - (TIER_MIN-1))) * R : 0;
 
   const parts = [];
   parts.push(`<svg class="spider" viewBox="-135 -110 270 230" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">`);
 
-  // Concentric rings at grades 2, 4, 6, 8, 10
-  [2,4,6,8,10].forEach(g => {
-    const r = R * g / 10;
-    parts.push(`<polygon points="${angles.map(a => pt(a, r)).join(' ')}" fill="${g===10?'rgba(155,92,255,.04)':'none'}" stroke="rgba(0,0,0,.07)" stroke-width="0.7"/>`);
+  // Concentric rings at tiers 5, 7, 9, 11 (Beginner, Undergrad, PhD, Nobel)
+  [5,7,9,11].forEach(g => {
+    const r = tierR(g);
+    parts.push(`<polygon points="${angles.map(a => pt(a, r)).join(' ')}" fill="${g===TIER_MAX?'rgba(155,92,255,.04)':'none'}" stroke="rgba(0,0,0,.07)" stroke-width="0.7"/>`);
   });
 
   // Spoke axes
@@ -1877,12 +1886,12 @@ function radarChartSVG(user){
   // Player polygon (filled in violet, only if there's any data)
   const values = nts.map(k => peak[k]);
   if(values.some(v => v > 0)){
-    const playerPts = values.map((v, i) => pt(angles[i], (v/10)*R)).join(' ');
+    const playerPts = values.map((v, i) => pt(angles[i], tierR(v))).join(' ');
     parts.push(`<polygon points="${playerPts}" fill="rgba(155,92,255,.22)" stroke="rgba(155,92,255,.85)" stroke-width="1.6" stroke-linejoin="round"/>`);
     // little dots at each vertex
     values.forEach((v, i) => {
       if(v <= 0) return;
-      const [x, y] = pt(angles[i], (v/10)*R).split(',');
+      const [x, y] = pt(angles[i], tierR(v)).split(',');
       parts.push(`<circle cx="${x}" cy="${y}" r="2.4" fill="rgba(155,92,255,.95)"/>`);
     });
   }
@@ -1975,20 +1984,6 @@ function openProfile(){
     tlist.innerHTML += html;
   });
 
-  /* ── By operation: cross-cuts topics so you can see e.g. how addition
-   *    fares across natural, integer, and 2D forms in one row. */
-  const byOp = {};
-  keys.forEach(k=>{
-    const op = TOPIC_OP[k]; if(!op) return;
-    if(!byOp[op]) byOp[op] = {points:0,correct:0,answered:0,games:0,topics:[]};
-    const acc = byOp[op], t = u.byTopic[k];
-    acc.points   += t.points;
-    acc.correct  += t.correct;
-    acc.answered += t.answered;
-    acc.games    += t.games;
-    acc.topics.push(k);
-  });
-  const opKeys = OP_ORDER.filter(op => byOp[op]);
   // Per-row Play-again / Delete buttons (event delegation so they survive re-render).
   tlist.querySelectorAll('.playact').forEach(btn=>{
     btn.addEventListener('click', ev=>{
@@ -2020,21 +2015,6 @@ function openProfile(){
     });
   });
 
-  if(opKeys.length){
-    let opHtml = `<div class="profgroup">
-      <div class="profhead"><span class="profheadl"><span class="profsym">·</span>By operation</span></div>`;
-    opKeys.forEach(op=>{
-      const t = byOp[op];
-      const pct = t.answered ? Math.round(t.correct/t.answered*100) : 0;
-      opHtml += `<div class="proftopic">
-        <div class="profrow"><span class="tk">${OP_LABEL[op]}</span><span class="tv">${t.points} ★ · ${pct}%</span></div>
-        <div class="bar"><div style="width:${pct}%;"></div></div>
-        <div class="diffrow"><span class="diffpill">${t.games} game${t.games===1?'':'s'} · ${t.topics.length} topic${t.topics.length===1?'':'s'}</span></div>
-      </div>`;
-    });
-    opHtml += `</div>`;
-    tlist.innerHTML += opHtml;
-  }
   show('profile');
 }
 
@@ -2230,7 +2210,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.17.1';
+const APP_VERSION = 'v1.18.0';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
@@ -2704,6 +2684,7 @@ function burst(){
 }
 
 loadSettings();
+$('settingsVersion').textContent = `Cosmic Crossing ${APP_VERSION}`;
 renderNumberList();
 renderRecents();
 renderUserChip();
