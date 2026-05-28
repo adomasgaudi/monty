@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.16.2 -->
+<!-- Cosmic Crossing v1.17.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Cosmic Crossing v1.16.2 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.17.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -245,6 +245,21 @@
   .stat .k{font-size:.75rem;color:var(--muted);font-weight:400;text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
   .msg{font-size:1rem;font-weight:400;margin:20px 0 4px;color:var(--muted);}
   .endbtns{display:grid;gap:8px;margin-top:20px;}
+  /* Custom question-count input */
+  .countCustom{margin-top:8px;width:100%;max-width:240px;
+    border:1px solid var(--line);border-radius:8px;padding:7px 12px;
+    font-size:.92rem;background:none;color:var(--ink);font-family:'DM Mono',monospace;}
+  .countCustom:focus{outline:none;border-color:var(--ink);}
+  /* End-screen rate-this-game block */
+  .ratesection{margin-top:24px;padding:18px 0 4px;border-top:1px solid var(--line);text-align:left;}
+  .ratecap{font-size:.82rem;color:var(--muted);margin:6px 0 10px;}
+  .ratecap b{color:var(--ink);font-family:'DM Mono',monospace;}
+  .rateopts{display:flex;gap:5px;flex-wrap:wrap;}
+  .rate-btn{font-family:'DM Mono',monospace;font-size:.82rem;font-weight:500;
+    padding:5px 10px;background:none;border:1px solid var(--line);border-radius:7px;
+    cursor:pointer;color:var(--ink);transition:border-color .12s,background .12s,color .12s;}
+  .rate-btn:hover{border-color:var(--ink);}
+  .rate-btn.sel{background:var(--ink);color:var(--bg);border-color:var(--ink);}
 
   .confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
   .conf{position:absolute;width:6px;height:6px;opacity:0;background:var(--ink);}
@@ -419,11 +434,6 @@
     <div class="endcard" style="text-align:left;">
       <div class="setlabel" style="margin-top:18px;">Signed in as</div>
       <div class="mono" id="profEmail" style="font-size:1.1rem;margin-top:4px;"></div>
-      <div class="stats" style="justify-content:flex-start;margin-top:24px;">
-        <div class="stat"><div class="v" id="profPoints">0</div><div class="k">total points</div></div>
-        <div class="stat"><div class="v" id="profGames">0</div><div class="k">games played</div></div>
-        <div class="stat"><div class="v" id="profAcc">0%</div><div class="k">lifetime accuracy</div></div>
-      </div>
       <div class="setlabel" style="margin-top:24px;">Discipline overview</div>
       <div id="profSpider" class="profspider"></div>
       <div class="setlabel" style="margin-top:24px;">History</div>
@@ -460,6 +470,7 @@
       <div class="setblock">
         <div class="setlabel">How many questions</div>
         <div class="opts" id="optCount"></div>
+        <input type="number" id="countCustom" class="countCustom mono" min="1" max="500" placeholder="Or type any number 1–500">
       </div>
       <div class="setblock">
         <div class="setlabel">How you answer</div>
@@ -554,6 +565,11 @@
         <div class="stat"><div class="v" id="finalAcc">0%</div><div class="k">accuracy</div></div>
       </div>
       <p class="msg" id="endMsg"></p>
+      <div class="ratesection" id="rateSection" style="display:none;">
+        <div class="setlabel">Rate this game's difficulty</div>
+        <div class="ratecap" id="rateCap"></div>
+        <div class="rateopts" id="rateOpts"></div>
+      </div>
       <div class="endbtns">
         <button class="next" id="againBtn">Play again</button>
         <button class="next" id="changeBtn" style="background:none;color:var(--ink);border:1px solid var(--line);">Change settings</button>
@@ -561,7 +577,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.16.2</div>
+<div class="version">v1.17.0</div>
 
 <script>
 /* ============================================================================
@@ -1486,7 +1502,7 @@ const NAV = {numberType:null,category:null,operation:null};
 
 /* ─── 6. Settings model ─────────────────────────────────────────────────── */
 const SET = { topic:null, diff:'Easy', count:10, method:'choice', feedback:'long', mode:'pure', showEq:'show', useUnits:false, numForm:'decimal', divForm:'symbol', viewForm:'vector', vcmCompMode:'first' };
-const COUNTS=[5,10,15,20];
+const COUNTS=[2,5,10,15,20];
 const MODES=[['pure','Pure math','just numbers'],['real','Real world','physics & alchemy']];
 const EQS=[['show','Show','equation visible'],['hide','Hide','text only'],['prose','Prose','infer the math']];
 const UNITS=[[false,'Plain','just the number'],[true,'With units','km, V, °C…']];
@@ -1561,6 +1577,48 @@ function gradeCompare(a, b){
   if(na !== nb) return na - nb;
   const lmap = {A:2, B:1, C:0};
   return (lmap[ma[2]] || 0) - (lmap[mb[2]] || 0);
+}
+
+/* Every grade in ascending order — 1A, 1B, 1C, 2A, … 10C. Used to advance one
+ * step at a time when computing the 3× unlock cap. */
+const ALL_GRADES = (() => {
+  const out = [];
+  for(let n=1; n<=10; n++) for(const l of ['A','B','C']) out.push(`${n}${l}`);
+  return out;
+})();
+function gradeIndex(g){ return ALL_GRADES.indexOf(String(g)); }
+
+/** How high a player may grade a game, given how many times they've EARNED a
+ *  particular grade. Each 3× of the same grade unlocks one step higher.
+ *    1×    → cap = earned grade itself
+ *    3×    → +1 step
+ *    9×    → +2 steps
+ *    27×   → +3 steps  (e.g. 27× of 6A → 7A)
+ *    81×   → +4 steps  (7B), etc. */
+function capFromCount(earnedGrade, count){
+  const idx = gradeIndex(earnedGrade);
+  if(idx < 0 || count < 1) return null;
+  const steps = Math.floor(Math.log(count) / Math.log(3));
+  return ALL_GRADES[Math.min(ALL_GRADES.length - 1, idx + steps)];
+}
+
+/** Across every grade the user has earned, return the highest cap they've
+ *  unlocked for grading games. */
+function highestUserCanGrade(u){
+  const counts = (u && u.gradeCounts) || {};
+  let best = null;
+  for(const [g, n] of Object.entries(counts)){
+    const cap = capFromCount(g, n);
+    if(cap && (!best || gradeCompare(cap, best) > 0)) best = cap;
+  }
+  return best;
+}
+
+/** Grades the player has unlocked to assign, from 1A up to their current cap. */
+function unlockedGrades(cap){
+  if(!cap) return [];
+  const stop = gradeIndex(cap);
+  return stop < 0 ? [] : ALL_GRADES.slice(0, stop + 1);
 }
 function tierName(gradeStr){
   const num = parseInt(String(gradeStr||'').match(/^(\d+)/)?.[1]||0, 10);
@@ -1772,6 +1830,9 @@ function recordGame(u,topicKey,points,correct,count,diff){
   if(gradeCompare(g.full, d.bestGrade) > 0) d.bestGrade = g.full;
   t.lastGrade = g.full;
   if(gradeCompare(g.full, t.bestGrade) > 0) t.bestGrade = g.full;
+  // Per-grade earn counter — feeds the 3× unlock for game-rating.
+  if(!u.gradeCounts) u.gradeCounts = {};
+  u.gradeCounts[g.full] = (u.gradeCounts[g.full] || 0) + 1;
   saveUser(u);
 }
 function renderUserChip(){
@@ -1862,9 +1923,6 @@ const OP_ORDER = ['add','sub','mul','div','exp','dot','wedge','matmul'];
 function openProfile(){
   const u=getCurrentUser(); if(!u){show('signin');return;}
   $('profEmail').textContent=u.email;
-  $('profPoints').textContent=u.points;
-  $('profGames').textContent=u.games;
-  $('profAcc').textContent=u.answeredTotal ? Math.round(u.correctTotal/u.answeredTotal*100)+'%' : '—';
   $('profSpider').innerHTML = radarChartSVG(u);
   const tlist=$('profTopics'); tlist.innerHTML='';
   const keys=Object.keys(u.byTopic);
@@ -2030,6 +2088,9 @@ function openSettings(key){
   if(!t.diffs.includes(SET.diff)) SET.diff=t.diffs[0];
   renderOpts('optDiff', t.diffs.map(d=>[d,d]), 'diff');
   renderOpts('optCount', COUNTS.map(c=>[c, String(c)]), 'count');
+  // Mirror the saved count in the custom input if it isn't one of the presets.
+  const preset = new Set(COUNTS);
+  $('countCustom').value = preset.has(SET.count) ? '' : String(SET.count);
   renderOpts('optMode', MODES, 'mode', refreshConditionals);
   renderOpts('optEq', EQS, 'showEq');
   renderOpts('optUnit', UNITS, 'useUnits');
@@ -2165,7 +2226,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.16.2';
+const APP_VERSION = 'v1.17.0';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
@@ -2200,6 +2261,13 @@ $('navBack').addEventListener('click', navBack);
 $('navHome').addEventListener('click', navHome);
 $('navProfile').addEventListener('click', navProfile);
 $('visualToggle').addEventListener('click', ()=>{ visualShown = !visualShown; applyVisualState(); });
+$('countCustom').addEventListener('input', ()=>{
+  const v = parseInt($('countCustom').value, 10);
+  if(!isNaN(v) && v >= 1 && v <= 500){
+    SET.count = v; saveSettings();
+    renderOpts('optCount', COUNTS.map(c=>[c, String(c)]), 'count');
+  }
+});
 $('clearRecentsBtn').addEventListener('click', ()=>{
   if(!confirm('Clear all recent games from this list?')) return;
   saveRecents([]);
@@ -2563,6 +2631,35 @@ function nextQuestion(){
   renderQuestion();
 }
 
+/** Render the end-screen "rate this game" block. Only the unlocked grades
+ *  are shown — each 3× of a grade unlocks the next step. */
+function renderRatingUI(){
+  const section = $('rateSection');
+  const u = getCurrentUser();
+  const cap = u ? highestUserCanGrade(u) : null;
+  if(!u || !cap){ section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  $('rateCap').innerHTML = `You can grade up to <b>${cap}</b>. Each 3× of a grade unlocks one step higher.`;
+  const wrap = $('rateOpts');
+  wrap.innerHTML = '';
+  const grades  = unlockedGrades(cap);
+  const current = (u.ratings && u.ratings[SET.topic]) || null;
+  grades.forEach(g=>{
+    const btn = document.createElement('button');
+    btn.className = 'rate-btn' + (g === current ? ' sel' : '');
+    btn.textContent = g;
+    btn.type = 'button';
+    btn.addEventListener('click', ()=>{
+      const user = getCurrentUser(); if(!user) return;
+      if(!user.ratings) user.ratings = {};
+      user.ratings[SET.topic] = g;
+      saveUser(user);
+      renderRatingUI();
+    });
+    wrap.appendChild(btn);
+  });
+}
+
 function endGame(){
   clearInterval(timerInt);
   const total=((Date.now()-startTime)/1000).toFixed(1);
@@ -2581,6 +2678,7 @@ function endGame(){
   $('finalTier').textContent=TIER_NAMES[earned.number] || '';
   $('finalGradeBox').setAttribute('data-tier', earned.number);
   $('bar').style.width='100%';
+  renderRatingUI();
   const pct=score/SET.count;
   let title,msg;
   if(pct===1){title='Flawless';msg='Every one. The pattern is yours.';}
