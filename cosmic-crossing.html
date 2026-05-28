@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.10.0 -->
+<!-- Cosmic Crossing v1.11.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.10.0 — Physics & Alchemy Math</title>
+<title>Cosmic Crossing v1.11.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -222,6 +222,33 @@
   .startgate{padding:32px 8px 16px;text-align:center;}
   .gatemsg{font-size:1.3rem;font-weight:500;color:var(--ink);margin-bottom:6px;}
 
+  /* advanced settings toggle */
+  .advtoggle{display:flex;align-items:center;gap:8px;margin-top:24px;width:100%;
+    background:none;border:1px dashed var(--line);border-radius:10px;padding:11px 14px;
+    color:var(--muted);font-family:inherit;font-size:.92rem;cursor:pointer;
+    transition:border-color .12s,color .12s;}
+  .advtoggle:hover{border-color:var(--ink);color:var(--ink);}
+  .advtoggle .advicon{font-size:1.05rem;}
+  .advtoggle .advcaret{margin-left:auto;font-size:.85rem;transition:transform .15s;}
+  .advtoggle[aria-expanded="true"] .advcaret{transform:rotate(180deg);}
+  .advanced{animation:advexp .2s ease;}
+  @keyframes advexp{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
+
+  /* recents block on home screen */
+  .recents{margin-top:18px;padding-bottom:18px;border-bottom:1px solid var(--line);}
+  .recentlabel{font-weight:500;font-size:.82rem;margin-bottom:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+  .recentlist{display:grid;gap:6px;}
+  .recent{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    background:none;border:1px solid var(--line);border-radius:10px;padding:9px 13px;cursor:pointer;
+    font-family:inherit;color:var(--ink);text-align:left;
+    transition:border-color .12s,background .12s;}
+  .recent:hover{border-color:var(--ink);background:rgba(0,0,0,.025);}
+  .recent .rname{font-weight:500;font-size:.96rem;flex:1;}
+  .recent .rmeta{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted);white-space:nowrap;}
+  .recent .rclose{font-family:'DM Mono',monospace;font-size:.9rem;color:var(--muted);
+    padding:2px 6px;background:none;border:none;cursor:pointer;border-radius:6px;}
+  .recent .rclose:hover{color:var(--no);background:rgba(0,0,0,.05);}
+
   .version{position:fixed;bottom:10px;right:14px;font-family:'DM Mono',monospace;
     font-size:.7rem;color:var(--muted);opacity:.6;letter-spacing:.04em;pointer-events:none;}
 </style>
@@ -239,6 +266,12 @@
       </div>
       <button class="userchip" id="userChip"></button>
     </div>
+
+    <div class="recents" id="recents" style="display:none;">
+      <div class="recentlabel">Recent</div>
+      <div class="recentlist" id="recentList"></div>
+    </div>
+
     <div class="topics" id="numberList"></div>
   </section>
 
@@ -295,6 +328,7 @@
       <span class="crumb" id="setCrumb"></span>
     </div>
 
+    <!-- Required settings — always visible -->
     <div class="setblock">
       <div class="setlabel">Difficulty</div>
       <div class="opts" id="optDiff"></div>
@@ -307,33 +341,40 @@
       <div class="setlabel">Mode</div>
       <div class="opts" id="optMode"></div>
     </div>
-    <div class="setblock" id="setEqBlock" style="display:none;">
-      <div class="setlabel">Equation</div>
-      <div class="opts" id="optEq"></div>
-    </div>
-    <div class="setblock" id="setViewBlock" style="display:none;">
-      <div class="setlabel">View as</div>
-      <div class="opts" id="optView"></div>
-    </div>
-    <div class="setblock" id="setUnitBlock" style="display:none;">
-      <div class="setlabel">Units in answer</div>
-      <div class="opts" id="optUnit"></div>
-    </div>
-    <div class="setblock" id="setNumBlock" style="display:none;">
-      <div class="setlabel">Numerals</div>
-      <div class="opts" id="optNumForm"></div>
-    </div>
-    <div class="setblock" id="setDivBlock" style="display:none;">
-      <div class="setlabel">Division shown as</div>
-      <div class="opts" id="optDivForm"></div>
-    </div>
     <div class="setblock">
       <div class="setlabel">How you answer</div>
       <div class="opts" id="optMethod"></div>
     </div>
-    <div class="setblock">
-      <div class="setlabel">Feedback after each answer</div>
-      <div class="opts" id="optFb"></div>
+
+    <!-- Advanced settings — hidden by default, revealed by the gear toggle -->
+    <button class="advtoggle" id="advToggle" type="button" aria-expanded="false">
+      <span class="advicon">⚙</span><span>More options</span><span class="advcaret">▾</span>
+    </button>
+    <div class="advanced" id="advancedBlock" style="display:none;">
+      <div class="setblock" id="setEqBlock" style="display:none;">
+        <div class="setlabel">Equation</div>
+        <div class="opts" id="optEq"></div>
+      </div>
+      <div class="setblock" id="setViewBlock" style="display:none;">
+        <div class="setlabel">View as</div>
+        <div class="opts" id="optView"></div>
+      </div>
+      <div class="setblock" id="setUnitBlock" style="display:none;">
+        <div class="setlabel">Units in answer</div>
+        <div class="opts" id="optUnit"></div>
+      </div>
+      <div class="setblock" id="setNumBlock" style="display:none;">
+        <div class="setlabel">Numerals</div>
+        <div class="opts" id="optNumForm"></div>
+      </div>
+      <div class="setblock" id="setDivBlock" style="display:none;">
+        <div class="setlabel">Division shown as</div>
+        <div class="opts" id="optDivForm"></div>
+      </div>
+      <div class="setblock">
+        <div class="setlabel">Feedback after each answer</div>
+        <div class="opts" id="optFb"></div>
+      </div>
     </div>
 
     <button class="startbtn" id="startBtn">Ignite →</button>
@@ -392,7 +433,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.10.0</div>
+<div class="version">v1.11.0</div>
 
 <script>
 /* ============================================================================
@@ -411,7 +452,7 @@
  *  10. Init                  — load persisted state, render home screen
  *
  * CODE STYLE: targeted for LLM readability per evidence in commit notes for
- * v1.10.0 — short functions, descriptive names, multi-line expansion of dense
+ * v1.11.0 — short functions, descriptive names, multi-line expansion of dense
  * helpers, duplication tolerated over premature abstraction. No bundler; one
  * file ships as-is.
  * ========================================================================== */
@@ -1308,6 +1349,9 @@ function openSettings(key){
   renderOpts('optMethod', METHODS, 'method');
   renderOpts('optFb', FBS, 'feedback');
   refreshConditionals();
+  const advOpen = !!SET.advOpen;
+  $('advToggle').setAttribute('aria-expanded', advOpen ? 'true' : 'false');
+  $('advancedBlock').style.display = advOpen ? 'block' : 'none';
   show('settings');
 }
 function refreshConditionals(){
@@ -1333,7 +1377,100 @@ function renderOpts(containerId, items, field, onChange){
   });
 }
 
-/* ─── 9. Persistence — settings + nav ───────────────────────────────────── */
+/* ─── 9. Recents — quick relaunch from home ─────────────────────────────── */
+const RECENTS_KEY = 'cc_recents';
+const RECENTS_MAX = 5;
+
+/** Load recents array from localStorage, newest first. */
+function loadRecents(){
+  try {
+    const arr = JSON.parse(localStorage.getItem(RECENTS_KEY) || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+/** Persist the recents array (capped to RECENTS_MAX entries). */
+function saveRecents(arr){
+  try { localStorage.setItem(RECENTS_KEY, JSON.stringify(arr.slice(0, RECENTS_MAX))); } catch {}
+}
+
+/** Push the current SET as the newest recent (dedupes by topic). */
+function pushRecent(){
+  if(!SET.topic) return;
+  const snapshot = {
+    topic:    SET.topic,
+    diff:     SET.diff,
+    count:    SET.count,
+    mode:     SET.mode,
+    method:   SET.method,
+    feedback: SET.feedback,
+    showEq:   SET.showEq,
+    useUnits: SET.useUnits,
+    numForm:  SET.numForm,
+    divForm:  SET.divForm,
+    viewForm: SET.viewForm,
+    nt:       NAV.numberType,
+    cat:      NAV.category,
+    op:       NAV.operation,
+    ts:       Date.now(),
+  };
+  const existing = loadRecents().filter(r => r.topic !== SET.topic);
+  saveRecents([snapshot, ...existing]);
+}
+
+/** Re-render the home-screen recents block. */
+function renderRecents(){
+  const section = $('recents');
+  const list    = $('recentList');
+  const recents = loadRecents();
+  if(!recents.length){ section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = '';
+  recents.forEach((r, i) => {
+    const topic = TOPICS[r.topic];
+    if(!topic) return;
+    const btn = document.createElement('button');
+    btn.className = 'recent';
+    btn.innerHTML = `
+      <span class="rname">${topic.title}</span>
+      <span class="rmeta">${r.diff} · ${r.count}q · ${r.mode === 'real' ? 'real' : 'pure'}</span>
+      <span class="rclose" data-i="${i}" title="Remove">×</span>`;
+    btn.addEventListener('click', (ev) => {
+      if(ev.target && ev.target.classList.contains('rclose')){
+        const idx = parseInt(ev.target.dataset.i, 10);
+        const arr = loadRecents(); arr.splice(idx, 1); saveRecents(arr);
+        renderRecents();
+        return;
+      }
+      jumpToRecent(r);
+    });
+    list.appendChild(btn);
+  });
+}
+
+/** Restore the saved settings + nav from a recent and open its settings screen. */
+function jumpToRecent(r){
+  Object.assign(SET, {
+    topic:    r.topic,
+    diff:     r.diff,
+    count:    r.count,
+    mode:     r.mode,
+    method:   r.method,
+    feedback: r.feedback,
+    showEq:   r.showEq,
+    useUnits: r.useUnits,
+    numForm:  r.numForm,
+    divForm:  r.divForm,
+    viewForm: r.viewForm,
+  });
+  if(r.nt)  NAV.numberType = r.nt;
+  if(r.cat) NAV.category   = r.cat;
+  if(r.op)  NAV.operation  = r.op;
+  saveSettings(); saveNav();
+  openSettings(r.topic);
+}
+
+/* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
 function loadSettings(){
   try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'null'); if(s&&typeof s==='object') Object.assign(SET, s); }catch{}
@@ -1353,7 +1490,20 @@ $('signinBtn').addEventListener('click', ()=>{ const u=signInWithEmail($('emailI
 $('emailIn').addEventListener('keydown', e=>{ if(e.key==='Enter') $('signinBtn').click(); });
 $('emailIn').addEventListener('input', ()=>{ $('emailIn').style.borderColor=''; });
 $('logoutBtn').addEventListener('click', ()=>{ signOut(); show('numbers'); });
-document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{clearInterval(timerInt);show(b.dataset.go);}));
+document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{
+  clearInterval(timerInt);
+  if(b.dataset.go==='numbers') renderRecents();
+  show(b.dataset.go);
+}));
+$('advToggle').addEventListener('click', ()=>{
+  const block = $('advancedBlock');
+  const btn   = $('advToggle');
+  const open  = btn.getAttribute('aria-expanded') === 'true';
+  btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+  block.style.display = open ? 'none' : 'block';
+  SET.advOpen = !open;
+  saveSettings();
+});
 $('typein').addEventListener('keydown', e=>{ if(e.key==='Enter') submitTyped(); });
 
 function startGame(){
@@ -1367,6 +1517,7 @@ function startGame(){
     }
     queue.push(q);
   }
+  pushRecent();
   idx=0; score=0; correctCount=0; attempts=0; locked=false;
   clearInterval(timerInt);
   $('timer').textContent='0.0s';
@@ -1658,6 +1809,7 @@ function burst(){
 
 loadSettings();
 renderNumberList();
+renderRecents();
 renderUserChip();
 /* Pre-render any sub-screens we have nav state for, so back buttons land on a populated screen */
 if(NAV.numberType && NUMBER_TYPES.find(n=>n.key===NAV.numberType && n.enabled)){
