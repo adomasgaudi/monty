@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.23.3 -->
+<!-- Riemann Surface v1.23.4 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.23.3 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.23.4 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -661,7 +661,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.23.3</div>
+<div class="version">v1.23.4</div>
 
 <script>
 /* ============================================================================
@@ -2860,6 +2860,9 @@ function makeVecDotLesson(){
       cos(θ) = ${aLabel} <span class="dotop">·</span> ${bLabel} = <b>${cosStr}</b><br>
       u <span class="dotop">·</span> v = |u| × |v| × cos(θ) = ${uMagStr} × ${vMagStr} × ${cosStr} = <b>${dot}</b>`;
     persp.textContent = projectOntoU ? 'Shadow û onto v →' : 'Shadow v̂ onto u →';
+    // Hoisted forward-reference: renderAreas is declared further down, but
+    // function-declaration hoisting makes it callable here.
+    if(typeof renderAreas === 'function') renderAreas();
   }
 
   persp.addEventListener('click', ()=>{ projectOntoU = !projectOntoU; render(); });
@@ -2890,6 +2893,79 @@ function makeVecDotLesson(){
 
   lab.appendChild(svg); lab.appendChild(out); lab.appendChild(persp); lab.appendChild(hint);
   root.appendChild(lab);
+
+  // ── Second visual: the dot product as the sum of two component areas.
+  //    Left rectangle = u_x × v_x, right rectangle = u_y × v_y. The sum of
+  //    their signed areas is u · v.
+  const areaIntro = document.createElement('div');
+  areaIntro.innerHTML = `
+    <h2 style="margin-top:24px;">Component areas</h2>
+    <p>Another way to see <span class="mono">u <span class="dotop">·</span> v = u<sub>x</sub>×v<sub>x</sub> + u<sub>y</sub>×v<sub>y</sub></span> — two rectangles, one per axis, with the signed areas added together:</p>`;
+  root.appendChild(areaIntro);
+  const areaLab = document.createElement('div'); areaLab.className = 'lesson-interactive';
+  const AREA_W = 300, AREA_H = 180, AREA_CELL = 22, MIDX = AREA_W/2;
+  const areaSvg = el('svg', { viewBox: `0 0 ${AREA_W} ${AREA_H}`, width: AREA_W, height: AREA_H });
+  const areaOut = document.createElement('div'); areaOut.className = 'lesson-output';
+  // Reposition draws as a side-effect of render(); store a ref so we can
+  // call it from the existing render() too.
+  function renderAreas(){
+    while(areaSvg.firstChild) areaSvg.removeChild(areaSvg.firstChild);
+    const xa = u[0] * v[0];
+    const ya = u[1] * v[1];
+    const total = xa + ya;
+    // Centre divider so the two rectangles each get half the canvas.
+    areaSvg.appendChild(el('line', { x1: MIDX, y1: 6, x2: MIDX, y2: AREA_H-6, stroke: 'rgba(0,0,0,.08)' }));
+    const drawCell = (centerX, label, w, h, signed) => {
+      const W = Math.abs(w) * AREA_CELL;
+      const H = Math.abs(h) * AREA_CELL;
+      const baseY = AREA_H - 28;
+      const x = centerX - W/2;
+      const y = baseY - H;
+      const pos = signed >= 0;
+      // Box.
+      areaSvg.appendChild(el('rect', {
+        x, y, width: W || 1, height: H || 1,
+        fill:   pos ? 'rgba(47,143,95,.18)' : 'rgba(192,70,58,.16)',
+        stroke: pos ? '#2F8F5F' : '#C0463A',
+        'stroke-width': 1.5,
+        'stroke-dasharray': pos ? '' : '4 3',
+      }));
+      // Width / height tick labels.
+      areaSvg.appendChild(Object.assign(el('text', {
+        x: centerX, y: baseY + 14,
+        fill: 'var(--ink)', 'font-family': 'DM Mono,monospace', 'font-size': 11,
+        'text-anchor': 'middle'
+      }), { textContent: `${label.wLabel} = ${w}` }));
+      areaSvg.appendChild(Object.assign(el('text', {
+        x: x - 6, y: y + H/2 + 3,
+        fill: 'var(--ink)', 'font-family': 'DM Mono,monospace', 'font-size': 11,
+        'text-anchor': 'end'
+      }), { textContent: `${label.hLabel} = ${h}` }));
+      // Area number inside.
+      if(W >= 28 && H >= 14){
+        areaSvg.appendChild(Object.assign(el('text', {
+          x: centerX, y: y + H/2 + 4,
+          fill: pos ? '#1F6F4A' : '#8C2A22',
+          'font-family': 'DM Mono,monospace', 'font-size': 13, 'font-weight': 600,
+          'text-anchor': 'middle'
+        }), { textContent: String(signed) }));
+      }
+      // Title on top.
+      areaSvg.appendChild(Object.assign(el('text', {
+        x: centerX, y: 14,
+        fill: 'var(--muted)', 'font-family': 'Fredoka,sans-serif', 'font-size': 11,
+        'text-anchor': 'middle'
+      }), { textContent: label.title }));
+    };
+    drawCell(MIDX/2,        { title: 'u_x × v_x',  wLabel: 'u_x', hLabel: 'v_x' }, u[0], v[0], xa);
+    drawCell(MIDX + MIDX/2, { title: 'u_y × v_y',  wLabel: 'u_y', hLabel: 'v_y' }, u[1], v[1], ya);
+    areaOut.innerHTML = `
+      u<sub>x</sub>×v<sub>x</sub> + u<sub>y</sub>×v<sub>y</sub> = ${xa} + ${ya} = <b>${total}</b>
+      &nbsp;·&nbsp; u <span class="dotop">·</span> v = <b>${total}</b>`;
+  }
+  areaLab.appendChild(areaSvg); areaLab.appendChild(areaOut);
+  root.appendChild(areaLab);
+
   render();
   return root;
 }
@@ -3072,7 +3148,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.23.3';
+const APP_VERSION = 'v1.23.4';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
