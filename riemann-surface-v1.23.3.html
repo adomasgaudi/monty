@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.23.2 -->
+<!-- Riemann Surface v1.23.3 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.23.2 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.23.3 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -661,7 +661,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.23.2</div>
+<div class="version">v1.23.3</div>
 
 <script>
 /* ============================================================================
@@ -2712,27 +2712,27 @@ function openLesson(topic){
   show('lesson');
 }
 
-/** Build the dot-product intro: a draggable u and v with a live u · v read-out.
- *  Drag either coloured circle to move that vector's tip; the dot product
- *  display updates immediately. Snaps to integer coordinates.
- *  Each vector also draws a faint dashed extension along its line so you
- *  can see where one vector's projection lands on the other vector's
- *  direction. A toggle button swaps the perspective between u · v
- *  (project v onto u) and v · u (project u onto v). */
+/** Dot-product intro. Drag the red/blue tips to move u and v. The visual
+ *  shows the *unit vectors* û and v̂ (small arrows of length 1 along each
+ *  vector's direction) and the shadow of one unit vector on the other's
+ *  line — that shadow's length IS cos(θ). The read-out then unfolds:
+ *      cos(θ)  =  û · v̂
+ *      u · v   =  |u| × |v| × cos(θ)
+ *  so the dot product is "magnitudes times cosine of the angle". */
 function makeVecDotLesson(){
   const root = document.createElement('div');
   const intro = document.createElement('div');
   intro.innerHTML = `
     <h2>Dot product &nbsp; u <span class="dotop">·</span> v</h2>
     <p>The dot product is one number that says <i>how much two vectors point the same way</i>:</p>
-    <p><span class="mono">u <span class="dotop">·</span> v &nbsp;=&nbsp; u<sub>x</sub>×v<sub>x</sub> &nbsp;+&nbsp; u<sub>y</sub>×v<sub>y</sub></span></p>
-    <p>It's positive when they roughly agree, zero when they're perpendicular, and negative when they oppose. Drag either tip below to feel it. The dashed lines extend each vector through the origin — drop a perpendicular from one tip onto the other line and you've found the projection.</p>`;
+    <p><span class="mono">u <span class="dotop">·</span> v &nbsp;=&nbsp; |u| × |v| × cos(θ)</span></p>
+    <p>Below, the small inner arrows are the <b>unit vectors</b> û = u/|u| and v̂ = v/|v|. Their dot product is just <span class="mono">cos(θ)</span> — and the shadow of one unit vector on the other's line has length cos(θ). Multiply by |u| and |v| and you have the full u · v.</p>`;
   root.appendChild(intro);
 
   const lab = document.createElement('div'); lab.className = 'lesson-interactive';
   let u = [3, 1], v = [1, 2];
-  let projectOntoU = true; // true = v projected onto u (u · v perspective)
-  const SIZE = 280, SCALE = 30, C = SIZE / 2;
+  let projectOntoU = true; // true = drop v̂'s shadow on the u-line
+  const SIZE = 300, SCALE = 32, C = SIZE / 2;
   const ns = 'http://www.w3.org/2000/svg';
   const el = (name, a) => { const e = document.createElementNS(ns, name); if(a) for(const k in a) e.setAttribute(k, a[k]); return e; };
   const svg = el('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, width: SIZE, height: SIZE });
@@ -2746,45 +2746,49 @@ function makeVecDotLesson(){
   svg.appendChild(el('line', { x1: 0, y1: C, x2: SIZE, y2: C, stroke: 'rgba(0,0,0,.3)' }));
   svg.appendChild(el('line', { x1: C, y1: 0, x2: C, y2: SIZE, stroke: 'rgba(0,0,0,.3)' }));
 
-  // Faint dashed extensions of each vector's line through origin.
-  // Drawn first so they sit visually behind the arrows / projection.
+  // Unit circle to anchor "what does length 1 look like"
+  svg.appendChild(el('circle', { cx: C, cy: C, r: SCALE, fill: 'none', stroke: 'rgba(0,0,0,.12)', 'stroke-dasharray': '2 3' }));
+
+  // Dashed extensions through origin for each vector.
   const uExt = el('line', { stroke: '#FF3D71', 'stroke-width': 1, 'stroke-dasharray': '4 4', opacity: 0.35 });
   const vExt = el('line', { stroke: '#3A6EA5', 'stroke-width': 1, 'stroke-dasharray': '4 4', opacity: 0.35 });
   svg.appendChild(uExt); svg.appendChild(vExt);
 
-  // projection guides (filled in render())
-  const projLine = el('line', { stroke: 'rgba(31,143,95,.6)', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
-  const projDot  = el('line', { stroke: 'rgba(31,143,95,.85)', 'stroke-width': 4, 'stroke-linecap': 'round' });
-  svg.appendChild(projLine); svg.appendChild(projDot);
+  // Shadow of one unit vector onto the other's line.
+  // shadowGuide is the dashed drop-perpendicular; shadowSeg is the
+  // thick segment on the axis line whose LENGTH is cos(θ).
+  const shadowGuide = el('line', { stroke: 'rgba(31,143,95,.55)', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
+  const shadowSeg   = el('line', { stroke: 'rgba(31,143,95,.95)', 'stroke-width': 6, 'stroke-linecap': 'round' });
+  svg.appendChild(shadowGuide); svg.appendChild(shadowSeg);
 
-  // arrows
-  const uLine = el('line', { stroke: '#FF3D71', 'stroke-width': 2.5, 'stroke-linecap':'round' });
-  const vLine = el('line', { stroke: '#3A6EA5', 'stroke-width': 2.5, 'stroke-linecap':'round' });
+  // Full arrows u, v (thinner).
+  const uLine = el('line', { stroke: '#FF3D71', 'stroke-width': 1.6, 'stroke-linecap':'round', opacity: 0.85 });
+  const vLine = el('line', { stroke: '#3A6EA5', 'stroke-width': 1.6, 'stroke-linecap':'round', opacity: 0.85 });
   svg.appendChild(uLine); svg.appendChild(vLine);
 
-  // tip handles
+  // Unit-vector arrows û, v̂ (thicker, more visible — these are the stars).
+  const uHatLine = el('line', { stroke: '#FF3D71', 'stroke-width': 4, 'stroke-linecap':'round' });
+  const vHatLine = el('line', { stroke: '#3A6EA5', 'stroke-width': 4, 'stroke-linecap':'round' });
+  svg.appendChild(uHatLine); svg.appendChild(vHatLine);
+
+  // tip handles (drag these to move u or v)
   const uTip = el('circle', { r: 9, fill: '#FF3D71', cursor: 'grab' });
   const vTip = el('circle', { r: 9, fill: '#3A6EA5', cursor: 'grab' });
   svg.appendChild(uTip); svg.appendChild(vTip);
 
-  // labels
-  const uLbl = el('text', { fill: '#FF3D71', 'font-family':'DM Mono,monospace', 'font-size':14, 'font-weight':600 }); uLbl.textContent = 'u';
-  const vLbl = el('text', { fill: '#3A6EA5', 'font-family':'DM Mono,monospace', 'font-size':14, 'font-weight':600 }); vLbl.textContent = 'v';
+  // Labels
+  const uLbl  = el('text', { fill: '#FF3D71', 'font-family':'DM Mono,monospace', 'font-size':13, 'font-weight':600 }); uLbl.textContent = 'u';
+  const vLbl  = el('text', { fill: '#3A6EA5', 'font-family':'DM Mono,monospace', 'font-size':13, 'font-weight':600 }); vLbl.textContent = 'v';
+  const uhLbl = el('text', { fill: '#FF3D71', 'font-family':'DM Mono,monospace', 'font-size':11, 'font-weight':500, opacity:0.9 }); uhLbl.textContent = 'û';
+  const vhLbl = el('text', { fill: '#3A6EA5', 'font-family':'DM Mono,monospace', 'font-size':11, 'font-weight':500, opacity:0.9 }); vhLbl.textContent = 'v̂';
   svg.appendChild(uLbl); svg.appendChild(vLbl);
+  svg.appendChild(uhLbl); svg.appendChild(vhLbl);
 
   const out = document.createElement('div'); out.className = 'lesson-output';
   const persp = document.createElement('button'); persp.className = 'lesson-persp'; persp.type = 'button';
   const hint = document.createElement('div'); hint.className = 'lesson-hint'; hint.textContent = 'Drag the red or blue dot to move that vector.';
 
   const px = (mx, my) => [C + mx*SCALE, C - my*SCALE];
-  function extLineEndpoints(vec){
-    // Far multiple along the vector's direction so the line extends past
-    // the SVG bounds in both directions.
-    const dx = vec[0], dy = vec[1];
-    if(dx === 0 && dy === 0) return null;
-    const t = 20;
-    return { a: [-dx*t, -dy*t], b: [dx*t, dy*t] };
-  }
   function render(){
     const [ux, uy] = px(u[0], u[1]);
     const [vx, vy] = px(v[0], v[1]);
@@ -2794,46 +2798,68 @@ function makeVecDotLesson(){
     vTip.setAttribute('cx', vx); vTip.setAttribute('cy', vy);
     uLbl.setAttribute('x', ux + 10); uLbl.setAttribute('y', uy - 8);
     vLbl.setAttribute('x', vx + 10); vLbl.setAttribute('y', vy - 8);
-    // Dashed extension lines through origin.
-    const uE = extLineEndpoints(u), vE = extLineEndpoints(v);
-    if(uE){
-      const [x1, y1] = px(uE.a[0], uE.a[1]);
-      const [x2, y2] = px(uE.b[0], uE.b[1]);
-      uExt.setAttribute('x1', x1); uExt.setAttribute('y1', y1);
-      uExt.setAttribute('x2', x2); uExt.setAttribute('y2', y2);
-      uExt.setAttribute('opacity', 0.35);
-    } else { uExt.setAttribute('opacity', 0); }
-    if(vE){
-      const [x1, y1] = px(vE.a[0], vE.a[1]);
-      const [x2, y2] = px(vE.b[0], vE.b[1]);
-      vExt.setAttribute('x1', x1); vExt.setAttribute('y1', y1);
-      vExt.setAttribute('x2', x2); vExt.setAttribute('y2', y2);
-      vExt.setAttribute('opacity', 0.35);
-    } else { vExt.setAttribute('opacity', 0); }
-    // Projection — drop a perpendicular from one tip onto the other line.
-    const axis   = projectOntoU ? u : v;
-    const tipVec = projectOntoU ? v : u;
-    const [tipX, tipY] = projectOntoU ? [vx, vy] : [ux, uy];
-    const m2 = axis[0]*axis[0] + axis[1]*axis[1];
-    if(m2 > 0){
-      const t = (axis[0]*tipVec[0] + axis[1]*tipVec[1]) / m2;
-      const [pX, pY] = px(axis[0]*t, axis[1]*t);
-      projLine.setAttribute('x1', tipX); projLine.setAttribute('y1', tipY);
-      projLine.setAttribute('x2', pX); projLine.setAttribute('y2', pY);
-      projDot.setAttribute('x1', C); projDot.setAttribute('y1', C);
-      projDot.setAttribute('x2', pX); projDot.setAttribute('y2', pY);
-      projLine.setAttribute('opacity', 1); projDot.setAttribute('opacity', 1);
+
+    // Magnitudes and unit vectors (floating-point this time).
+    const uMag = Math.hypot(u[0], u[1]);
+    const vMag = Math.hypot(v[0], v[1]);
+    const uHat = uMag > 0 ? [u[0]/uMag, u[1]/uMag] : [0, 0];
+    const vHat = vMag > 0 ? [v[0]/vMag, v[1]/vMag] : [0, 0];
+
+    // Dashed extensions (long line through origin along each direction).
+    const setExt = (line, hat, ok) => {
+      if(!ok){ line.setAttribute('opacity', 0); return; }
+      const [x1, y1] = px(-hat[0]*20, -hat[1]*20);
+      const [x2, y2] = px( hat[0]*20,  hat[1]*20);
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      line.setAttribute('opacity', 0.35);
+    };
+    setExt(uExt, uHat, uMag > 0);
+    setExt(vExt, vHat, vMag > 0);
+
+    // Unit-vector arrows: length 1 in math units (= SCALE pixels).
+    const drawHat = (line, lbl, hat, ok) => {
+      if(!ok){ line.setAttribute('opacity', 0); lbl.setAttribute('opacity', 0); return; }
+      const [tx, ty] = px(hat[0], hat[1]);
+      line.setAttribute('x1', C); line.setAttribute('y1', C);
+      line.setAttribute('x2', tx); line.setAttribute('y2', ty);
+      line.setAttribute('opacity', 1);
+      lbl.setAttribute('x', tx + 6); lbl.setAttribute('y', ty - 6); lbl.setAttribute('opacity', 0.9);
+    };
+    drawHat(uHatLine, uhLbl, uHat, uMag > 0);
+    drawHat(vHatLine, vhLbl, vHat, vMag > 0);
+
+    // cos(θ) = û · v̂. Shadow of one unit vector onto the other's line is
+    // a segment of length cos(θ) (signed) along that line.
+    const cos = (uMag > 0 && vMag > 0) ? (uHat[0]*vHat[0] + uHat[1]*vHat[1]) : 0;
+    if(uMag > 0 && vMag > 0){
+      // axis = direction we project onto; sourceHat = unit being projected.
+      const axisHat   = projectOntoU ? uHat : vHat;
+      const sourceHat = projectOntoU ? vHat : uHat;
+      const [srcX, srcY] = px(sourceHat[0], sourceHat[1]);
+      const [shX, shY]   = px(axisHat[0]*cos, axisHat[1]*cos);
+      shadowGuide.setAttribute('x1', srcX); shadowGuide.setAttribute('y1', srcY);
+      shadowGuide.setAttribute('x2', shX);  shadowGuide.setAttribute('y2', shY);
+      shadowGuide.setAttribute('opacity', 1);
+      shadowSeg.setAttribute('x1', C);   shadowSeg.setAttribute('y1', C);
+      shadowSeg.setAttribute('x2', shX); shadowSeg.setAttribute('y2', shY);
+      shadowSeg.setAttribute('opacity', 1);
     } else {
-      projLine.setAttribute('opacity', 0); projDot.setAttribute('opacity', 0);
+      shadowGuide.setAttribute('opacity', 0); shadowSeg.setAttribute('opacity', 0);
     }
+
     const dot = u[0]*v[0] + u[1]*v[1];
-    const aLabel = projectOntoU ? 'u' : 'v';
-    const bLabel = projectOntoU ? 'v' : 'u';
-    const aVec   = projectOntoU ? u   : v;
-    const bVec   = projectOntoU ? v   : u;
-    out.innerHTML = `${aLabel} = (${aVec[0]}, ${aVec[1]}) &nbsp;·&nbsp; ${bLabel} = (${bVec[0]}, ${bVec[1]})<br>
-      ${aLabel} <span class="dotop">·</span> ${bLabel} = ${aVec[0]}×${bVec[0]} + ${aVec[1]}×${bVec[1]} = <b>${dot}</b>`;
-    persp.textContent = projectOntoU ? 'Show v ·  u perspective →' : 'Show u ·  v perspective →';
+    const cosStr = cos.toFixed(3);
+    const uMagStr = uMag.toFixed(2);
+    const vMagStr = vMag.toFixed(2);
+    const aLabel = projectOntoU ? 'û' : 'v̂';
+    const bLabel = projectOntoU ? 'v̂' : 'û';
+    out.innerHTML = `
+      u = (${u[0]}, ${u[1]}),  v = (${v[0]}, ${v[1]})<br>
+      |u| = ${uMagStr},  |v| = ${vMagStr}<br>
+      cos(θ) = ${aLabel} <span class="dotop">·</span> ${bLabel} = <b>${cosStr}</b><br>
+      u <span class="dotop">·</span> v = |u| × |v| × cos(θ) = ${uMagStr} × ${vMagStr} × ${cosStr} = <b>${dot}</b>`;
+    persp.textContent = projectOntoU ? 'Shadow û onto v →' : 'Shadow v̂ onto u →';
   }
 
   persp.addEventListener('click', ()=>{ projectOntoU = !projectOntoU; render(); });
@@ -3046,7 +3072,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.23.2';
+const APP_VERSION = 'v1.23.3';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
