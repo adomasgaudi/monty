@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.23.6 -->
+<!-- Riemann Surface v1.23.7 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.23.6 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.23.7 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -169,6 +169,8 @@
   .lessonbody h2{font-size:1.5rem;font-weight:600;margin-bottom:8px;}
   .lessonbody p{font-size:.98rem;line-height:1.5;color:var(--ink);margin:8px 0;}
   .lessonbody p .dotop{font-family:'DM Mono',monospace;}
+  .lessonbody p.lesson-formula{background:rgba(0,0,0,.03);border-radius:8px;padding:10px 14px;
+    text-align:center;font-size:1.02rem;margin:10px 0;}
   .lesson-interactive{margin:18px auto;display:flex;flex-direction:column;align-items:center;gap:10px;}
   .lesson-interactive svg{touch-action:none;border:1px solid var(--line);border-radius:10px;
     background:rgba(0,0,0,.015);max-width:100%;height:auto;}
@@ -665,7 +667,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.23.6</div>
+<div class="version">v1.23.7</div>
 
 <script>
 /* ============================================================================
@@ -2736,9 +2738,20 @@ function makeVecDotLesson(){
   const intro = document.createElement('div');
   intro.innerHTML = `
     <h2>Dot product &nbsp; u <span class="dotop">·</span> v</h2>
-    <p>The dot product is one number that says <i>how much two vectors point the same way</i>:</p>
-    <p><span class="mono">u <span class="dotop">·</span> v &nbsp;=&nbsp; |u| × |v| × cos(θ)</span></p>
-    <p>Below, the small inner arrows are the <b>unit vectors</b> û = u/|u| and v̂ = v/|v|. Their dot product is just <span class="mono">cos(θ)</span> — and the shadow of one unit vector on the other's line has length cos(θ). Multiply by |u| and |v| and you have the full u · v.</p>`;
+    <p>The dot product takes two vectors and gives back <b>one number</b>. The recipe is simpler than it looks — it's plain multiplication, done one axis at a time, and then added up.</p>
+    <p>If u = (u<sub>x</sub>, u<sub>y</sub>) and v = (v<sub>x</sub>, v<sub>y</sub>), pair up the matching components and multiply them — the x's together, the y's together:</p>
+    <p class="lesson-formula"><span class="mono">u <span class="dotop">·</span> v &nbsp;=&nbsp; u<sub>x</sub> × v<sub>x</sub> &nbsp;+&nbsp; u<sub>y</sub> × v<sub>y</sub></span></p>
+    <p>Two products, one sum. Each product is a signed rectangle area — the bottom visualisation below makes that literal.</p>
+    <h3 style="margin-top:14px;">Why is this also |u| × |v| × cos(θ)?</h3>
+    <p>Here's the trick. Picture rotating the whole frame until <b>u lies flat on the x-axis</b>. The dot product doesn't care about orientation, so its value doesn't change. After the rotation:</p>
+    <ul style="margin:6px 0 6px 22px;">
+      <li>u has <b>no y-component</b> — its whole length is on x, so u<sub>x</sub> = |u| and u<sub>y</sub> = 0.</li>
+      <li>The y-product u<sub>y</sub> × v<sub>y</sub> vanishes.</li>
+      <li>v<sub>x</sub> is exactly the <b>shadow</b> v casts onto the x-axis — and that shadow has length |v| × cos(θ), where θ is the angle between u and v. (Strictly that's the projection length; intuitively, it's just the shadow.)</li>
+    </ul>
+    <p>Plug it in:</p>
+    <p class="lesson-formula"><span class="mono">u <span class="dotop">·</span> v &nbsp;=&nbsp; |u| × (|v| × cos θ) &nbsp;=&nbsp; |u| × |v| × cos(θ)</span></p>
+    <p>The first visualisation below draws the unit vectors û = u/|u| and v̂ = v/|v|, plus that shadow in green so you can see cos(θ) directly. Drag either tip to feel it. The second visualisation shows the two rectangle areas that sum to the same number.</p>`;
   root.appendChild(intro);
 
   const lab = document.createElement('div'); lab.className = 'lesson-interactive';
@@ -2911,8 +2924,8 @@ function makeVecDotLesson(){
   //    their signed areas is u · v.
   const areaIntro = document.createElement('div');
   areaIntro.innerHTML = `
-    <h2 style="margin-top:24px;">Component areas</h2>
-    <p>Another way to see <span class="mono">u <span class="dotop">·</span> v = u<sub>x</sub>×v<sub>x</sub> + u<sub>y</sub>×v<sub>y</sub></span> — two rectangles, one per axis, with the signed areas added together:</p>`;
+    <h3 style="margin-top:24px;">Two rectangles, one sum</h3>
+    <p>The formula <span class="mono">u <span class="dotop">·</span> v = u<sub>x</sub>×v<sub>x</sub> + u<sub>y</sub>×v<sub>y</sub></span> made literal. Left rectangle = the x-product (width u<sub>x</sub>, height v<sub>x</sub>). Right rectangle = the y-product. Their signed areas add to the dot product.</p>`;
   root.appendChild(areaIntro);
   const areaLab = document.createElement('div'); areaLab.className = 'lesson-interactive';
   const AREA_W = 300, AREA_H = 180, AREA_CELL = 22, MIDX = AREA_W/2;
@@ -3160,7 +3173,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.23.6';
+const APP_VERSION = 'v1.23.7';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
