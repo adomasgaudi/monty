@@ -1,10 +1,13 @@
 <!DOCTYPE html>
-<!-- Cosmic Crossing v1.14.2 -->
+<!-- Cosmic Crossing v1.14.3 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cosmic Crossing v1.14.2 — Physics & Alchemy Math</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Cosmic Crossing v1.14.3 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -278,7 +281,12 @@
 
   /* recents block on home screen */
   .recents{margin-top:18px;padding-bottom:18px;border-bottom:1px solid var(--line);}
-  .recentlabel{font-weight:500;font-size:.82rem;margin-bottom:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+  .recentheader{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .recentlabel{font-weight:500;font-size:.82rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+  .clearbtn{background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Mono',monospace;
+    font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;padding:2px 4px;
+    transition:color .12s;}
+  .clearbtn:hover{color:var(--no);}
   .recentlist{display:grid;gap:6px;}
   .recent{display:flex;justify-content:space-between;align-items:center;gap:10px;
     background:none;border:1px solid var(--line);border-radius:10px;padding:9px 13px;cursor:pointer;
@@ -323,7 +331,10 @@
     </div>
 
     <div class="recents" id="recents" style="display:none;">
-      <div class="recentlabel">Recent</div>
+      <div class="recentheader">
+        <span class="recentlabel">Recent</span>
+        <button class="clearbtn" id="clearRecentsBtn" type="button">Clear</button>
+      </div>
       <div class="recentlist" id="recentList"></div>
     </div>
 
@@ -372,7 +383,10 @@
       </div>
       <div class="setlabel" style="margin-top:24px;">By topic</div>
       <div id="profTopics" class="proftopics"></div>
-      <button class="next" id="logoutBtn" style="margin-top:24px;background:none;color:var(--no);border:1px solid var(--no);">Sign out</button>
+      <div class="endbtns" style="margin-top:24px;">
+        <button class="next" id="resetStatsBtn" type="button" style="background:none;color:var(--ink);border:1px solid var(--line);">Reset my stats</button>
+        <button class="next" id="logoutBtn" style="background:none;color:var(--no);border:1px solid var(--no);">Sign out</button>
+      </div>
     </div>
   </section>
 
@@ -494,7 +508,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.14.2</div>
+<div class="version">v1.14.3</div>
 
 <script>
 /* ============================================================================
@@ -513,7 +527,7 @@
  *  10. Init                  — load persisted state, render home screen
  *
  * CODE STYLE: targeted for LLM readability per evidence in commit notes for
- * v1.14.2 — short functions, descriptive names, multi-line expansion of dense
+ * v1.14.3 — short functions, descriptive names, multi-line expansion of dense
  * helpers, duplication tolerated over premature abstraction. No bundler; one
  * file ships as-is.
  * ========================================================================== */
@@ -1890,10 +1904,30 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
+const APP_VERSION = 'v1.14.3';
+const VERSION_KEY = 'cc_app_version';
+
+/** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
+ *  reset and by explicit user-initiated resets. */
+function wipeAppStorage(){
+  for(let i = localStorage.length - 1; i >= 0; i--){
+    const k = localStorage.key(i);
+    if(k && k.startsWith('cc_')) localStorage.removeItem(k);
+  }
+}
+
 function loadSettings(){
+  // Schema gate: if the stored version doesn't match this build, wipe the
+  // slate so tests across versions on the same browser don't collide.
+  const storedVersion = localStorage.getItem(VERSION_KEY);
+  if(storedVersion !== APP_VERSION){
+    wipeAppStorage();
+    try{ localStorage.setItem(VERSION_KEY, APP_VERSION); }catch{}
+  }
   try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'null'); if(s&&typeof s==='object') Object.assign(SET, s); }catch{}
   try{ const n=JSON.parse(localStorage.getItem(NAV_KEY)||'null'); if(n&&typeof n==='object') Object.assign(NAV, n); }catch{}
-  // Migrate older boolean SET.feedback → string enum
+  // Migrate older boolean SET.feedback → string enum (in case a future build
+  // bumps APP_VERSION mid-session and someone still has a string mismatch).
   if(typeof SET.feedback === 'boolean') SET.feedback = SET.feedback ? 'long' : 'off';
 }
 function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(SET)); }catch{} }
@@ -1905,6 +1939,11 @@ $('navBack').addEventListener('click', navBack);
 $('navHome').addEventListener('click', navHome);
 $('navProfile').addEventListener('click', navProfile);
 $('visualToggle').addEventListener('click', ()=>{ visualShown = !visualShown; applyVisualState(); });
+$('clearRecentsBtn').addEventListener('click', ()=>{
+  if(!confirm('Clear all recent games from this list?')) return;
+  saveRecents([]);
+  renderRecents();
+});
 $('nextBtn').addEventListener('click', nextQuestion);
 $('submitBtn').addEventListener('click', submitTyped);
 $('againBtn').addEventListener('click', startGame);
@@ -1914,6 +1953,14 @@ $('signinBtn').addEventListener('click', ()=>{ const u=signInWithEmail($('emailI
 $('emailIn').addEventListener('keydown', e=>{ if(e.key==='Enter') $('signinBtn').click(); });
 $('emailIn').addEventListener('input', ()=>{ $('emailIn').style.borderColor=''; });
 $('logoutBtn').addEventListener('click', ()=>{ signOut(); show('numbers'); });
+$('resetStatsBtn').addEventListener('click', ()=>{
+  const u = getCurrentUser(); if(!u) return;
+  if(!confirm(`Reset all stats and points for ${u.email}? This can't be undone.`)) return;
+  u.points = 0; u.games = 0; u.correctTotal = 0; u.answeredTotal = 0; u.byTopic = {};
+  saveUser(u);
+  renderUserChip();
+  openProfile();
+});
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{
   clearInterval(timerInt);
   if(b.dataset.go==='numbers') renderRecents();
