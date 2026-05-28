@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.22.5 -->
+<!-- Riemann Surface v1.22.6 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.22.5 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.22.6 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -161,6 +161,9 @@
   .gabreak .grow{display:flex;justify-content:space-between;gap:8px;padding:3px 0;}
   .gabreak .gtag{color:var(--muted);}
   .gabreak .pyth{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);color:var(--muted);font-family:'Fredoka',sans-serif;font-size:.85rem;}
+  /* Dot-product operator — same symbol as multiplication ('·') but coloured
+   * red so the reader doesn't conflate them. Used inside gaBreakdown. */
+  .dotop{color:var(--no);font-weight:600;padding:0 2px;}
 
   .answers{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .ans{font-family:'DM Mono',monospace;font-weight:400;font-size:1.25rem;cursor:pointer;
@@ -632,7 +635,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.22.5</div>
+<div class="version">v1.22.6</div>
 
 <script>
 /* ============================================================================
@@ -1075,14 +1078,15 @@ function vecDiag(arrows, opts){
 function gaBreakdown(a,b,c,d){
   const dot = a*c + b*d;
   const wedge = a*d - b*c;
-  // Use ⟨u, v⟩ for the inner / dot product so it can't be mistaken for a
-  // multiplication symbol. Wedge stays ∧. Geometric (juxtaposition) product
-  // gets an explicit ⊗ marker.
+  // Dot product keeps its conventional symbol (·) but rendered red so it
+  // can't be mistaken for plain multiplication. Wedge stays ∧.
+  // Geometric (juxtaposition) product implicit.
+  const D = `<span class="dotop">·</span>`;
   return `<div class="gabreak">
-    <div class="ghdr">Geometric product &nbsp; <span class="mono">u ⊗ v  =  ⟨u, v⟩  +  u ∧ v</span></div>
-    <div class="grow"><span class="gtag">Inner ⟨u, v⟩ (xx + yy):</span> <span>${a}·${c} + ${b}·${d} = <b>${dot}</b></span></div>
-    <div class="grow"><span class="gtag">Wedge u ∧ v (xy − yx):</span> <span>${a}·${d} − ${b}·${c} = <b>${wedge}</b></span></div>
-    <div class="pyth">Pythagoras view: |u+v|² = a²+b²+c²+d² + 2⟨u, v⟩ &nbsp;—&nbsp; ⟨u, v⟩ is the cosine part, u ∧ v is the sine part (signed area of the parallelogram).</div>
+    <div class="ghdr">Geometric product &nbsp; <span class="mono">u v  =  (u ${D} v)  +  (u ∧ v)</span></div>
+    <div class="grow"><span class="gtag">Dot u ${D} v (xx + yy):</span> <span>${a}${D}${c} + ${b}${D}${d} = <b>${dot}</b></span></div>
+    <div class="grow"><span class="gtag">Wedge u ∧ v (xy − yx):</span> <span>${a}${D}${d} − ${b}${D}${c} = <b>${wedge}</b></span></div>
+    <div class="pyth">Pythagoras view: |u+v|² = a²+b²+c²+d² + 2(u ${D} v) &nbsp;—&nbsp; the dot is the cosine part, the wedge is the sine part (signed area of the parallelogram).</div>
   </div>`;
 }
 
@@ -2818,7 +2822,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.22.5';
+const APP_VERSION = 'v1.22.6';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
