@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.22.6 -->
+<!-- Riemann Surface v1.23.0 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.22.6 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.23.0 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -164,6 +164,19 @@
   /* Dot-product operator — same symbol as multiplication ('·') but coloured
    * red so the reader doesn't conflate them. Used inside gaBreakdown. */
   .dotop{color:var(--no);font-weight:600;padding:0 2px;}
+  /* Lesson / interactive intro screen */
+  .lessonbody{padding:6px 2px;}
+  .lessonbody h2{font-size:1.5rem;font-weight:600;margin-bottom:8px;}
+  .lessonbody p{font-size:.98rem;line-height:1.5;color:var(--ink);margin:8px 0;}
+  .lessonbody p .dotop{font-family:'DM Mono',monospace;}
+  .lesson-interactive{margin:18px auto;display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .lesson-interactive svg{touch-action:none;border:1px solid var(--line);border-radius:10px;
+    background:rgba(0,0,0,.015);max-width:100%;height:auto;}
+  .lesson-output{font-family:'DM Mono',monospace;font-size:.95rem;color:var(--ink);
+    background:rgba(0,0,0,.03);padding:10px 14px;border-radius:8px;text-align:center;line-height:1.5;}
+  .lesson-output b{color:var(--no);}
+  .lesson-hint{font-size:.82rem;color:var(--muted);text-align:center;}
+  .lessonbody #lessonPlayBtn{margin-top:16px;}
 
   .answers{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .ans{font-family:'DM Mono',monospace;font-weight:400;font-size:1.25rem;cursor:pointer;
@@ -492,6 +505,15 @@
     </div>
   </section>
 
+  <!-- LESSON / INTRO -->
+  <section class="screen" id="lesson">
+    <div class="topbar">
+      <span class="crumb" id="lessonCrumb"></span>
+    </div>
+    <div class="lessonbody" id="lessonBody"></div>
+    <button class="startbtn" id="lessonPlayBtn">Play quiz →</button>
+  </section>
+
   <!-- SETTINGS -->
   <section class="screen" id="settings">
     <div class="topbar">
@@ -635,7 +657,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.22.6</div>
+<div class="version">v1.23.0</div>
 
 <script>
 /* ============================================================================
@@ -1078,14 +1100,13 @@ function vecDiag(arrows, opts){
 function gaBreakdown(a,b,c,d){
   const dot = a*c + b*d;
   const wedge = a*d - b*c;
-  // Dot product keeps its conventional symbol (·) but rendered red so it
-  // can't be mistaken for plain multiplication. Wedge stays ∧.
-  // Geometric (juxtaposition) product implicit.
+  // Red `·` is reserved for the dot-product operator (between vectors).
+  // Plain integer multiplication uses `×` so the two never look alike.
   const D = `<span class="dotop">·</span>`;
   return `<div class="gabreak">
     <div class="ghdr">Geometric product &nbsp; <span class="mono">u v  =  (u ${D} v)  +  (u ∧ v)</span></div>
-    <div class="grow"><span class="gtag">Dot u ${D} v (xx + yy):</span> <span>${a}${D}${c} + ${b}${D}${d} = <b>${dot}</b></span></div>
-    <div class="grow"><span class="gtag">Wedge u ∧ v (xy − yx):</span> <span>${a}${D}${d} − ${b}${D}${c} = <b>${wedge}</b></span></div>
+    <div class="grow"><span class="gtag">Dot u ${D} v (xx + yy):</span> <span>${a}×${c} + ${b}×${d} = <b>${dot}</b></span></div>
+    <div class="grow"><span class="gtag">Wedge u ∧ v (xy − yx):</span> <span>${a}×${d} − ${b}×${c} = <b>${wedge}</b></span></div>
     <div class="pyth">Pythagoras view: |u+v|² = a²+b²+c²+d² + 2(u ${D} v) &nbsp;—&nbsp; the dot is the cosine part, the wedge is the sine part (signed area of the parallelogram).</div>
   </div>`;
 }
@@ -2038,6 +2059,7 @@ const BACK_OF = {
   numbers:    null,
   categories: 'numbers',
   operations: 'categories',
+  lesson:     'operations',
   settings:   'operations',
   play:       'settings',
   end:        'numbers',
@@ -2650,6 +2672,133 @@ function openCategories(nt){
   });
   show('categories');
 }
+/* ── Lessons — short intro screens that appear before the quiz on topics
+ *    where a hands-on intuition really helps. Each entry is shown by
+ *    openLesson(); its "Play quiz →" button calls openSettings(topic). */
+const LESSONS = {
+  vecDot: {
+    crumb: 'Dot product · what it means',
+    render: () => makeVecDotLesson(),
+  },
+};
+let _lessonTopic = null;
+function openLesson(topic){
+  if(!LESSONS[topic]) return openSettings(topic);
+  _lessonTopic = topic;
+  const lesson = LESSONS[topic];
+  $('lessonCrumb').textContent = lesson.crumb || (TOPICS[topic] && TOPICS[topic].title) || topic;
+  const body = $('lessonBody'); body.innerHTML = '';
+  body.appendChild(lesson.render());
+  show('lesson');
+}
+
+/** Build the dot-product intro: a draggable u and v with a live u · v read-out.
+ *  Drag either coloured circle to move that vector's tip; the dot product
+ *  display updates immediately. Snaps to integer coordinates. */
+function makeVecDotLesson(){
+  const root = document.createElement('div');
+  const intro = document.createElement('div');
+  intro.innerHTML = `
+    <h2>Dot product &nbsp; u <span class="dotop">·</span> v</h2>
+    <p>The dot product is one number that says <i>how much two vectors point the same way</i>:</p>
+    <p><span class="mono">u <span class="dotop">·</span> v &nbsp;=&nbsp; u<sub>x</sub>×v<sub>x</sub> &nbsp;+&nbsp; u<sub>y</sub>×v<sub>y</sub></span></p>
+    <p>It's positive when they roughly agree, zero when they're perpendicular, and negative when they oppose. Drag either tip below to feel it:</p>`;
+  root.appendChild(intro);
+
+  const lab = document.createElement('div'); lab.className = 'lesson-interactive';
+  let u = [3, 1], v = [1, 2];
+  const SIZE = 280, SCALE = 30, C = SIZE / 2;
+  const ns = 'http://www.w3.org/2000/svg';
+  const el = (name, a) => { const e = document.createElementNS(ns, name); if(a) for(const k in a) e.setAttribute(k, a[k]); return e; };
+  const svg = el('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, width: SIZE, height: SIZE });
+
+  // grid + axes
+  for(let g = -4; g <= 4; g++){
+    if(g === 0) continue;
+    svg.appendChild(el('line', { x1: C + g*SCALE, y1: 0, x2: C + g*SCALE, y2: SIZE, stroke: 'rgba(0,0,0,.05)' }));
+    svg.appendChild(el('line', { x1: 0, y1: C - g*SCALE, x2: SIZE, y2: C - g*SCALE, stroke: 'rgba(0,0,0,.05)' }));
+  }
+  svg.appendChild(el('line', { x1: 0, y1: C, x2: SIZE, y2: C, stroke: 'rgba(0,0,0,.3)' }));
+  svg.appendChild(el('line', { x1: C, y1: 0, x2: C, y2: SIZE, stroke: 'rgba(0,0,0,.3)' }));
+
+  // projection guides (filled in render())
+  const projLine = el('line', { stroke: 'rgba(31,143,95,.55)', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' });
+  const projDot  = el('line', { stroke: 'rgba(31,143,95,.85)', 'stroke-width': 4, 'stroke-linecap': 'round' });
+  svg.appendChild(projLine); svg.appendChild(projDot);
+
+  // arrows
+  const uLine = el('line', { stroke: '#FF3D71', 'stroke-width': 2.5, 'stroke-linecap':'round' });
+  const vLine = el('line', { stroke: '#3A6EA5', 'stroke-width': 2.5, 'stroke-linecap':'round' });
+  svg.appendChild(uLine); svg.appendChild(vLine);
+
+  // tip handles
+  const uTip = el('circle', { r: 9, fill: '#FF3D71', cursor: 'grab' });
+  const vTip = el('circle', { r: 9, fill: '#3A6EA5', cursor: 'grab' });
+  svg.appendChild(uTip); svg.appendChild(vTip);
+
+  // labels
+  const uLbl = el('text', { fill: '#FF3D71', 'font-family':'DM Mono,monospace', 'font-size':14, 'font-weight':600 }); uLbl.textContent = 'u';
+  const vLbl = el('text', { fill: '#3A6EA5', 'font-family':'DM Mono,monospace', 'font-size':14, 'font-weight':600 }); vLbl.textContent = 'v';
+  svg.appendChild(uLbl); svg.appendChild(vLbl);
+
+  const out = document.createElement('div'); out.className = 'lesson-output';
+  const hint = document.createElement('div'); hint.className = 'lesson-hint'; hint.textContent = 'Drag the red or blue dot to move that vector.';
+
+  const px = (mx, my) => [C + mx*SCALE, C - my*SCALE];
+  function render(){
+    const [ux, uy] = px(u[0], u[1]);
+    const [vx, vy] = px(v[0], v[1]);
+    uLine.setAttribute('x1', C); uLine.setAttribute('y1', C); uLine.setAttribute('x2', ux); uLine.setAttribute('y2', uy);
+    vLine.setAttribute('x1', C); vLine.setAttribute('y1', C); vLine.setAttribute('x2', vx); vLine.setAttribute('y2', vy);
+    uTip.setAttribute('cx', ux); uTip.setAttribute('cy', uy);
+    vTip.setAttribute('cx', vx); vTip.setAttribute('cy', vy);
+    uLbl.setAttribute('x', ux + 10); uLbl.setAttribute('y', uy - 8);
+    vLbl.setAttribute('x', vx + 10); vLbl.setAttribute('y', vy - 8);
+    // Projection of v onto u (geometric visual for the dot).
+    const m2 = u[0]*u[0] + u[1]*u[1];
+    if(m2 > 0){
+      const t = (u[0]*v[0] + u[1]*v[1]) / m2;
+      const [pxX, pxY] = px(u[0]*t, u[1]*t);
+      projLine.setAttribute('x1', vx); projLine.setAttribute('y1', vy);
+      projLine.setAttribute('x2', pxX); projLine.setAttribute('y2', pxY);
+      projDot.setAttribute('x1', C); projDot.setAttribute('y1', C);
+      projDot.setAttribute('x2', pxX); projDot.setAttribute('y2', pxY);
+    }
+    const dot = u[0]*v[0] + u[1]*v[1];
+    out.innerHTML = `u = (${u[0]}, ${u[1]}) &nbsp;·&nbsp; v = (${v[0]}, ${v[1]})<br>
+      u <span class="dotop">·</span> v = ${u[0]}×${v[0]} + ${u[1]}×${v[1]} = <b>${dot}</b>`;
+  }
+
+  let drag = null;
+  function startDrag(target, ref){
+    target.addEventListener('pointerdown', e => {
+      e.preventDefault(); drag = { target, ref };
+      try{ target.setPointerCapture(e.pointerId); }catch{}
+    });
+  }
+  startDrag(uTip, 'u'); startDrag(vTip, 'v');
+  function onMove(e){
+    if(!drag) return;
+    const r = svg.getBoundingClientRect();
+    const mx = (e.clientX - r.left) * (SIZE / r.width);
+    const my = (e.clientY - r.top)  * (SIZE / r.height);
+    let cx = Math.round((mx - C) / SCALE);
+    let cy = Math.round(-(my - C) / SCALE);
+    cx = Math.max(-4, Math.min(4, cx));
+    cy = Math.max(-4, Math.min(4, cy));
+    if(drag.ref === 'u') u = [cx, cy]; else v = [cx, cy];
+    render();
+  }
+  svg.addEventListener('pointermove', onMove);
+  svg.addEventListener('pointerup', () => { drag = null; });
+  svg.addEventListener('pointercancel', () => { drag = null; });
+
+  lab.appendChild(svg); lab.appendChild(out); lab.appendChild(hint);
+  root.appendChild(lab);
+  render();
+  return root;
+}
+
 function openOperations(cat){
   NAV.category=cat; saveNav();
   const nt=NAV.numberType;
@@ -2663,7 +2812,13 @@ function openOperations(cat){
     b.innerHTML=`<span class="ic">${o.symbol}</span>
       <span><span class="tt">${o.label}</span><div class="td">${o.desc}</div></span>
       <span class="arr">${o.enabled?'→':'soon'}</span>`;
-    if(o.enabled) b.addEventListener('click',()=>{ NAV.operation=o.key; saveNav(); openSettings(o.topic); });
+    if(o.enabled) b.addEventListener('click',()=>{
+      NAV.operation=o.key; saveNav();
+      // Topics with a registered LESSON show the intro page first; the
+      // "Play quiz →" button there continues to openSettings.
+      if(LESSONS[o.topic]) openLesson(o.topic);
+      else openSettings(o.topic);
+    });
     list.appendChild(b);
   });
   show('operations');
@@ -2822,7 +2977,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.22.6';
+const APP_VERSION = 'v1.23.0';
 
 /* Per-object schema version. Bumped only when the SHAPE of that object
  * actually changes in a way that breaks older saves. Version bumps that
@@ -2921,6 +3076,7 @@ $('finishBtn').addEventListener('click', ()=>{ finishEarly(); });
 $('navBack').addEventListener('click', navBack);
 $('navHome').addEventListener('click', navHome);
 $('navProfile').addEventListener('click', navProfile);
+$('lessonPlayBtn').addEventListener('click', ()=>{ if(_lessonTopic) openSettings(_lessonTopic); });
 $('visualToggle').addEventListener('click', ()=>{ visualShown = !visualShown; applyVisualState(); });
 $('countCustom').addEventListener('input', ()=>{
   const v = parseInt($('countCustom').value, 10);
@@ -3254,7 +3410,7 @@ function explainVecDot(q){
   const diagram = is2D
     ? vecDiag([{v:e.u, label:'u', color:'#FF3D71'}, {v:e.v, label:'v', color:'#3A6EA5'}], {projection:true})
     : '';
-  const sumExpr = e.u.map((ui, i) => `${ui}·${e.v[i]}`).join(' + ');
+  const sumExpr = e.u.map((ui, i) => `${ui}×${e.v[i]}`).join(' + ');
   const gaPart = is2D ? gaBreakdown(e.u[0], e.u[1], e.v[0], e.v[1]) : '';
   return `<div class="slidebox">${diagram}
     <div class="moveword">u · v = ${sumExpr} = <b class="mono">${e.ans}</b></div>
@@ -3271,7 +3427,7 @@ function explainWedge(q){
     {parallelogram:true}
   );
   return `<div class="slidebox">${diagram}
-    <div class="moveword">u ∧ v = ${e.a}·${e.d} − ${e.b}·${e.c} = <b class="mono">${e.ans}</b></div>
+    <div class="moveword">u ∧ v = ${e.a}×${e.d} − ${e.b}×${e.c} = <b class="mono">${e.ans}</b></div>
   </div>
   ${gaBreakdown(e.a, e.b, e.c, e.d)}
   <div class="why">The wedge is the signed area of the purple parallelogram — the sine half of the geometric product. Strip the bivector basis and you get the cross product.${factSpan(q)}</div>`;
@@ -3312,7 +3468,7 @@ function explainMatMul(q){
   const e = q.exp;
   const row = e.A[e.r];
   const col = e.B.map(rw => rw[e.c]);
-  const terms = row.map((v, k) => `${v}·${col[k]}`).join(' + ');
+  const terms = row.map((v, k) => `${v}×${col[k]}`).join(' + ');
   return `<div class="slidebox">${matHTML(e.A, e.r, undefined)} <span class="op">·</span> ${matHTML(e.B, undefined, e.c)}
     <div class="moveword">row ${e.r+1} · column ${e.c+1} = ${terms} = <b class="mono">${e.ans}</b></div>
   </div>
