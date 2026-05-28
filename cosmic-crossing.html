@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Riemann Surface v1.19.1 -->
+<!-- Riemann Surface v1.19.2 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Riemann Surface v1.19.1 — Physics & Alchemy Math</title>
+<title>Riemann Surface v1.19.2 — Physics & Alchemy Math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -586,7 +586,7 @@
     </div>
   </section>
 </div>
-<div class="version">v1.19.1</div>
+<div class="version">v1.19.2</div>
 
 <script>
 /* ============================================================================
@@ -1566,6 +1566,18 @@ const TOPIC_GRADE_CEIL = {
   vecDot:7, vecWedge:7,
   matMul:7,
 };
+/* Optional hard band per topic — final grade is clamped into [floor, ceil].
+ * Used right now to floor every 2D-form topic at 6A (Highschool) and cap at
+ * 7B (Undergrad B): the math just isn't elementary, and we don't want to
+ * mint 7A for these until the harder content arrives. */
+const TOPIC_GRADE_BAND = {
+  vcmAdd:  ['6A','7B'],
+  vcmSub:  ['6A','7B'],
+  vcmMul:  ['6A','7B'],
+  vecDot:  ['6A','7B'],
+  vecWedge:['6A','7B'],
+  matMul:  ['6A','7B'],
+};
 const TIER_NAMES = {
   4:'Layman',
   5:'Beginner',
@@ -1590,9 +1602,18 @@ function gradeFor(accuracy, diff, topic){
   const ceil  = ({Easy:Math.max(TIER_MIN,cap-2), Medium:Math.max(TIER_MIN,cap-1), Hard:cap})[diff] || cap;
   const acc   = Math.max(0, Math.min(1, accuracy));
   const numeric = TIER_MIN + (ceil - TIER_MIN) * acc;
-  const number  = Math.max(TIER_MIN, Math.min(TIER_MAX, Math.round(numeric)));
-  const letter  = acc >= 0.85 ? 'A' : acc >= 0.55 ? 'B' : 'C';
-  return { number, letter, full: `${number}${letter}` };
+  let number  = Math.max(TIER_MIN, Math.min(TIER_MAX, Math.round(numeric)));
+  let letter  = acc >= 0.85 ? 'A' : acc >= 0.55 ? 'B' : 'C';
+  let full = `${number}${letter}`;
+  // Optional per-topic clamp into a [floor, ceil] grade band.
+  const band = TOPIC_GRADE_BAND[topic];
+  if(band){
+    if(gradeCompare(full, band[0]) < 0) full = band[0];
+    if(gradeCompare(full, band[1]) > 0) full = band[1];
+    const m = full.match(/^(\d+)([A-C])$/);
+    if(m){ number = parseInt(m[1],10); letter = m[2]; }
+  }
+  return { number, letter, full };
 }
 
 /** Compare two grade strings ("4A", "7C"). Returns >0 if a is the higher grade. */
@@ -2230,7 +2251,7 @@ function jumpToRecent(r){
 
 /* ─── 10. Persistence — settings + nav ──────────────────────────────────── */
 const SETTINGS_KEY='cc_settings', NAV_KEY='cc_nav';
-const APP_VERSION = 'v1.19.1';
+const APP_VERSION = 'v1.19.2';
 const VERSION_KEY = 'cc_app_version';
 
 /** Wipe all cosmic-crossing state from localStorage. Used by version-mismatch
