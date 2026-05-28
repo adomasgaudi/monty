@@ -103,9 +103,11 @@
   .frac .den{border-top:2px solid currentColor;padding-top:2px;}
 
   .vec{display:inline-flex;vertical-align:middle;font-family:'DM Mono',monospace;
-    border-left:2px solid currentColor;border-right:2px solid currentColor;
-    padding:4px 6px;line-height:1;}
-  .vec .el{padding:0 6px;display:inline-flex;align-items:baseline;gap:1px;}
+    padding:2px 0;line-height:1;align-items:baseline;}
+  .vec::before{content:'(';color:currentColor;padding-right:1px;}
+  .vec::after{content:')';color:currentColor;padding-left:1px;}
+  .vec .el{padding:0 3px;display:inline-flex;align-items:baseline;gap:1px;}
+  .vec .el:not(:first-child)::before{content:',';margin-right:5px;color:var(--muted);}
   .vec .elaxis{font-size:.5em;color:var(--muted);font-style:italic;
     transform:translateY(.25em);padding-left:1px;}
   .mat{display:inline-grid;vertical-align:middle;font-family:'DM Mono',monospace;
