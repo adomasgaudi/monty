@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Riemann Surface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#FAFAF7; --ink:#15151B; --muted:#8A8A95; --line:#E6E6E0; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Fredoka',sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100dvh;padding:48px 24px 80px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .page{max-width:520px;margin:0 auto;}
+  h1{font-size:2.1rem;font-weight:600;letter-spacing:-.5px;margin-bottom:6px;}
+  .lede{color:var(--muted);margin-bottom:28px;}
+  .card{display:flex;flex-direction:column;gap:4px;
+    border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin:10px 0;
+    text-decoration:none;color:inherit;background:none;
+    transition:border-color .12s,background .12s,transform .08s;}
+  .card:hover{border-color:var(--ink);background:rgba(0,0,0,.025);}
+  .card:active{transform:translateY(1px);}
+  .card .tt{font-weight:500;font-size:1.05rem;display:flex;align-items:baseline;gap:10px;}
+  .card .ver{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted);}
+  .card .td{color:var(--muted);font-size:.9rem;}
+  .foot{margin-top:36px;font-size:.82rem;color:var(--muted);text-align:center;}
+  .foot a{color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Riemann <span style="color:var(--muted);font-weight:400;">Surface</span></h1>
+  <p class="lede">Math drills graded on a tiered ladder. Pick a number set, pick an operation, play a few questions, watch your grade move.</p>
+
+  <a class="card" href="riemann-surface-v1.23.7.html">
+    <span class="tt">Play the game <span class="ver">v1.23.7</span></span>
+    <span class="td">Latest build — natural / integer / fraction / real / 2D / 3D arithmetic with the tier grading and Elo community average.</span>
+  </a>
+
+  <a class="card" href="riemann-elo-explainer.html">
+    <span class="tt">How grades &amp; Elo work</span>
+    <span class="td">Honest write-up of the grade ladder, how ratings are aggregated, and what's not yet implemented. Includes a live calculator.</span>
+  </a>
+
+  <p class="foot">Source on <a href="https://github.com/adomasgaudi/monty">github.com/adomasgaudi/monty</a></p>
+</div>
+</body>
+</html>
